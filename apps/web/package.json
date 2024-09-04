@@ -9,28 +9,33 @@
     "lint": "biome lint",
     "format": "biome format --write .",
     "start": "next start",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
     "@shallabuf/analytics": "workspace:*",
     "@shallabuf/kv": "workspace:*",
     "@shallabuf/ui": "workspace:*",
-    "dub": "^0.36.5",
+    "@shallabuf/turso": "workspace:*",
+    "dub": "^0.37.0",
     "geist": "^1.3.1",
     "next": "14.2.7",
     "next-international": "^1.2.4",
-    "next-safe-action": "^7.8.1",
+    "next-safe-action": "^7.9.0",
     "next-themes": "^0.3.0",
-    "nuqs": "^1.18.0",
+    "nuqs": "^1.19.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "zod": "^3.23.8"
   },
   "devDependencies": {
-    "@sentry/nextjs": "^8",
-    "@types/node": "^22",
-    "@types/react": "^18",
-    "@types/react-dom": "^18",
+    "@sentry/nextjs": "^8.28.0",
+    "@types/node": "^22.5.3",
+    "@types/react": "^18.3.5",
+    "@types/react-dom": "^18.3.0",
+    "drizzle-kit": "^0.24.2",
     "typescript": "^5.5.4"
   }
 }

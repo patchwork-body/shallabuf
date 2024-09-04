@@ -37,6 +37,7 @@ Everything you need to build a production ready SaaS, it's a opinionated stack b
 [react-safe-action](https://next-safe-action.dev) - Validated Server Actions<br>
 [nuqs](https://nuqs.47ng.com/) - Type-safe search params state manager<br>
 [next-themes](https://next-themes-example.vercel.app/) - Theme manager<br>
+[turso](https://turso.tech/) - SQLite for Production<br>
 
 ## Directory Structure
 
@@ -52,10 +53,10 @@ Everything you need to build a production ready SaaS, it's a opinionated stack b
 │    ├── jobs                    # Trigger.dev background jobs
 │    ├── kv                      # Upstash rate-limited key-value storage
 │    ├── logger                  # Logger library
-│    └── ui                      # Shared UI components (Shadcn)
+│    ├── ui                      # Shared UI components (Shadcn)
+│    └── turso                   # Turso db client
 ├── tooling                      # are the shared configuration that are used by the apps and packages
 │    └── typescript              # Shared TypeScript configuration
-├── .cursorrules                 # Cursor rules specific to this project
 ├── biome.json                   # Biome configuration
 ├── turbo.json                   # Turbo configuration
 ├── LICENSE

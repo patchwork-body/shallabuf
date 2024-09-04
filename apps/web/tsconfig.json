@@ -14,6 +14,6 @@
     "**/*.tsx",
     ".next/types/**/*.ts",
     "tailwind.config.ts"
-  ],
+, "../../packages/turso/src/turso.edge.ts", "../../packages/turso/src/turso.server.ts"  ],
   "exclude": ["node_modules"]
 }

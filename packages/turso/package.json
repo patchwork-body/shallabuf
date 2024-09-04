@@ -1,0 +1,14 @@
+{
+  "name": "@shallabuf/turso",
+  "main": "./src/index.ts",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "clean": "rm -rf .turbo node_modules",
+    "lint": "biome check .",
+    "format": "biome format --write .",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": { "@libsql/client": "^0.10.0", "drizzle-orm": "^0.33.0" }
+}

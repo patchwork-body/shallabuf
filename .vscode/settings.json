@@ -1,4 +1,5 @@
 {
+  "editor.formatOnSaveMode": "file",
   "editor.defaultFormatter": "biomejs.biome",
   "[javascript]": {
     "editor.defaultFormatter": "biomejs.biome"
@@ -28,6 +29,7 @@
     "biomejs",
     "bunx",
     "clsx",
+    "libsql",
     "lucide",
     "nextjs",
     "nuqs",
@@ -37,11 +39,11 @@
     "Shadcn",
     "shallabuf",
     "subcomponents",
-    "supabase",
     "tailwindcss",
     "topo",
     "tsbuildinfo",
     "Turborepo",
+    "turso",
     "typecheck",
     "UPSTASH"
   ]

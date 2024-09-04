@@ -16,7 +16,9 @@
         "OPENPANEL_SECRET_KEY",
         "SENTRY_AUTH_TOKEN",
         "SENTRY_ORG",
-        "SENTRY_PROJECT"
+        "SENTRY_PROJECT",
+        "TURSO_DATABASE_URL",
+        "TURSO_AUTH_TOKEN"
       ],
       "inputs": ["$TURBO_DEFAULT$", ".env"],
       "dependsOn": ["^build"],
@@ -43,6 +45,15 @@
     "typecheck": {
       "dependsOn": ["^topo"],
       "outputs": ["node_modules/.cache/tsbuildinfo.json"]
+    },
+    "db:generate": {
+      "inputs": ["$TURBO_DEFAULT$", ".env"]
+    },
+    "db:migrate": {
+      "inputs": ["$TURBO_DEFAULT$", ".env"]
+    },
+    "db:studio": {
+      "inputs": ["$TURBO_DEFAULT$", ".env"]
     }
   }
 }
