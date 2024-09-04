@@ -5,15 +5,7 @@
     "paths": {
       "@/*": ["./src/*"]
     },
-    "strict": true,
-    "allowJs": true,
-    "noEmit": true,
-    "jsx": "preserve",
-    "plugins": [
-      {
-        "name": "next"
-      }
-    ]
+    "strict": true
   },
   "include": [
     "next-env.d.ts",

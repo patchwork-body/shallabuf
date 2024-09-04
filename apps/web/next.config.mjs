@@ -1,4 +1,19 @@
-/** @type {import('next').NextConfig} */
-const nextConfig = {};
+import "./src/env.mjs";
+import { withSentryConfig } from "@sentry/nextjs";
 
-export default nextConfig;
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  transpilePackages: [],
+  experimental: {
+    instrumentationHook: process.env.NODE_ENV === "production",
+  },
+};
+
+export default withSentryConfig(nextConfig, {
+  silent: !process.env.CI,
+  telemetry: false,
+  widenClientFileUpload: true,
+  hideSourceMaps: true,
+  disableLogger: true,
+  tunnelRoute: "/monitoring",
+});

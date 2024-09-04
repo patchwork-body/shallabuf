@@ -25,7 +25,6 @@ Everything you need to build a production ready SaaS, it's a opinionated stack b
 [TailwindCSS](https://tailwindcss.com/) - Styling<br>
 [Shadcn](https://ui.shadcn.com/) - UI components<br>
 [TypeScript](https://www.typescriptlang.org/) - Type safety<br>
-[Supabase](https://supabase.com/) - Authentication, database, storage<br>
 [Upstash](https://upstash.com/) - Cache and rate limiting<br>
 [React Email](https://react.email/) - Email templates<br>
 [Resend](https://resend.com/) - Email delivery<br>
@@ -44,7 +43,6 @@ Everything you need to build a production ready SaaS, it's a opinionated stack b
 ```
 .
 ├── apps                         # App workspace
-│    ├── api                     # Supabase (API, Auth, Storage, Realtime, Edge Functions)
 │    ├── app                     # App - your product
 │    ├── web                     # Marketing site
 │    └── ...
@@ -54,7 +52,6 @@ Everything you need to build a production ready SaaS, it's a opinionated stack b
 │    ├── jobs                    # Trigger.dev background jobs
 │    ├── kv                      # Upstash rate-limited key-value storage
 │    ├── logger                  # Logger library
-│    ├── supabase                # Supabase - Queries, Mutations, Clients
 │    └── ui                      # Shared UI components (Shadcn)
 ├── tooling                      # are the shared configuration that are used by the apps and packages
 │    └── typescript              # Shared TypeScript configuration
@@ -73,7 +70,6 @@ Upstash<br>
 Dub<br>
 Trigger.dev<br>
 Resend<br>
-Supabase<br>
 Sentry<br>
 OpenPanel<br>
 
