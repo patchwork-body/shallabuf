@@ -6,6 +6,7 @@ const nextConfig = {
   transpilePackages: [],
   experimental: {
     instrumentationHook: process.env.NODE_ENV === "production",
+    serverComponentsExternalPackages: ["@node-rs/argon2"],
   },
 };
 
