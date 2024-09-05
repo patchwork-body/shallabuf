@@ -1,7 +1,7 @@
 import { verifyRequestOrigin } from "lucia";
 import { createI18nMiddleware } from "next-international/middleware";
 import { type NextRequest, NextResponse } from "next/server";
-import { validateSessionMiddleware } from "./helpers/validate-session";
+import { validateSessionMiddleware } from "./helpers/validate-session-middleware";
 
 const I18nMiddleware = createI18nMiddleware({
   locales: ["en", "fr"],
