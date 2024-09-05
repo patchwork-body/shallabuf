@@ -39,15 +39,11 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/login", request.nextUrl));
   }
 
-  if (!request.nextUrl.pathname.endsWith("/login") && !user) {
+  if (!isPublicRoute && !user) {
     return NextResponse.redirect(new URL("/login", request.nextUrl));
   }
 
-  if (
-    isPublicRoute &&
-    session &&
-    !request.nextUrl.pathname.startsWith("/dashboard")
-  ) {
+  if (isPublicRoute && session) {
     return NextResponse.redirect(new URL("/dashboard", request.nextUrl));
   }
 
