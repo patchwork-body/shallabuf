@@ -15,6 +15,9 @@
     "lint:repo": "bunx sherif@latest",
     "lint:repo:fix": "bunx sherif@latest --fix",
     "typecheck": "turbo typecheck",
+    "db:pull": "turbo db:pull",
+    "db:push": "turbo db:push",
+    "db:drop": "turbo db:drop",
     "db:generate": "turbo db:generate",
     "db:migrate": "turbo db:migrate",
     "db:studio": "turbo db:studio"
@@ -25,5 +28,9 @@
     "turbo": "2.1.1",
     "typescript": "^5.5.4"
   },
-  "packageManager": "bun@1.1.26"
+  "packageManager": "bun@1.1.26",
+  "dependencies": {
+    "next-safe-action": "^7.9.0",
+    "zod": "^3.23.8"
+  }
 }

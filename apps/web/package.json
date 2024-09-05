@@ -10,6 +10,9 @@
     "format": "biome format --write .",
     "start": "next start",
     "typecheck": "tsc --noEmit",
+    "db:pull": "drizzle-kit pull",
+    "db:push": "drizzle-kit push",
+    "db:drop": "drizzle-kit drop",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio"
@@ -18,6 +21,7 @@
     "@lucia-auth/adapter-drizzle": "^1.1.0",
     "@shallabuf/analytics": "workspace:*",
     "@shallabuf/kv": "workspace:*",
+    "@shallabuf/logger": "workspace:*",
     "@shallabuf/turso": "workspace:*",
     "@shallabuf/ui": "workspace:*",
     "dub": "^0.37.0",
@@ -30,7 +34,8 @@
     "nuqs": "^1.19.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "zod": "^3.23.8"
+    "zod": "^3.23.8",
+    "zod-form-data": "^2.0.2"
   },
   "devDependencies": {
     "@sentry/nextjs": "^8.28.0",

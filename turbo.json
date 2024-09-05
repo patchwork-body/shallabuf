@@ -46,6 +46,15 @@
       "dependsOn": ["^topo"],
       "outputs": ["node_modules/.cache/tsbuildinfo.json"]
     },
+    "db:pull": {
+      "inputs": ["$TURBO_DEFAULT$", ".env"]
+    },
+    "db:push": {
+      "inputs": ["$TURBO_DEFAULT$", ".env"]
+    },
+    "db:drop": {
+      "inputs": ["$TURBO_DEFAULT$", ".env"]
+    },
     "db:generate": {
       "inputs": ["$TURBO_DEFAULT$", ".env"]
     },

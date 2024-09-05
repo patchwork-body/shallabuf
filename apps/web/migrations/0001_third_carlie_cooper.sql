@@ -1,0 +1,1 @@
+ALTER TABLE `key` DROP COLUMN `primary`;

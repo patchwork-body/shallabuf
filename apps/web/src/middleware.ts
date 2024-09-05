@@ -1,6 +1,7 @@
+import { verifyRequestOrigin } from "lucia";
 import { createI18nMiddleware } from "next-international/middleware";
 import { type NextRequest, NextResponse } from "next/server";
-import { validateRequest } from "./helpers/validate-request";
+import { validateSessionMiddleware } from "./helpers/validate-session";
 
 const I18nMiddleware = createI18nMiddleware({
   locales: ["en", "fr"],
@@ -12,11 +13,27 @@ const protectedRoutes = ["/dashboard"];
 const publicRoutes = ["/login", "/signup", "/"];
 
 export async function middleware(request: NextRequest) {
+  // Compare Origin and X-Forwarded-Host headers for CSRF protection
+  if (request.method !== "GET") {
+    const originHeader = request.headers.get("Origin");
+    const hostHeader = request.headers.get("X-Forwarded-Host");
+
+    if (
+      !originHeader ||
+      !hostHeader ||
+      !verifyRequestOrigin(originHeader, [hostHeader])
+    ) {
+      return new NextResponse(null, {
+        status: 403,
+      });
+    }
+  }
+
   const path = request.nextUrl.pathname;
   const isProtectedRoute = protectedRoutes.includes(path);
   const isPublicRoute = publicRoutes.includes(path);
 
-  const { user, session } = await validateRequest();
+  const { user, session } = await validateSessionMiddleware();
 
   if (isProtectedRoute && !session) {
     return NextResponse.redirect(new URL("/login", request.nextUrl));

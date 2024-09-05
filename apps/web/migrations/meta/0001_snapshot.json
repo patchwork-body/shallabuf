@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "1a743faa-4321-4b8f-9e68-b757d2ecfdb5",
-  "prevId": "a9135361-d619-408d-a87d-7b726e9eb4be",
+  "id": "bb38426f-965c-4532-9cae-f0984e1ab2e9",
+  "prevId": "5814562e-c6aa-4c03-b1dc-bfdd09159388",
   "tables": {
     "key": {
       "name": "key",
@@ -13,14 +13,6 @@
           "primaryKey": true,
           "notNull": true,
           "autoincrement": false
-        },
-        "primary": {
-          "name": "primary",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": false
         },
         "password": {
           "name": "password",
@@ -51,8 +43,12 @@
           "name": "key_user_id_user_id_fk",
           "tableFrom": "key",
           "tableTo": "user",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -99,8 +95,12 @@
           "name": "session_user_id_user_id_fk",
           "tableFrom": "session",
           "tableTo": "user",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -118,6 +118,13 @@
           "notNull": true,
           "autoincrement": false
         },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "integer",
@@ -127,7 +134,15 @@
           "default": "CURRENT_TIMESTAMP"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "user_email_unique": {
+          "name": "user_email_unique",
+          "columns": [
+            "email"
+          ],
+          "isUnique": true
+        }
+      },
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {}
