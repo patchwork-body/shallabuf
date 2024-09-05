@@ -1,10 +1,10 @@
 "use server";
 
+import { publicActionClient } from "@/actions";
 import { keyTable, userTable } from "@/db/schema";
 import { lucia } from "@/lib/lucia";
 import { hash } from "@node-rs/argon2";
 import { db } from "@shallabuf/turso";
-import { publicActionClient } from "actions";
 import { generateIdFromEntropySize } from "lucia";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
