@@ -12,8 +12,8 @@ import { z } from "zod";
 import { zfd } from "zod-form-data";
 
 const schema = zfd.formData({
-  email: z.string().email().max(256),
-  password: z.string().min(8).max(64),
+  email: zfd.text(z.string().email().max(256)),
+  password: zfd.text(z.string().min(8).max(64)),
 });
 
 export const signup = publicActionClient
