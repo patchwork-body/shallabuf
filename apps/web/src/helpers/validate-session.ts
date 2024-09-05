@@ -4,6 +4,7 @@ import { lucia } from "@/lib/lucia";
 import { logger } from "@shallabuf/logger";
 import type { Session, User } from "lucia";
 import { cache } from "react";
+import "server-only";
 
 // This function designed to be used in the middleware therefore cannot be cached
 export const validateSessionMiddleware = async (): Promise<
