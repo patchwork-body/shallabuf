@@ -39,7 +39,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/login", request.nextUrl));
   }
 
-  if (!isPublicRoute && !user) {
+  if (!publicRoutes.some((route) => path.endsWith(route)) && !user) {
     return NextResponse.redirect(new URL("/login", request.nextUrl));
   }
 
