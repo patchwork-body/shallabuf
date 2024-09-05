@@ -9,8 +9,8 @@ const I18nMiddleware = createI18nMiddleware({
   urlMappingStrategy: "rewrite",
 });
 
-const protectedRoutes = ["/dashboard"];
-const publicRoutes = ["/login", "/signup", "/"];
+const protectedRoutes = ["/posts", "/"];
+const publicRoutes = ["/login", "/signup"];
 
 export async function middleware(request: NextRequest) {
   // Compare Origin and X-Forwarded-Host headers for CSRF protection
@@ -44,7 +44,7 @@ export async function middleware(request: NextRequest) {
   }
 
   if (isPublicRoute && session) {
-    return NextResponse.redirect(new URL("/dashboard", request.nextUrl));
+    return NextResponse.redirect(new URL("/posts", request.nextUrl));
   }
 
   return I18nMiddleware(request);
