@@ -65,5 +65,5 @@ export const signup = publicActionClient
       sessionCookie.attributes,
     );
 
-    return redirect("/dashboard");
+    return redirect("/posts");
   });
