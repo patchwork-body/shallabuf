@@ -1,7 +1,7 @@
+import { signup } from "@/actions/auth/signup";
 import { Button } from "@shallabuf/ui/button";
 import { Input } from "@shallabuf/ui/input";
 import { Label } from "@shallabuf/ui/label";
-import { signup } from "actions/auth/signup";
 import { useAction } from "next-safe-action/hooks";
 
 export const metadata = {
