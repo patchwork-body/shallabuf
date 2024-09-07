@@ -3,21 +3,16 @@
 import { publicActionClient } from "@/actions";
 import { keyTable, userTable } from "@/db/schema";
 import { lucia } from "@/lib/lucia";
+import { loginSchema } from "@/lib/validation";
 import { verify } from "@node-rs/argon2";
 import { db } from "@shallabuf/turso";
 import { eq } from "drizzle-orm";
+import { returnValidationErrors } from "next-safe-action";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { z } from "zod";
-import { zfd } from "zod-form-data";
-
-const schema = zfd.formData({
-  email: zfd.text(z.string().email().max(256)),
-  password: zfd.text(z.string().min(8).max(64)),
-});
 
 export const login = publicActionClient
-  .schema(schema)
+  .schema(loginSchema)
   .metadata({
     name: "login",
     track: {
@@ -26,27 +21,29 @@ export const login = publicActionClient
     },
   })
   .action(async ({ parsedInput: { email, password } }) => {
-    const user = (
-      await db
-        .select({
-          id: userTable.id,
-          passwordHash: keyTable.password,
-        })
-        .from(userTable)
-        .leftJoin(keyTable, eq(userTable.id, keyTable.userId))
-        .where(eq(userTable.email, email))
-    )[0];
+    const result = await db
+      .select({
+        id: userTable.id,
+        passwordHash: keyTable.password,
+      })
+      .from(userTable)
+      .leftJoin(keyTable, eq(userTable.id, keyTable.userId))
+      .where(eq(userTable.email, email));
+
+    const user = result[0];
 
     if (!user) {
-      return {
-        error: "User not found",
-      };
+      returnValidationErrors(loginSchema, {
+        email: {
+          _errors: ["There's no user with this email"],
+        },
+      });
     }
 
     if (!user.passwordHash) {
-      return {
-        error: "User has no password",
-      };
+      returnValidationErrors(loginSchema, {
+        _errors: ["User has no password"],
+      });
     }
 
     if (
@@ -57,9 +54,15 @@ export const login = publicActionClient
         parallelism: 1,
       }))
     ) {
-      return {
-        error: "Invalid password",
-      };
+      returnValidationErrors(loginSchema, {
+        _errors: ["Username or password is incorrect"],
+        email: {
+          _errors: ["Invalid email"],
+        },
+        password: {
+          _errors: ["Invalid password"],
+        },
+      });
     }
 
     const session = await lucia.createSession(user.id, {});

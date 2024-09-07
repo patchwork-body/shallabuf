@@ -18,7 +18,9 @@
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
+    "@hookform/resolvers": "^3.9.0",
     "@lucia-auth/adapter-drizzle": "^1.1.0",
+    "@next-safe-action/adapter-react-hook-form": "^1.0.12",
     "@shallabuf/analytics": "workspace:*",
     "@shallabuf/kv": "workspace:*",
     "@shallabuf/logger": "workspace:*",

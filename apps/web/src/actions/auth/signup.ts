@@ -3,21 +3,17 @@
 import { publicActionClient } from "@/actions";
 import { keyTable, userTable } from "@/db/schema";
 import { lucia } from "@/lib/lucia";
+import { signupSchema } from "@/lib/validation/signup.schema";
 import { hash } from "@node-rs/argon2";
+import { logger } from "@shallabuf/logger";
 import { db } from "@shallabuf/turso";
 import { generateIdFromEntropySize } from "lucia";
+import { returnValidationErrors } from "next-safe-action";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { z } from "zod";
-import { zfd } from "zod-form-data";
-
-const schema = zfd.formData({
-  email: zfd.text(z.string().email().max(256)),
-  password: zfd.text(z.string().min(8).max(64)),
-});
 
 export const signup = publicActionClient
-  .schema(schema)
+  .schema(signupSchema)
   .metadata({
     name: "signup",
     track: {
@@ -26,28 +22,61 @@ export const signup = publicActionClient
     },
   })
   .action(async ({ parsedInput: { email, password } }) => {
-    const passwordHash = await hash(password, {
-      // Recommended minimum parameters
-      memoryCost: 19456,
-      timeCost: 2,
-      outputLen: 32,
-      parallelism: 1,
-    });
+    let passwordHash: string;
+    try {
+      passwordHash = await hash(password, {
+        // Recommended minimum parameters
+        memoryCost: 19456,
+        timeCost: 2,
+        outputLen: 32,
+        parallelism: 1,
+      });
+    } catch (error) {
+      logger.error(error, "Error hashing password");
 
-    const result = await db
-      .insert(userTable)
-      .values({
-        id: generateIdFromEntropySize(10),
-        email,
-      })
-      .returning({ id: userTable.id });
+      returnValidationErrors(signupSchema, {
+        password: {
+          _errors: ["Password is invalid"],
+        },
+      });
+    }
 
-    const userId = result[0]?.id;
+    let userId: string | undefined;
+
+    try {
+      const result = await db
+        .insert(userTable)
+        .values({
+          id: generateIdFromEntropySize(10),
+          email,
+        })
+        .returning({ id: userTable.id });
+
+      userId = result[0]?.id;
+    } catch (error) {
+      if (error instanceof Error) {
+        if (error.message.includes("SQLITE_CONSTRAINT")) {
+          returnValidationErrors(signupSchema, {
+            email: {
+              _errors: ["Email already exists"],
+            },
+          });
+        }
+      }
+
+      returnValidationErrors(signupSchema, {
+        email: {
+          _errors: ["Email is invalid"],
+        },
+      });
+    }
 
     if (!userId) {
-      return {
-        error: "Failed to create user",
-      };
+      returnValidationErrors(signupSchema, {
+        email: {
+          _errors: ["Email is invalid"],
+        },
+      });
     }
 
     await db.insert(keyTable).values({
