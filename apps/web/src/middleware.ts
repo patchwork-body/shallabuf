@@ -9,7 +9,7 @@ const I18nMiddleware = createI18nMiddleware({
   urlMappingStrategy: "rewrite",
 });
 
-const protectedRoutes = ["/posts", "/"];
+const protectedRoutes = ["/decks", "/"];
 const publicRoutes = ["/login", "/signup"];
 
 export async function middleware(request: NextRequest) {
@@ -44,7 +44,7 @@ export async function middleware(request: NextRequest) {
   }
 
   if (isPublicRoute && session) {
-    return NextResponse.redirect(new URL("/posts", request.nextUrl));
+    return NextResponse.redirect(new URL("/decks", request.nextUrl));
   }
 
   return I18nMiddleware(request);

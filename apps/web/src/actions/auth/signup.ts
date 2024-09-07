@@ -48,6 +48,7 @@ export const signup = publicActionClient
         .insert(userTable)
         .values({
           id: generateIdFromEntropySize(10),
+          name: email.split("@")[0] ?? email,
           email,
         })
         .returning({ id: userTable.id });
@@ -94,5 +95,5 @@ export const signup = publicActionClient
       sessionCookie.attributes,
     );
 
-    return redirect("/posts");
+    return redirect("/decks");
   });

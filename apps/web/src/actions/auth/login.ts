@@ -74,5 +74,5 @@ export const login = publicActionClient
       sessionCookie.attributes,
     );
 
-    return redirect("/posts");
+    return redirect("/decks");
   });
