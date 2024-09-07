@@ -10,7 +10,7 @@ export const Sidebar = async () => {
   const decks = await db.select().from(deckTable);
 
   return (
-    <aside className="flex flex-col h-screen w-64 bg-secondary text-secondary-foreground p-4">
+    <aside className="fixed top-0 left-0 flex flex-col h-screen w-64 bg-slate-800 p-4">
       <DeckList userId={user.id} decks={decks} />
 
       <Separator />
