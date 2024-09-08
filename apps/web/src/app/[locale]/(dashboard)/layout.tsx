@@ -1,12 +1,6 @@
-import { Sidebar } from "@/components/sidebar";
+import { AppShell } from "@/components/app-shell";
+import type { ReactNode } from "react";
 
-export default async function Layout({
-  children,
-}: { children: React.ReactNode }) {
-  return (
-    <>
-      <Sidebar />
-      {children}
-    </>
-  );
+export default async function Layout({ children }: { children: ReactNode }) {
+  return <AppShell>{children}</AppShell>;
 }

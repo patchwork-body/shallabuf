@@ -4,6 +4,7 @@
 
 @layer base {
   :root {
+    --header-height: 5rem;
     --background: 0 0% 100%;
     --foreground: 20 14.3% 4.1%;
     --card: 0 0% 100%;
@@ -62,6 +63,10 @@
 @layer base {
   * {
     @apply border-border;
+  }
+
+  li {
+    @apply list-none;
   }
 
   body {

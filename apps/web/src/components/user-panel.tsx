@@ -5,8 +5,7 @@ export const UserPanel = async () => {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold">{user.name}</h1>
-      <p>{user.email}</p>
+      <p className="text-md font-bold">{user.name}</p>
     </div>
   );
 };
