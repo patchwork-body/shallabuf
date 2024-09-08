@@ -3,7 +3,7 @@ import { Input } from "@shallabuf/ui/input";
 import { Bell, Search } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { UserPanel } from "../user-panel";
+import { UserPanel } from "./user-panel";
 import { ActionButton } from "./action-button";
 import { Header } from "./header";
 import { Logo } from "./logo";
