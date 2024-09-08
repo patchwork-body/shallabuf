@@ -40,9 +40,10 @@ jobs:
       - name: 🚀 Deploy Trigger.dev
         env:
           TRIGGER_ACCESS_TOKEN: ${{ secrets.TRIGGER_ACCESS_TOKEN }}
+          TRIGGER_PROJECT_ID: ${{ secrets.TRIGGER_PROJECT_ID }}
         working-directory: packages/jobs
         run: |
-          trigger.dev@3.0.0-beta.34 deploy --env staging
+          bunx trigger.dev@3.0.0-beta.34 deploy --env staging
       - name: Install Vercel CLI
         run: bun install --global vercel@latest
       - name: Pull Vercel Environment Information
