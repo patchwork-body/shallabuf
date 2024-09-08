@@ -4,7 +4,6 @@ import { login } from "@/actions/auth/login";
 import { loginSchema } from "@/lib/validation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useHookFormAction } from "@next-safe-action/adapter-react-hook-form/hooks";
-import { logger } from "@shallabuf/logger";
 import { Button } from "@shallabuf/ui/button";
 import {
   Form,

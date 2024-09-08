@@ -1,29 +1,25 @@
-import type { importFromQuizlet } from "@shallabuf/jobs/trigger/import-from-quizlet";
-import { tasks } from "@trigger.dev/sdk/v3";
+import { scrapeCardsFromQuizlet } from "@shallabuf/jobs/functions";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
 export const dynamic = "force-dynamic";
 
-const requestBodySchema = z.object({
+export const importRouteBodyValidationSchema = z.object({
   provider: z.string(),
-  url: z.string().url(),
+  url: z.string(),
 });
 
-export async function GET(request: Request) {
-  const { data, error } = requestBodySchema.safeParse(await request.json());
+export async function POST(request: Request) {
+  const { data, error } = importRouteBodyValidationSchema.safeParse(
+    await request.json(),
+  );
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
   if (data.provider === "quizlet") {
-    const handle = await tasks.trigger<typeof importFromQuizlet>(
-      "import-from-quizlet",
-      {
-        url: new URL(data.url),
-      },
-    );
+    const handle = await scrapeCardsFromQuizlet(new URL(data.url));
 
     return NextResponse.json(handle);
   }

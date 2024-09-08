@@ -1,0 +1,1 @@
+ALTER TABLE `deck` ADD `description` text;

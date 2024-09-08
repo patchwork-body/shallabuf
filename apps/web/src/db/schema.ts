@@ -34,6 +34,7 @@ export const deckTable = sqliteTable(
       .notNull()
       .references(() => userTable.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
+    description: text("description"),
     createdAt: integer("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
   },
   // (table) => ({

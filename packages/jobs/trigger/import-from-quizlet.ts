@@ -12,7 +12,6 @@ export const importFromQuizlet = task({
       url: payload.url,
       ctx,
     });
-
     return await scrapeCardsFromQuizlet(payload.url);
   },
   onSuccess: async (payload, output, { ctx }) => {

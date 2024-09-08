@@ -1,31 +1,44 @@
-import { ImportFromQuizletDialog } from "@/components/dialogs/import-from-quizlet";
-import { type Card, cardTable, deckTable } from "@/db/schema";
+import { type Card as CardType, cardTable, deckTable } from "@/db/schema";
 import { logger } from "@shallabuf/logger";
 import { db } from "@shallabuf/turso";
+import { Badge } from "@shallabuf/ui/badge";
+import { Button } from "@shallabuf/ui/button";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@shallabuf/ui/card";
 import { eq } from "drizzle-orm";
+import { AudioLines } from "lucide-react";
+import Link from "next/link";
 
 export default async function Page({ params }: { params: { id: string } }) {
   const cards = await db
-    .select()
-    .from(cardTable)
-    .where(eq(cardTable.deckId, params.id))
-    .leftJoin(deckTable, eq(cardTable.deckId, deckTable.id))
+    .select({
+      deck: deckTable,
+      card: cardTable,
+    })
+    .from(deckTable)
+    .where(eq(deckTable.id, params.id))
+    .leftJoin(cardTable, eq(deckTable.id, cardTable.deckId))
     .all();
 
   const deck = cards.reduce(
     (acc, row) => {
-      if (acc[row.card.deckId]) {
-        acc[row.card.deckId]?.cards.push(row.card);
+      if (acc[row.deck.id] && row.card) {
+        acc[row.deck.id]?.cards.push(row.card);
       } else {
-        acc[row.card.deckId] = {
-          name: row.deck!.name,
-          cards: [row.card],
+        acc[row.deck.id] = {
+          name: row.deck.name,
+          cards: row.card ? [row.card] : [],
         };
       }
 
       return acc;
     },
-    {} as Record<string, { name: string; cards: Card[] }>,
+    {} as Record<string, { name: string; cards: CardType[] }>,
   )[params.id];
 
   if (!deck) {
@@ -35,18 +48,35 @@ export default async function Page({ params }: { params: { id: string } }) {
 
   return (
     <div className="space-y-4">
-      <h1>{deck.name}</h1>
+      <h2>{deck.name}</h2>
 
-      <ul>
+      <ul className="grid gird-flow-row lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5 gap-4">
         {deck.cards.map((card) => (
           <li key={card.id}>
-            <div>{card.front}</div>
-            <div>{card.back}</div>
+            <Card>
+              <CardHeader>
+                <Button className="ml-auto" variant="ghost" size="icon">
+                  <AudioLines />
+                </Button>
+              </CardHeader>
+
+              <CardContent className="flex place-content-center">
+                <p>{card.front}</p>
+              </CardContent>
+
+              <CardFooter>
+                <Badge variant="secondary">Front</Badge>
+
+                <Button asChild variant="link" className="ml-auto">
+                  <Link href={`/decks/${params.id}/cards/${card.id}`}>
+                    Edit
+                  </Link>
+                </Button>
+              </CardFooter>
+            </Card>
           </li>
         ))}
       </ul>
-
-      <ImportFromQuizletDialog />
     </div>
   );
 }

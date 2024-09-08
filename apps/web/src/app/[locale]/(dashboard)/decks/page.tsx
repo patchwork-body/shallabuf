@@ -1,10 +1,15 @@
 import { cardTable, deckTable } from "@/db/schema";
-import { logger } from "@shallabuf/logger";
 import { db } from "@shallabuf/turso";
 import { Badge } from "@shallabuf/ui/badge";
 import { Button } from "@shallabuf/ui/button";
-import { Card, CardFooter, CardHeader, CardTitle } from "@shallabuf/ui/card";
-import { count, eq } from "drizzle-orm";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@shallabuf/ui/card";
+import { count, desc, eq } from "drizzle-orm";
 import Link from "next/link";
 
 export const metadata = {
@@ -20,18 +25,21 @@ export default async function Page() {
     .from(deckTable)
     .leftJoin(cardTable, eq(deckTable.id, cardTable.deckId))
     .groupBy(deckTable.id)
+    .orderBy(desc(deckTable.createdAt))
     .all();
 
   return (
-    <ul className="grid gird-flow-row sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
+    <ul className="grid gird-flow-row lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5 gap-4">
       {decks.map(({ deck, cardCount }) => (
-        <li key={deck!.id}>
+        <li key={deck!.id} className="min-h-28">
           <Card>
             <CardHeader>
-              <CardTitle>{deck!.name}</CardTitle>
+              <CardTitle>{deck.name}</CardTitle>
             </CardHeader>
 
-            {/* <CardContent></CardContent> */}
+            <CardContent>
+              <p>{deck.description}</p>
+            </CardContent>
 
             <CardFooter>
               <Badge variant="secondary">

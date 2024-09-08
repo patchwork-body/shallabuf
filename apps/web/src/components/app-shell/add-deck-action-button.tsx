@@ -4,7 +4,7 @@ import { Button } from "@shallabuf/ui/button";
 import { Plus } from "lucide-react";
 import { useAction } from "next-safe-action/hooks";
 
-export const AddActionButton = () => {
+export const AddDeckActionButton = () => {
   const { execute, isPending } = useAction(createDeck);
 
   return (
