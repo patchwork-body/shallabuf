@@ -1,10 +1,12 @@
+import { Button } from "@shallabuf/ui/button";
 import { Input } from "@shallabuf/ui/input";
-import { Search } from "lucide-react";
+import { Bell, Search } from "lucide-react";
 import Link from "next/link";
 import { UserPanel } from "../user-panel";
+import { AddActionButton } from "./add-action-button";
 import { Logo } from "./logo";
 
-export const Header = async () => {
+export const Header = () => {
   return (
     <header className="fixed top-0 left-0 w-screen h-[var(--header-height)] px-4 py-6 flex items-center z-10">
       <Link href="/" className="inline-flex items-center gap-x-2">
@@ -22,7 +24,15 @@ export const Header = async () => {
         />
       </div>
 
-      <UserPanel />
+      <div className="flex items-center gap-x-4">
+        <AddActionButton />
+
+        <Button size="icon" variant="secondary" aria-label="Notifications">
+          <Bell />
+        </Button>
+
+        <UserPanel />
+      </div>
     </header>
   );
 };

@@ -11,7 +11,10 @@ export const AppShell = async ({ children }: AppShellProps) => {
     <div className="flex h-screen w-screen">
       <Header />
       <Sidebar />
-      <main className="flex-1">{children}</main>
+
+      <main className="flex-1 mt-[calc(var(--header-height)+1rem)] ml-[calc(var(--sidebar-width)+1rem)] mr-[1rem]">
+        {children}
+      </main>
     </div>
   );
 };

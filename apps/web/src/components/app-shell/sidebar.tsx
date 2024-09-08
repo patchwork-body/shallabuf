@@ -3,7 +3,7 @@ import { NavLink } from "./nav-link";
 
 export const Sidebar = () => {
   return (
-    <aside className="fixed top-0 left-0 flex flex-col h-screen w-64 p-4 pt-[calc(var(--header-height)+1rem)] overflow-auto">
+    <aside className="fixed top-0 left-0 flex flex-col h-screen w-[var(--sidebar-width)] p-4 pt-[calc(var(--header-height)+1rem)] overflow-auto">
       <nav className="space-y-2">
         <li>
           <NavLink href="/decks">

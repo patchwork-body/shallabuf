@@ -27,6 +27,9 @@
     "./dialog": "./src/components/dialog.tsx",
     "./label": "./src/components/label.tsx",
     "./separator": "./src/components/separator.tsx",
+    "./card": "./src/components/card.tsx",
+    "./badge": "./src/components/badge.tsx",
+    "./avatar": "./src/components/avatar.tsx",
     "./form": "./src/components/form.tsx",
     "./icons": "./src/components/icons.tsx",
     "./scroll-area": "./src/components/scroll-area.tsx",
@@ -35,6 +38,7 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
+    "@radix-ui/react-avatar": "^1.1.0",
     "@radix-ui/react-dialog": "^1.1.1",
     "@radix-ui/react-label": "^2.1.0",
     "@radix-ui/react-scroll-area": "^1.1.0",
