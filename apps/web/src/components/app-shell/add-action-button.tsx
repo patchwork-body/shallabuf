@@ -2,14 +2,18 @@
 import { createDeck } from "@/actions/decks/create";
 import { Button } from "@shallabuf/ui/button";
 import { Plus } from "lucide-react";
+import { useAction } from "next-safe-action/hooks";
 
 export const AddActionButton = () => {
+  const { execute, isPending } = useAction(createDeck);
+
   return (
     <Button
       size="icon"
+      disabled={isPending}
       aria-label="Add new deck"
       onClick={async () => {
-        await createDeck({ name: "New Deck" });
+        execute({ name: "New Deck" });
       }}
     >
       <Plus />

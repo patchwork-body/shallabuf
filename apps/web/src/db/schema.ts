@@ -52,3 +52,4 @@ export const cardTable = sqliteTable("card", {
 });
 
 export type Deck = typeof deckTable.$inferSelect;
+export type Card = typeof cardTable.$inferSelect;
