@@ -14,8 +14,6 @@ export const env = createEnv({
     // RESEND_API_KEY: z.string(),
     UPSTASH_REDIS_REST_TOKEN: z.string(),
     UPSTASH_REDIS_REST_URL: z.string(),
-    // TURSO_DATABASE_URL: z.string().url(),
-    // TURSO_AUTH_TOKEN: z.string(),
   },
   client: {
     NEXT_PUBLIC_OPENPANEL_CLIENT_ID: z.string(),
@@ -27,6 +25,8 @@ export const env = createEnv({
       process.env.NEXT_PUBLIC_OPENPANEL_CLIENT_ID,
     NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN,
     OPENPANEL_SECRET_KEY: process.env.OPENPANEL_SECRET_KEY,
+    TRIGGER_SECRET_KEY: process.env.TRIGGER_SECRET_KEY,
+    TRIGGER_PROJECT_ID: process.env.TRIGGER_PROJECT_ID,
     // PORT: process.env.PORT,
     // RESEND_API_KEY: process.env.RESEND_API_KEY,
     UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN,
