@@ -1,27 +1,24 @@
 import { type Card as CardType, cardTable, deckTable } from "@/db/schema";
+import { getUser } from "@/helpers/get-user";
 import { logger } from "@shallabuf/logger";
 import { db } from "@shallabuf/turso";
 import { Badge } from "@shallabuf/ui/badge";
 import { Button } from "@shallabuf/ui/button";
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@shallabuf/ui/card";
-import { eq } from "drizzle-orm";
+import { Card, CardContent, CardFooter, CardHeader } from "@shallabuf/ui/card";
+import { and, eq } from "drizzle-orm";
 import { AudioLines } from "lucide-react";
 import Link from "next/link";
 
 export default async function Page({ params }: { params: { id: string } }) {
+  const user = await getUser();
+
   const cards = await db
     .select({
       deck: deckTable,
       card: cardTable,
     })
     .from(deckTable)
-    .where(eq(deckTable.id, params.id))
+    .where(and(eq(deckTable.id, params.id), eq(deckTable.userId, user.id)))
     .leftJoin(cardTable, eq(deckTable.id, cardTable.deckId))
     .all();
 

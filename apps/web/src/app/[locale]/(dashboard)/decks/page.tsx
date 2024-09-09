@@ -1,4 +1,5 @@
 import { cardTable, deckTable } from "@/db/schema";
+import { getUser } from "@/helpers/get-user";
 import { db } from "@shallabuf/turso";
 import { Badge } from "@shallabuf/ui/badge";
 import { Button } from "@shallabuf/ui/button";
@@ -17,12 +18,15 @@ export const metadata = {
 };
 
 export default async function Page() {
+  const user = await getUser();
+
   const decks = await db
     .select({
       deck: deckTable,
       cardCount: count(cardTable.id),
     })
     .from(deckTable)
+    .where(eq(deckTable.userId, user.id))
     .leftJoin(cardTable, eq(deckTable.id, cardTable.deckId))
     .groupBy(deckTable.id)
     .orderBy(desc(deckTable.createdAt))
