@@ -49,6 +49,9 @@ export const cardTable = sqliteTable("card", {
     .references(() => deckTable.id, { onDelete: "cascade" }),
   front: text("front").notNull(),
   back: text("back").notNull(),
+  frontAudio: text("front_audio"),
+  backAudio: text("back_audio"),
+  image: text("image"),
   createdAt: integer("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 

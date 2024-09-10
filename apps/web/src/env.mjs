@@ -31,6 +31,8 @@ export const env = createEnv({
     // RESEND_API_KEY: process.env.RESEND_API_KEY,
     UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN,
     UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL,
+    BLOB_READ_WRITE_TOKEN: process.env.BLOB_READ_WRITE_TOKEN,
+    OPENAI_API_KEY: process.env.OPENAI_API_KEY,
     // VERCEL_URL: process.env.VERCEL_URL,
   },
   skipValidation: !!process.env.CI || !!process.env.SKIP_ENV_VALIDATION,

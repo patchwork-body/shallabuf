@@ -15,6 +15,20 @@
       "when": 1725824979153,
       "tag": "0001_careful_living_mummy",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1725963638836,
+      "tag": "0002_lucky_spot",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1725971284905,
+      "tag": "0003_dear_blockbuster",
+      "breakpoints": true
     }
   ]
 }

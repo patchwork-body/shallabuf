@@ -1,3 +1,4 @@
+import { PlayAudio } from "@/components/play-audio";
 import { type Card as CardType, cardTable, deckTable } from "@/db/schema";
 import { getUser } from "@/helpers/get-user";
 import { logger } from "@shallabuf/logger";
@@ -6,7 +7,6 @@ import { Badge } from "@shallabuf/ui/badge";
 import { Button } from "@shallabuf/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@shallabuf/ui/card";
 import { and, eq } from "drizzle-orm";
-import { AudioLines } from "lucide-react";
 import Link from "next/link";
 
 export default async function Page({ params }: { params: { id: string } }) {
@@ -44,17 +44,22 @@ export default async function Page({ params }: { params: { id: string } }) {
   }
 
   return (
-    <div className="space-y-4">
-      <h2>{deck.name}</h2>
+    <div className="pb-4">
+      <header className="sticky top-[var(--header-height)] min-w-full bg-background pb-4">
+        <h2>{deck.name}</h2>
+      </header>
 
       <ul className="grid gird-flow-row lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5 gap-4">
         {deck.cards.map((card) => (
           <li key={card.id}>
             <Card>
-              <CardHeader>
-                <Button className="ml-auto" variant="ghost" size="icon">
-                  <AudioLines />
-                </Button>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div
+                  className="h-12 w-12 bg-cover bg-center rounded-full border-border border-2"
+                  style={{ backgroundImage: `url(${card.image})` }}
+                />
+
+                <PlayAudio audioUrl={card.frontAudio} />
               </CardHeader>
 
               <CardContent className="flex place-content-center">

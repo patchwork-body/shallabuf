@@ -1,7 +1,12 @@
 {
   "name": "shallabuf",
+  "devDependencies": {
+    "@biomejs/biome": "1.8.3",
+    "@t3-oss/env-nextjs": "^0.11.1",
+    "typescript": "^5.5.4"
+  },
+  "packageManager": "bun@1.1.26",
   "private": true,
-  "workspaces": ["packages/*", "apps/*", "tooling/*"],
   "scripts": {
     "build": "turbo build",
     "clean": "git clean -xdf node_modules",
@@ -22,11 +27,5 @@
     "db:migrate": "turbo db:migrate",
     "db:studio": "turbo db:studio"
   },
-  "devDependencies": {
-    "@biomejs/biome": "1.8.3",
-    "@t3-oss/env-nextjs": "^0.11.1",
-    "turbo": "2.1.1",
-    "typescript": "^5.5.4"
-  },
-  "packageManager": "bun@1.1.26"
+  "workspaces": ["packages/*", "apps/*", "tooling/*"]
 }
