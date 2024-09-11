@@ -33,7 +33,7 @@ export default async function Page() {
     .all();
 
   return (
-    <ul className="grid gird-flow-row lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5 gap-4">
+    <ul className="grid gird-flow-row lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
       {decks.map(({ deck, cardCount }) => (
         <li key={deck!.id} className="min-h-28">
           <Card>

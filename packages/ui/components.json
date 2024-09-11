@@ -10,6 +10,24 @@
     "cssVariables": true,
     "prefix": ""
   },
+  "exports": {
+    "./globals.css": "./src/globals.css",
+    "./cn": "./src/utils/cn.ts",
+    "./button": "./src/components/button.tsx",
+    "./input": "./src/components/input.tsx",
+    "./tooltip": "./src/components/tooltip.tsx",
+    "./dialog": "./src/components/dialog.tsx",
+    "./label": "./src/components/label.tsx",
+    "./separator": "./src/components/separator.tsx",
+    "./card": "./src/components/card.tsx",
+    "./badge": "./src/components/badge.tsx",
+    "./avatar": "./src/components/avatar.tsx",
+    "./form": "./src/components/form.tsx",
+    "./icons": "./src/components/icons.tsx",
+    "./scroll-area": "./src/components/scroll-area.tsx",
+    "./tailwind.config": "./tailwind.config.ts",
+    "./postcss": "./postcss.config.js"
+  },
   "aliases": {
     "components": "@/components",
     "hooks": "@/hooks",

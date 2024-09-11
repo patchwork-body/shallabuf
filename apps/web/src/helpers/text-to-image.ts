@@ -70,18 +70,7 @@ export const textToImage = async (
         }),
       },
     );
-
-    if (!response.ok) {
-      throw new Error(`Error generating image: ${response.statusText}`);
-    }
-
-    if (!response.body) {
-      throw new Error("No response body");
-    }
-
-    const json = await response.json();
-
-    return json.data[0].b64_json;
+    return response;
   } catch (error) {
     console.error("Error generating image:", error);
     throw error;

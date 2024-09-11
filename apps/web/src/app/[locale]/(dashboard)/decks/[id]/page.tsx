@@ -49,7 +49,7 @@ export default async function Page({ params }: { params: { id: string } }) {
         <h2>{deck.name}</h2>
       </header>
 
-      <ul className="grid gird-flow-row lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5 gap-4">
+      <ul className="grid gird-flow-row lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4 mx-auto max-w-screen-2xl">
         {deck.cards.map((card) => (
           <li key={card.id}>
             <Card>

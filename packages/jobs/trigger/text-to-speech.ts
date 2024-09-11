@@ -1,8 +1,5 @@
-import { cardTable } from "@/db/schema";
-import { db } from "@shallabuf/turso";
 import { task } from "@trigger.dev/sdk/v3";
 import { put } from "@vercel/blob";
-import { eq } from "drizzle-orm";
 
 export type TextToSpeechPayload = {
   // String that consists of the cardId and front/back card side delimited by a colon
@@ -24,33 +21,17 @@ export const textToSpeechTask = task({
       { access: "public" },
     );
 
-    const [cardId, side] = payload.fingerprint.split(":");
-
-    if (!cardId || !side) {
-      throw new Error("Invalid fingerprint");
-    }
-
-    if (side !== "front" && side !== "back") {
-      throw new Error("Invalid side");
-    }
-
-    if (side === "front") {
-      await db
-        .update(cardTable)
-        .set({ frontAudio: result.downloadUrl })
-        .where(eq(cardTable.id, cardId));
-    }
-
-    if (side === "back") {
-      await db
-        .update(cardTable)
-        .set({ backAudio: result.downloadUrl })
-        .where(eq(cardTable.id, cardId));
-    }
+    await fetch(`${process.env.VERCEL_URL}/api/webhooks/audio`, {
+      method: "POST",
+      body: JSON.stringify({
+        fingerprint: payload.fingerprint,
+        audioUrl: result.url,
+      }),
+    });
   },
 });
 
-export const textToSpeech = async (
+const textToSpeech = async (
   text: string,
   model = "tts-1",
   voice = "alloy",

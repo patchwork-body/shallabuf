@@ -1,5 +1,5 @@
 // Next.js API route support: https://nextjs.org/docs/api-routes/introduction
-import type { helloWorldTask } from "@/trigger/example";
+import type { helloWorldTask } from "@shallabuf/jobs/trigger/example";
 import { tasks } from "@trigger.dev/sdk/v3";
 import { NextResponse } from "next/server";
 
