@@ -1,11 +1,11 @@
 "use server";
 
 import { publicActionClient } from "@/actions";
-import { keyTable, userTable } from "@/db/schema";
 import { lucia } from "@/lib/lucia";
 import { loginSchema } from "@/lib/validation";
 import { verify } from "@node-rs/argon2";
 import { db } from "@shallabuf/turso";
+import { keyTable, userTable } from "@shallabuf/turso/schema";
 import { eq } from "drizzle-orm";
 import { returnValidationErrors } from "next-safe-action";
 import { cookies } from "next/headers";

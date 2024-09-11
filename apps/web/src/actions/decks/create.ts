@@ -1,10 +1,10 @@
 "use server";
 
 import { authActionClient } from "@/actions";
-import { deckTable } from "@/db/schema";
 import { createDeckSchema } from "@/lib/validation/create-deck.schema";
 import { logger } from "@shallabuf/logger";
 import { db } from "@shallabuf/turso";
+import { deckTable } from "@shallabuf/turso/schema";
 import { generateIdFromEntropySize } from "lucia";
 import { returnValidationErrors } from "next-safe-action";
 import { revalidatePath } from "next/cache";
@@ -20,15 +20,22 @@ export const createDeck = authActionClient
   })
   .action(async ({ parsedInput: { name }, ctx: { user, ratelimit } }) => {
     try {
-      const deck = await db
+      const insertResult = await db
         .insert(deckTable)
-        .values({ id: generateIdFromEntropySize(10), name, userId: user.id });
+        .values({ id: generateIdFromEntropySize(10), name, userId: user.id })
+        .returning();
+
+      const deck = insertResult[0];
+
+      if (!deck) {
+        returnValidationErrors(createDeckSchema, {
+          _errors: ["Failed to create a deck"],
+        });
+      }
 
       revalidatePath("/decks");
 
-      return {
-        deck,
-      };
+      return { deck };
     } catch (error) {
       logger.error(error, "Failed to create deck");
 

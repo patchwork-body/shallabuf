@@ -1,8 +1,13 @@
 import { PlayAudio } from "@/components/play-audio";
-import { type Card as CardType, cardTable, deckTable } from "@/db/schema";
+import { Stream } from "@/components/stream";
 import { getUser } from "@/helpers/get-user";
 import { logger } from "@shallabuf/logger";
 import { db } from "@shallabuf/turso";
+import {
+  type Card as CardType,
+  cardTable,
+  deckTable,
+} from "@shallabuf/turso/schema";
 import { Badge } from "@shallabuf/ui/badge";
 import { Button } from "@shallabuf/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@shallabuf/ui/card";
@@ -52,6 +57,8 @@ export default async function Page({ params }: { params: { id: string } }) {
       <ul className="grid gird-flow-row lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4 mx-auto max-w-screen-2xl">
         {deck.cards.map((card) => (
           <li key={card.id}>
+            <Stream cardId={card.id} />
+
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
                 <div

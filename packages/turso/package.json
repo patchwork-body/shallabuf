@@ -8,7 +8,20 @@
     "clean": "rm -rf .turbo node_modules",
     "lint": "biome check .",
     "format": "biome format --write .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "db:pull": "drizzle-kit pull",
+    "db:push": "drizzle-kit push",
+    "db:drop": "drizzle-kit drop",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:studio": "drizzle-kit studio"
   },
-  "dependencies": { "@libsql/client": "^0.10.0", "drizzle-orm": "^0.33.0" }
+  "exports": {
+    ".": "./src/index.ts",
+    "./schema": "./src/schema.ts"
+  },
+  "dependencies": { "@libsql/client": "^0.10.0", "drizzle-orm": "^0.33.0" },
+  "devDependencies": {
+    "drizzle-kit": "^0.24.2"
+  }
 }

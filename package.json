@@ -27,5 +27,8 @@
     "db:migrate": "turbo db:migrate",
     "db:studio": "turbo db:studio"
   },
-  "workspaces": ["packages/*", "apps/*", "tooling/*"]
+  "workspaces": ["packages/*", "apps/*", "tooling/*"],
+  "dependencies": {
+    "turbo": "^2.1.1"
+  }
 }

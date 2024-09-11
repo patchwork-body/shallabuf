@@ -1,6 +1,6 @@
-import { cardTable, deckTable } from "@/db/schema";
 import { getUser } from "@/helpers/get-user";
 import { db } from "@shallabuf/turso";
+import { cardTable, deckTable } from "@shallabuf/turso/schema";
 import { Badge } from "@shallabuf/ui/badge";
 import { Button } from "@shallabuf/ui/button";
 import {

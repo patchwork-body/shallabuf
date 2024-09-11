@@ -1,12 +1,12 @@
 "use server";
 
 import { publicActionClient } from "@/actions";
-import { keyTable, userTable } from "@/db/schema";
 import { lucia } from "@/lib/lucia";
 import { signupSchema } from "@/lib/validation/signup.schema";
 import { hash } from "@node-rs/argon2";
 import { logger } from "@shallabuf/logger";
 import { db } from "@shallabuf/turso";
+import { keyTable, userTable } from "@shallabuf/turso/schema";
 import { generateIdFromEntropySize } from "lucia";
 import { returnValidationErrors } from "next-safe-action";
 import { cookies } from "next/headers";

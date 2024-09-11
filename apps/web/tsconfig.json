@@ -19,7 +19,7 @@
     "../../packages/turso/src/turso.edge.ts",
     "../../packages/turso/src/turso.server.ts",
     "../../packages/jobs/trigger.config.ts"
-  ],
+, "../../packages/turso/drizzle.config.ts"  ],
   "exclude": [
     "node_modules"
   ]

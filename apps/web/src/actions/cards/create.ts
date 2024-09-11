@@ -1,11 +1,14 @@
 "use server";
 
 import { authActionClient } from "@/actions";
-import { cardTable } from "@/db/schema";
 import { createCardSchema } from "@/lib/validation/create-card.schema";
-import { createDeckSchema } from "@/lib/validation/create-deck.schema";
+import type { textToImageTask } from "@shallabuf/jobs/trigger/text-to-image";
+import type { textToSpeechTask } from "@shallabuf/jobs/trigger/text-to-speech";
+import { client as redisClient } from "@shallabuf/kv/client";
 import { logger } from "@shallabuf/logger";
 import { db } from "@shallabuf/turso";
+import { cardTable } from "@shallabuf/turso/schema";
+import { tasks } from "@trigger.dev/sdk/v3";
 import { generateIdFromEntropySize } from "lucia";
 import { returnValidationErrors } from "next-safe-action";
 import { revalidatePath, revalidateTag } from "next/cache";
@@ -20,13 +23,26 @@ export const createCard = authActionClient
     },
   })
   .action(async ({ parsedInput: { front, back, deckId } }) => {
+    const frontHex = Buffer.from(front).toString("hex");
+    const backHex = Buffer.from(back).toString("hex");
+
+    const frontAudio: string | null = await redisClient.get(
+      `${frontHex}:audio`,
+    );
+    const backAudio: string | null = await redisClient.get(`${backHex}:audio`);
+    const image: string | null = await redisClient.get(`${frontHex}:image`);
+
     try {
+      // TODO: insure that user has access to edit this deck
       const insertResult = await db
         .insert(cardTable)
         .values({
           id: generateIdFromEntropySize(10),
           front,
           back,
+          frontAudio,
+          backAudio,
+          image,
           deckId,
         })
         .returning();
@@ -34,31 +50,50 @@ export const createCard = authActionClient
       const card = insertResult[0];
 
       if (!card) {
-        returnValidationErrors(createDeckSchema, {
+        returnValidationErrors(createCardSchema, {
           _errors: ["Failed to create card"],
+        });
+      }
+
+      if (!frontAudio) {
+        await tasks.trigger<typeof textToSpeechTask>("text-to-speech", {
+          fingerprint: `${card.id}:front`,
+          text: card.front,
+        });
+      }
+
+      if (!backAudio) {
+        await tasks.trigger<typeof textToSpeechTask>("text-to-speech", {
+          fingerprint: `${card.id}:back`,
+          text: card.back,
+        });
+      }
+
+      if (!image) {
+        await tasks.trigger<typeof textToImageTask>("text-to-image", {
+          cardId: card.id,
+          text: card.front,
         });
       }
 
       revalidatePath("/decks");
       revalidateTag("id");
 
-      return {
-        card,
-      };
+      return { card };
     } catch (error) {
       logger.error(error, "Failed to create card");
 
       if (error instanceof Error) {
         if (error.message.includes("SQLITE_CONSTRAINT")) {
-          returnValidationErrors(createDeckSchema, {
-            name: {
+          returnValidationErrors(createCardSchema, {
+            front: {
               _errors: ["Card with this name already exists"],
             },
           });
         }
       }
 
-      returnValidationErrors(createDeckSchema, {
+      returnValidationErrors(createCardSchema, {
         _errors: ["Failed to create card"],
       });
     }

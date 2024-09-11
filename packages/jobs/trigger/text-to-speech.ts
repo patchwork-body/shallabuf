@@ -1,5 +1,9 @@
+import { client as redisClient } from "@shallabuf/kv/client";
+import { db } from "@shallabuf/turso";
+import { cardTable } from "@shallabuf/turso/schema";
 import { task } from "@trigger.dev/sdk/v3";
 import { put } from "@vercel/blob";
+import { eq } from "drizzle-orm";
 
 export type TextToSpeechPayload = {
   // String that consists of the cardId and front/back card side delimited by a colon
@@ -14,20 +18,32 @@ export const textToSpeechTask = task({
   run: async (payload: TextToSpeechPayload) => {
     const stream = await textToSpeech(payload.text);
     const buffer = await streamToBuffer(stream);
+    const textHex = Buffer.from(payload.text, "utf8").toString("hex");
+    const result = await put(`${textHex}.mp3`, buffer, { access: "public" });
+    await redisClient.set(`${textHex}:audio`, result.url);
+    const [cardId, side] = payload.fingerprint.split(":");
 
-    const result = await put(
-      `${Buffer.from(payload.text, "utf8").toString("hex")}.mp3`,
-      buffer,
-      { access: "public" },
-    );
+    if (!cardId || !side) {
+      throw new Error(`Invalid fingerprint: ${payload.fingerprint}`);
+    }
 
-    await fetch(`${process.env.VERCEL_URL}/api/webhooks/audio`, {
-      method: "POST",
-      body: JSON.stringify({
-        fingerprint: payload.fingerprint,
-        audioUrl: result.url,
-      }),
-    });
+    if (side !== "front" && side !== "back") {
+      throw new Error(`Invalid side: ${side}`);
+    }
+
+    if (side === "front") {
+      await db
+        .update(cardTable)
+        .set({ frontAudio: result.url })
+        .where(eq(cardTable.id, cardId));
+    }
+
+    if (side === "back") {
+      await db
+        .update(cardTable)
+        .set({ backAudio: result.url })
+        .where(eq(cardTable.id, cardId));
+    }
   },
 });
 
