@@ -8,15 +8,10 @@ export type StreamProps = {
 
 export const Stream = ({ cardId }: StreamProps) => {
   const startStream = async () => {
-    const apiResponse = await fetch("/api/streams/card-changes", {
-      method: "POST",
-      headers: {
-        "Content-Type": "Application/json",
-      },
-      body: JSON.stringify({
-        cardId,
-      }),
-    });
+    const apiResponse = await fetch(
+      `/api/streams/card-changes?cardId=${cardId}`,
+      { method: "GET" },
+    );
 
     if (!apiResponse.body) return;
 
@@ -29,7 +24,6 @@ export const Stream = ({ cardId }: StreamProps) => {
 
     while (true) {
       const { value, done } = await reader.read();
-      console.log(value);
 
       if (done) {
         break;
@@ -37,6 +31,16 @@ export const Stream = ({ cardId }: StreamProps) => {
 
       if (value) {
         jsonString += value;
+      }
+
+      try {
+        const card = JSON.parse(jsonString);
+
+        console.log(card);
+
+        jsonString = "";
+      } catch (error) {
+        console.error(error);
       }
     }
   };
