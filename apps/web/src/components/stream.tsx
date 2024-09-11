@@ -38,7 +38,7 @@ export const Stream = ({ cardId }: StreamProps) => {
       }
 
       if (value) {
-        console.log(JSON.parse(value));
+        console.log(value);
         jsonString += value;
       }
     }
