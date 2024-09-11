@@ -11,6 +11,8 @@ const cardChangesStreamBodySchema = z.object({
   cardId: z.string(),
 });
 
+const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
+
 export async function POST(request: Request) {
   const { data, error } = cardChangesStreamBodySchema.safeParse(
     await request.json(),
@@ -31,27 +33,26 @@ export async function POST(request: Request) {
     return NextResponse.json({ card: null });
   }
 
+  const encoder = new TextEncoder();
+
   const stream = new ReadableStream({
-    start(controller) {
-      let count = 0;
-
-      const intervalId = setInterval(() => {
-        controller.enqueue(JSON.stringify(card));
-        count++;
-
-        if (count >= 5) {
-          clearInterval(intervalId);
-          controller.close();
-        }
-      }, 1000);
+    async start(controller) {
+      controller.enqueue(encoder.encode(JSON.stringify(card)));
+      await delay(500);
+      controller.enqueue(encoder.encode(JSON.stringify(card)));
+      await delay(500);
+      controller.enqueue(encoder.encode(JSON.stringify(card)));
+      await delay(500);
+      controller.enqueue(encoder.encode(JSON.stringify(card)));
+      await delay(500);
+      controller.close();
     },
   });
 
   return new Response(stream, {
     headers: {
-      "Content-Type": "text/event-stream",
+      "Content-Type": "application/json",
       "Cache-Control": "no-cache, no-transform",
-      "Transfer-Encoding": "chunked",
       Connection: "keep-alive",
     },
   });
