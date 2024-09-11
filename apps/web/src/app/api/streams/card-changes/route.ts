@@ -7,7 +7,7 @@ import { z } from "zod";
 export const dynamic = "force-dynamic";
 export const runtime = "edge";
 
-export const cardChangesStreamBodySchema = z.object({
+const cardChangesStreamBodySchema = z.object({
   cardId: z.string(),
 });
 
