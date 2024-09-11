@@ -1,6 +1,7 @@
 import { textToImage } from "@/helpers/text-to-image";
 
 export const dynamic = "force-dynamic";
+export const runtime = "edge";
 
 export async function POST(request: Request) {
   const body = await request.json();
