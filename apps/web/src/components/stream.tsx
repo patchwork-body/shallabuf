@@ -7,9 +7,6 @@ export type StreamProps = {
 };
 
 export const Stream = ({ cardId }: StreamProps) => {
-  const [isSubscribed, setIsSubscribed] = useState(false);
-  const params = useParams();
-
   const startStream = async () => {
     const apiResponse = await fetch("/api/streams/card-changes", {
       method: "POST",
@@ -32,24 +29,21 @@ export const Stream = ({ cardId }: StreamProps) => {
 
     while (true) {
       const { value, done } = await reader.read();
+      console.log(value);
 
       if (done) {
         break;
       }
 
       if (value) {
-        console.log(value);
         jsonString += value;
       }
     }
   };
 
   useEffect(() => {
-    if (!isSubscribed) {
-      startStream();
-      setIsSubscribed(true);
-    }
-  }, [isSubscribed]);
+    startStream();
+  }, []);
 
   return <></>;
 };

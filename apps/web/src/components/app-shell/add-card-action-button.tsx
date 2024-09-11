@@ -7,7 +7,7 @@ import { useParams } from "next/navigation";
 
 export const AddCardActionButton = () => {
   const { execute, isPending } = useAction(createCard);
-  const params = useParams();
+  const params = useParams<{ id: string }>();
 
   return (
     <div>
@@ -19,7 +19,7 @@ export const AddCardActionButton = () => {
           execute({
             front: "disrupting factor",
             back: "possum",
-            deckId: params.id as string,
+            deckId: params.id,
           });
         }}
       >

@@ -4,7 +4,7 @@ export const textToImage = async (
   n = 1,
   response_format: "url" | "b64_json" = "b64_json",
   quality = "standard",
-  size = "1024x1024",
+  size = "512x512",
   style = "vivid",
   user?: string,
 ) => {
