@@ -24,7 +24,6 @@
     "@next-safe-action/adapter-react-hook-form": "^1.0.12",
     "@shallabuf/analytics": "workspace:*",
     "@shallabuf/kv": "workspace:*",
-    "@shallabuf/jobs": "workspace:*",
     "@shallabuf/logger": "workspace:*",
     "@shallabuf/turso": "workspace:*",
     "@shallabuf/ui": "workspace:*",
