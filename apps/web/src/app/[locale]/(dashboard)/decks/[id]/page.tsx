@@ -49,12 +49,12 @@ export default async function Page({ params }: { params: { id: string } }) {
   }
 
   return (
-    <div className="pb-4">
+    <div className="pb-4 max-w-screen-2xl mx-auto">
       <header className="sticky top-[var(--header-height)] min-w-full bg-background pb-4">
         <h2>{deck.name}</h2>
       </header>
 
-      <ul className="grid gird-flow-row lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4 mx-auto max-w-screen-2xl">
+      <ul className="grid gird-flow-row lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
         {deck.cards.map((card) => (
           <li key={card.id}>
             <Stream cardId={card.id} />

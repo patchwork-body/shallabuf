@@ -1,6 +1,6 @@
 "use client";
-import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { logger } from "@shallabuf/logger";
+import { useEffect } from "react";
 
 export type StreamProps = {
   cardId: string;
@@ -35,12 +35,10 @@ export const Stream = ({ cardId }: StreamProps) => {
 
       try {
         const card = JSON.parse(jsonString);
-
-        console.log(card);
-
+        logger.info("Card changed", card);
         jsonString = "";
       } catch (error) {
-        console.error(error);
+        logger.error("Failed to parse JSON", error);
       }
     }
   };

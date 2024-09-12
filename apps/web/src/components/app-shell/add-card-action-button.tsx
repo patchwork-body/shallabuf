@@ -17,7 +17,7 @@ export const AddCardActionButton = () => {
         aria-label="Add new card"
         onClick={async () => {
           execute({
-            front: "disrupting factor",
+            front: "hello there",
             back: "possum",
             deckId: params.id,
           });

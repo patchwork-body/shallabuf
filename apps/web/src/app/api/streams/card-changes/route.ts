@@ -1,5 +1,8 @@
+import { client as redisClient } from "@shallabuf/kv/client";
+import { logger } from "@shallabuf/logger";
 import { db } from "@shallabuf/turso";
 import { cardTable } from "@shallabuf/turso/schema";
+import { runs } from "@trigger.dev/sdk/v3";
 import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -37,15 +40,51 @@ export async function GET(request: Request) {
 
   const stream = new ReadableStream({
     async start(controller) {
-      controller.enqueue(encoder.encode(JSON.stringify(card)));
-      await delay(500);
-      controller.enqueue(encoder.encode(JSON.stringify(card)));
-      await delay(500);
-      controller.enqueue(encoder.encode(JSON.stringify(card)));
-      await delay(500);
-      controller.enqueue(encoder.encode(JSON.stringify(card)));
-      await delay(500);
-      // controller.close();
+      let runsIds: string[] = [];
+
+      do {
+        const runsData: string[] | null = await redisClient.get(
+          `runs:${data.cardId}`,
+        );
+
+        try {
+          runsIds = runsData ?? [];
+        } catch (error) {
+          logger.error("Failed to parse runs data", error);
+          break;
+        }
+
+        const results = await Promise.all(
+          runsIds.map((runId) => {
+            return runs.retrieve(runId);
+          }),
+        );
+
+        const successfulRuns = [];
+        const unsuccessfulRunsIds = [];
+
+        for (const run of results) {
+          if (run.isSuccess) {
+            successfulRuns.push(run);
+          } else {
+            unsuccessfulRunsIds.push(run.id);
+          }
+        }
+
+        await redisClient.set(
+          `runs:${data.cardId}`,
+          JSON.stringify(unsuccessfulRunsIds),
+          { ex: 3600 },
+        );
+
+        for (const run of successfulRuns) {
+          controller.enqueue(encoder.encode(JSON.stringify(run.output)));
+        }
+
+        await delay(1000);
+      } while (runsIds.length > 0);
+
+      controller.close();
     },
   });
 

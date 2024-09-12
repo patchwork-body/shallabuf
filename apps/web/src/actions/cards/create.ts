@@ -55,26 +55,47 @@ export const createCard = authActionClient
         });
       }
 
+      const runs = [];
+
       if (!frontAudio) {
-        await tasks.trigger<typeof textToSpeechTask>("text-to-speech", {
-          fingerprint: `${card.id}:front`,
-          text: card.front,
-        });
+        const run = await tasks.trigger<typeof textToSpeechTask>(
+          "text-to-speech",
+          {
+            fingerprint: `${card.id}:front`,
+            text: card.front,
+          },
+        );
+
+        runs.push(run.id);
       }
 
       if (!backAudio) {
-        await tasks.trigger<typeof textToSpeechTask>("text-to-speech", {
-          fingerprint: `${card.id}:back`,
-          text: card.back,
-        });
+        const run = await tasks.trigger<typeof textToSpeechTask>(
+          "text-to-speech",
+          {
+            fingerprint: `${card.id}:back`,
+            text: card.back,
+          },
+        );
+
+        runs.push(run.id);
       }
 
       if (!image) {
-        await tasks.trigger<typeof textToImageTask>("text-to-image", {
-          cardId: card.id,
-          text: card.front,
-        });
+        const run = await tasks.trigger<typeof textToImageTask>(
+          "text-to-image",
+          {
+            cardId: card.id,
+            text: card.front,
+          },
+        );
+
+        runs.push(run.id);
       }
+
+      await redisClient.set(`runs:${card.id}`, JSON.stringify(runs), {
+        ex: 3600,
+      });
 
       revalidatePath("/decks");
       revalidateTag("id");

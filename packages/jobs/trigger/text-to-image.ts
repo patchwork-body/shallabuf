@@ -1,7 +1,7 @@
 import { client as redisClient } from "@shallabuf/kv/client";
 import { db } from "@shallabuf/turso";
 import { cardTable } from "@shallabuf/turso/schema";
-import { task } from "@trigger.dev/sdk/v3";
+import { logger, task } from "@trigger.dev/sdk/v3";
 import { put } from "@vercel/blob";
 import { eq } from "drizzle-orm";
 
@@ -14,7 +14,13 @@ export const textToImageTask = task({
   id: "text-to-image",
   run: async (payload: TextToImagePayload) => {
     const response = await textToImage(payload.text);
-    const b64_json = (await response.json()).data[0].b64_json;
+    logger.log("Image generation response", await response.json());
+    const b64_json = (await response.json()).data?.[0]?.b64_json;
+
+    if (!b64_json) {
+      throw new Error("No image data returned");
+    }
+
     const buffer = Buffer.from(b64_json, "base64");
     const textHex = Buffer.from(payload.text, "utf8").toString("hex");
     const result = await put(`${textHex}.png`, buffer, { access: "public" });
@@ -24,16 +30,21 @@ export const textToImageTask = task({
       .update(cardTable)
       .set({ image: result.url })
       .where(eq(cardTable.id, payload.cardId));
+
+    return {
+      cardId: payload.cardId,
+      image: result.url,
+    };
   },
 });
 
 export const textToImage = async (
   text: string,
-  model = "dall-e-3",
+  model = "dall-e-2",
   n = 1,
   response_format: "url" | "b64_json" = "b64_json",
   quality = "standard",
-  size = "1024x1024",
+  size = "512x512",
   style = "vivid",
   user?: string,
 ) => {

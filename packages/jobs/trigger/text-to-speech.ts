@@ -44,6 +44,12 @@ export const textToSpeechTask = task({
         .set({ backAudio: result.url })
         .where(eq(cardTable.id, cardId));
     }
+
+    return {
+      cardId,
+      side,
+      audio: result.url,
+    };
   },
 });
 
