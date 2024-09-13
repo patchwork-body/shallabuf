@@ -1,6 +1,7 @@
 "use server";
 
 import { authActionClient } from "@/actions";
+import { toMatchableHex } from "@/helpers/to-matchable-hex";
 import { createCardsSchema } from "@/lib/validation/create-card.schema";
 import type { textToImageTask } from "@shallabuf/jobs/trigger/text-to-image";
 import type { textToSpeechTask } from "@shallabuf/jobs/trigger/text-to-speech";
@@ -31,12 +32,12 @@ export const createCards = authActionClient
   });
 
 const createCard = async (front: string, back: string, deckId: string) => {
-  const frontHex = Buffer.from(front).toString("hex");
-  const backHex = Buffer.from(back).toString("hex");
+  const frontHex = toMatchableHex(front);
+  const backHex = toMatchableHex(back);
 
-  const frontAudio: string | null = await redisClient.get(`${frontHex}:audio`);
-  const backAudio: string | null = await redisClient.get(`${backHex}:audio`);
-  const image: string | null = await redisClient.get(`${frontHex}:image`);
+  const frontAudio: string | null = await redisClient.get(`audio:${frontHex}`);
+  const backAudio: string | null = await redisClient.get(`audio:${backHex}`);
+  const image: string | null = await redisClient.get(`image:${frontHex}`);
 
   try {
     // TODO: insure that user has access to edit this deck

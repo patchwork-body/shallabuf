@@ -18,9 +18,9 @@ export const textToSpeechTask = task({
   run: async (payload: TextToSpeechPayload) => {
     const stream = await textToSpeech(payload.text);
     const buffer = await streamToBuffer(stream);
-    const textHex = Buffer.from(payload.text, "utf8").toString("hex");
+    const textHex = toMatchableHex(payload.text);
     const result = await put(`${textHex}.mp3`, buffer, { access: "public" });
-    await redisClient.set(`${textHex}:audio`, result.url);
+    await redisClient.set(`audio:${textHex}`, result.url);
     const [cardId, side] = payload.fingerprint.split(":");
 
     if (!cardId || !side) {
@@ -93,6 +93,12 @@ const textToSpeech = async (
     console.error("Error generating speech:", error);
     throw error;
   }
+};
+
+export const toMatchableHex = (input: string) => {
+  return Buffer.from(
+    input.toLocaleLowerCase().trim().replace(/\s+/g, " "),
+  ).toString("hex");
 };
 
 const streamToBuffer = async (

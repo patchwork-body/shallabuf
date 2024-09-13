@@ -5,6 +5,7 @@ import type { Card as CardType } from "@shallabuf/turso/schema";
 import { Badge } from "@shallabuf/ui/badge";
 import { Button } from "@shallabuf/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@shallabuf/ui/card";
+import { cn } from "@shallabuf/ui/cn";
 import { FlipHorizontal } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -19,10 +20,10 @@ function useStream<T>(cardId: string, callback: (patch: T) => void) {
     if (streamStarted) return;
     setStreamStarted(true);
 
-    const apiResponse = await fetch(
-      `/api/streams/card-changes?cardId=${cardId}`,
-      { method: "GET", signal: abortController.current.signal },
-    );
+    const apiResponse = await fetch(`/api/streams/card-changes/${cardId}`, {
+      method: "GET",
+      signal: abortController.current.signal,
+    });
 
     if (!apiResponse.body) return;
 
@@ -55,14 +56,8 @@ function useStream<T>(cardId: string, callback: (patch: T) => void) {
     }
   }, [cardId, streamStarted, callback, setStreamStarted]);
 
-  const stop = useCallback(() => {
-    abortController.current.abort();
-    setStreamStarted(false);
-  }, [setStreamStarted]);
-
   return {
     start,
-    stop,
   };
 }
 
@@ -126,7 +121,13 @@ export const Flashcard = ({ card }: FlashcardProps) => {
       >
         <CardHeader className="flex flex-row items-center justify-between">
           <div
-            className="absolute z-10 transition-width-height-border-margin m-5 top-0 left-0 h-12 w-12 hover:m-2 hover:h-[calc(100%-15px)] hover:w-[calc(100%-15px)] bg-cover bg-center rounded-full hover:rounded-lg border-border border-2"
+            className={cn(
+              "absolute z-10 transition-width-height-border-margin m-5 top-0 left-0 h-12 w-12 bg-cover bg-center rounded-full border-border border-2",
+              {
+                "hover:m-2 hover:h-[calc(100%-15px)] hover:w-[calc(100%-15px)] hover:rounded-lg":
+                  patchedCard.image,
+              },
+            )}
             style={{ backgroundImage: `url(${patchedCard.image})` }}
           />
 

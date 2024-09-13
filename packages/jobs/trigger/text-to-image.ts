@@ -31,9 +31,9 @@ export const textToImageTask = task({
     }
 
     const buffer = Buffer.from(b64_json, "base64");
-    const textHex = Buffer.from(payload.text, "utf8").toString("hex");
+    const textHex = toMatchableHex(payload.text);
     const result = await put(`${textHex}.png`, buffer, { access: "public" });
-    await redisClient.set(`${textHex}:image`, result.url);
+    await redisClient.set(`image:${textHex}`, result.url);
 
     return {
       cardId: payload.cardId,
@@ -46,30 +46,30 @@ export const textToImageTask = task({
       .set({ image: output.image })
       .where(eq(cardTable.id, payload.cardId));
   },
-  onFailure: async (
-    payload: TextToImagePayload,
-    _error,
-    { ctx: { run, attempt } },
-  ) => {
-    if (attempt.number === 3) {
-      await db
-        .update(cardTable)
-        .set({ image: PLACEHOLDER_URL })
-        .where(eq(cardTable.id, payload.cardId));
+  onFailure: async (payload: TextToImagePayload, _error, { ctx: { run } }) => {
+    await db
+      .update(cardTable)
+      .set({ image: PLACEHOLDER_URL })
+      .where(eq(cardTable.id, payload.cardId));
 
-      let runsIds: string[] =
-        (await redisClient.get(`runs:${payload.cardId}`)) ?? [];
+    let runsIds: string[] =
+      (await redisClient.get(`runs:${payload.cardId}`)) ?? [];
 
-      runsIds = runsIds.filter((runId) => {
-        return runId !== run.id;
-      });
+    runsIds = runsIds.filter((runId) => {
+      return runId !== run.id;
+    });
 
-      await redisClient.set(`runs:${payload.cardId}`, runsIds, {
-        ex: 120,
-      });
-    }
+    await redisClient.set(`runs:${payload.cardId}`, runsIds, {
+      ex: 120,
+    });
   },
 });
+
+export const toMatchableHex = (input: string) => {
+  return Buffer.from(
+    input.toLocaleLowerCase().trim().replace(/\s+/g, " "),
+  ).toString("hex");
+};
 
 export const textToImage = async (
   text: string,
