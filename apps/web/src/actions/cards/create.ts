@@ -96,9 +96,11 @@ const createCard = async (front: string, back: string, deckId: string) => {
       runs.push(run.id);
     }
 
-    await redisClient.set(`runs:${card.id}`, JSON.stringify(runs), {
-      ex: 120,
-    });
+    if (runs.length > 0) {
+      await redisClient.set(`runs:${card.id}`, JSON.stringify(runs), {
+        ex: 120,
+      });
+    }
 
     revalidatePath("/decks");
     revalidateTag("id");
