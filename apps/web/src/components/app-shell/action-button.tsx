@@ -1,6 +1,6 @@
 "use client";
 import { useParams, usePathname } from "next/navigation";
-import { AddCardActionButton } from "./add-card-action-button";
+import { AddCardActionButton } from "./add-card-action-dialog";
 import { AddDeckActionButton } from "./add-deck-action-button";
 
 export const ActionButton = () => {

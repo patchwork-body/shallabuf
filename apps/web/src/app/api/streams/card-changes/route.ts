@@ -40,17 +40,12 @@ export async function GET(request: Request) {
 
   const stream = new ReadableStream({
     async start(controller) {
-      let runsIds: string[] = [];
+      let runsIds: string[] | null = [];
 
       do {
-        const runsData: string[] | null = await redisClient.get(
-          `runs:${data.cardId}`,
-        );
+        runsIds = await redisClient.get(`runs:${data.cardId}`);
 
-        try {
-          runsIds = runsData ?? [];
-        } catch (error) {
-          logger.error("Failed to parse runs data", error);
+        if (!runsIds) {
           break;
         }
 
@@ -74,7 +69,7 @@ export async function GET(request: Request) {
         await redisClient.set(
           `runs:${data.cardId}`,
           JSON.stringify(unsuccessfulRunsIds),
-          { ex: 3600 },
+          { ex: 120 },
         );
 
         for (const run of successfulRuns) {

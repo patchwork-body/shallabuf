@@ -24,7 +24,7 @@ export const Header = ({ children }: HeaderProps) => {
   return (
     <header
       className={cn(
-        "fixed top-0 left-0 w-screen h-[var(--header-height)] px-4 py-6 flex items-center z-10 bg-background",
+        "fixed top-0 left-0 w-screen h-[var(--header-height)] px-4 py-6 flex items-center z-20 bg-background",
       )}
     >
       {children}

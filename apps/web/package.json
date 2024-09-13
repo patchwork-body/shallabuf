@@ -16,6 +16,7 @@
     "@hookform/resolvers": "^3.9.0",
     "@lucia-auth/adapter-drizzle": "^1.1.0",
     "@next-safe-action/adapter-react-hook-form": "^1.0.12",
+    "@react-spring/web": "^9.7.4",
     "@shallabuf/analytics": "workspace:*",
     "@shallabuf/jobs": "workspace:*",
     "@shallabuf/kv": "workspace:*",

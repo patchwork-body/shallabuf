@@ -36,6 +36,11 @@ export const textToSpeechTask = task({
         .update(cardTable)
         .set({ frontAudio: result.url })
         .where(eq(cardTable.id, cardId));
+
+      return {
+        cardId,
+        frontAudio: result.url,
+      };
     }
 
     if (side === "back") {
@@ -43,13 +48,12 @@ export const textToSpeechTask = task({
         .update(cardTable)
         .set({ backAudio: result.url })
         .where(eq(cardTable.id, cardId));
-    }
 
-    return {
-      cardId,
-      side,
-      audio: result.url,
-    };
+      return {
+        cardId,
+        backAudio: result.url,
+      };
+    }
   },
 });
 

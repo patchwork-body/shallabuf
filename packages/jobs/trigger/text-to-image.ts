@@ -1,9 +1,12 @@
 import { client as redisClient } from "@shallabuf/kv/client";
 import { db } from "@shallabuf/turso";
 import { cardTable } from "@shallabuf/turso/schema";
-import { logger, task } from "@trigger.dev/sdk/v3";
+import { task } from "@trigger.dev/sdk/v3";
 import { put } from "@vercel/blob";
 import { eq } from "drizzle-orm";
+
+const PLACEHOLDER_URL =
+  "https://u6bcvqybmhi1escu.public.blob.vercel-storage.com/436f6e74656e7420686173206265656e2063656e736f726564-PgcgYbMqbzKn1XpDc3ULPhR6odJxhu.png";
 
 export type TextToImagePayload = {
   cardId: string;
@@ -12,13 +15,19 @@ export type TextToImagePayload = {
 
 export const textToImageTask = task({
   id: "text-to-image",
-  run: async (payload: TextToImagePayload) => {
+  retry: {
+    maxAttempts: 3,
+  },
+  run: async (payload: TextToImagePayload, { ctx: { attempt } }) => {
     const response = await textToImage(payload.text);
-    logger.log("Image generation response", await response.json());
     const b64_json = (await response.json()).data?.[0]?.b64_json;
 
     if (!b64_json) {
-      throw new Error("No image data returned");
+      if (attempt.number < 3) {
+        throw new Error("No image data returned");
+      }
+
+      throw new Error("Failed to generate image");
     }
 
     const buffer = Buffer.from(b64_json, "base64");
@@ -26,25 +35,49 @@ export const textToImageTask = task({
     const result = await put(`${textHex}.png`, buffer, { access: "public" });
     await redisClient.set(`${textHex}:image`, result.url);
 
-    await db
-      .update(cardTable)
-      .set({ image: result.url })
-      .where(eq(cardTable.id, payload.cardId));
-
     return {
       cardId: payload.cardId,
       image: result.url,
     };
   },
+  onSuccess: async (payload: TextToImagePayload, output) => {
+    await db
+      .update(cardTable)
+      .set({ image: output.image })
+      .where(eq(cardTable.id, payload.cardId));
+  },
+  onFailure: async (
+    payload: TextToImagePayload,
+    _error,
+    { ctx: { run, attempt } },
+  ) => {
+    if (attempt.number === 3) {
+      await db
+        .update(cardTable)
+        .set({ image: PLACEHOLDER_URL })
+        .where(eq(cardTable.id, payload.cardId));
+
+      let runsIds: string[] =
+        (await redisClient.get(`runs:${payload.cardId}`)) ?? [];
+
+      runsIds = runsIds.filter((runId) => {
+        return runId !== run.id;
+      });
+
+      await redisClient.set(`runs:${payload.cardId}`, runsIds, {
+        ex: 120,
+      });
+    }
+  },
 });
 
 export const textToImage = async (
   text: string,
-  model = "dall-e-2",
+  model = "dall-e-3",
   n = 1,
   response_format: "url" | "b64_json" = "b64_json",
   quality = "standard",
-  size = "512x512",
+  size = "1024x1024",
   style = "vivid",
   user?: string,
 ) => {

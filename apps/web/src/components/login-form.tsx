@@ -100,7 +100,7 @@ export const LoginForm = () => {
             type="submit"
           >
             Login
-            {form.formState.isLoading && (
+            {form.formState.isSubmitting && (
               <span className="animate-spin">
                 <Loader />
               </span>
