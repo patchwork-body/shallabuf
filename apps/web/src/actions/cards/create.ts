@@ -14,7 +14,7 @@ import { generateIdFromEntropySize } from "lucia";
 import { returnValidationErrors } from "next-safe-action";
 import { revalidatePath, revalidateTag } from "next/cache";
 
-export const createCards = authActionClient
+export const createCardsAction = authActionClient
   .schema(createCardsSchema)
   .metadata({
     name: "create-card",

@@ -1,5 +1,5 @@
 "use client";
-import { createCards } from "@/actions/cards/create";
+import { createCardsAction } from "@/actions/cards/create";
 import { createCardsSchema } from "@/lib/validation/create-card.schema";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useHookFormAction } from "@next-safe-action/adapter-react-hook-form/hooks";
@@ -34,13 +34,13 @@ const formItemClass = "flex items-center";
 const formLabelClass = "w-1/4 text-right mr-4";
 const formControlClass = "w-3/4";
 
-export const AddCardActionButton = () => {
+export const AddCardDialog = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const params = useParams<{ id: string }>();
   const [rows, setRows] = useState<string[]>([nanoid()]);
 
   const { form, handleSubmitWithAction } = useHookFormAction(
-    createCards,
+    createCardsAction,
     zodResolver(createCardsSchema),
     {
       formProps: {

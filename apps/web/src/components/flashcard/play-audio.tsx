@@ -1,6 +1,11 @@
 "use client";
-
 import { Button } from "@shallabuf/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@shallabuf/ui/tooltip";
 import { AudioLines, Pause } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
@@ -67,9 +72,22 @@ export const PlayAudio = (props: PlayAudioProps) => {
     handleEnded,
   ]);
 
+  if (!props.audioUrl) {
+    return (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild className={props.className}>
+            <AudioLines className="animate-pulse" />
+          </TooltipTrigger>
+
+          <TooltipContent>Generating audio...</TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  }
+
   return (
     <Button
-      disabled={!props.audioUrl}
       variant="ghost"
       size="icon"
       onClick={handleClick}

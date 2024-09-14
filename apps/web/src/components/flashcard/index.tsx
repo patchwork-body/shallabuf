@@ -6,10 +6,15 @@ import { Badge } from "@shallabuf/ui/badge";
 import { Button } from "@shallabuf/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@shallabuf/ui/card";
 import { cn } from "@shallabuf/ui/cn";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@shallabuf/ui/tooltip";
 import { FlipHorizontal } from "lucide-react";
-import Link from "next/link";
-import { useParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { EditCardDialog } from "./edit-card-dialog";
 import { PlayAudio } from "./play-audio";
 
 function useStream<T>(cardId: string, callback: (patch: T) => void) {
@@ -77,7 +82,6 @@ export type FlashcardProps = {
 };
 
 export const Flashcard = ({ card }: FlashcardProps) => {
-  const params = useParams<{ id: string }>();
   const [patchedCard, setPatchedCard] = useState(card);
 
   const stream = useStream<StreamOutput>(card.id, (patch) => {
@@ -116,20 +120,34 @@ export const Flashcard = ({ card }: FlashcardProps) => {
   return (
     <animated.div style={spring}>
       <Card
-        className="group relative"
+        className="group relative h-[196px] flex flex-col justify-between"
         style={{ transform: isFlipped ? "rotateY(180deg)" : "" }}
       >
         <CardHeader className="flex flex-row items-center justify-between">
-          <div
-            className={cn(
-              "absolute z-10 transition-width-height-border-margin m-5 top-0 left-0 h-12 w-12 bg-cover bg-center rounded-full border-border border-2",
-              {
-                "hover:m-2 hover:h-[calc(100%-15px)] hover:w-[calc(100%-15px)] hover:rounded-lg":
-                  patchedCard.image,
-              },
-            )}
-            style={{ backgroundImage: `url(${patchedCard.image})` }}
-          />
+          {patchedCard.image ? (
+            <div
+              className={cn(
+                "absolute z-10 transition-width-height-border-margin m-5 top-0 left-0 h-12 w-12 bg-cover bg-center rounded-full border-border border-2 bg-secondary",
+                "hover:m-2 hover:h-[calc(100%-15px)] hover:w-[calc(100%-15px)] hover:rounded-lg",
+              )}
+              style={{ backgroundImage: `url(${patchedCard.image})` }}
+            />
+          ) : (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div
+                    className={cn(
+                      "absolute z-10 transition-width-height-border-margin m-5 top-0 left-0 h-12 w-12",
+                      "bg-cover bg-center rounded-full border-border border-2 bg-secondary animate-pulse",
+                    )}
+                  />
+                </TooltipTrigger>
+
+                <TooltipContent>Generating image...</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
 
           {isFlipped ? (
             <PlayAudio className="ml-auto" audioUrl={patchedCard.backAudio} />
@@ -138,23 +156,33 @@ export const Flashcard = ({ card }: FlashcardProps) => {
           )}
         </CardHeader>
 
-        <CardContent className="flex place-content-center">
-          <p>{isFlipped ? patchedCard.back : patchedCard.front}</p>
+        <CardContent className="text-center">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <p className="truncate">
+                  {isFlipped ? patchedCard.back : patchedCard.front}
+                </p>
+              </TooltipTrigger>
+
+              <TooltipContent>
+                {isFlipped ? patchedCard.back : patchedCard.front}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </CardContent>
 
-        <CardFooter>
+        <CardFooter className="justify-between">
           <Badge variant="secondary">{isFlipped ? "Back" : "Front"}</Badge>
-
-          <Button asChild variant="link" className="ml-auto">
-            <Link href={`/decks/${params.id}/cards/${patchedCard.id}`}>
-              Edit
-            </Link>
-          </Button>
+          <EditCardDialog card={patchedCard} onCardUpdate={setPatchedCard} />
         </CardFooter>
 
         <Button
           variant="secondary"
-          className="flex gap-x-2 items-center absolute bottom-6 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-secondary/50 text-secondary-foreground rounded-lg px-3 py-2"
+          className={cn(
+            "flex gap-x-2 items-center absolute bottom-6 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100",
+            "transition-opacity bg-secondary/50 text-secondary-foreground rounded-lg px-3 py-2",
+          )}
           onClick={handleFlip}
         >
           <FlipHorizontal />
