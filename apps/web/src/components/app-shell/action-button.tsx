@@ -1,14 +1,14 @@
 "use client";
 import { useParams, usePathname } from "next/navigation";
 import { AddCardDialog } from "./add-card-dialog";
-import { AddDeckActionButton } from "./add-deck-action-button";
+import { AddDeckDialog } from "./add-deck-dialog";
 
 export const ActionButton = () => {
   const pathname = usePathname();
   const params = useParams();
 
   if (pathname === "/decks") {
-    return <AddDeckActionButton />;
+    return <AddDeckDialog />;
   }
 
   if (pathname === `/decks/${params.id}`) {

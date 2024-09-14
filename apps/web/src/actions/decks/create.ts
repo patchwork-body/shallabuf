@@ -9,7 +9,7 @@ import { generateIdFromEntropySize } from "lucia";
 import { returnValidationErrors } from "next-safe-action";
 import { revalidatePath } from "next/cache";
 
-export const createDeck = authActionClient
+export const createDeckAction = authActionClient
   .schema(createDeckSchema)
   .metadata({
     name: "create-deck",
