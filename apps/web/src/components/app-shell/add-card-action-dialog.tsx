@@ -23,17 +23,19 @@ import {
   FormMessage,
 } from "@shallabuf/ui/form";
 import { Input } from "@shallabuf/ui/input";
-import { Loader, Plus } from "lucide-react";
+import { ScrollArea } from "@shallabuf/ui/scroll-area";
+import { Separator } from "@shallabuf/ui/separator";
+import { Loader, Plus, X } from "lucide-react";
 import { nanoid } from "nanoid";
 import { useParams } from "next/navigation";
-import { useCallback, useState } from "react";
+import { type MouseEventHandler, useCallback, useState } from "react";
+
+const formItemClass = "flex items-center";
+const formLabelClass = "w-1/4 text-right mr-4";
+const formControlClass = "w-3/4";
 
 export const AddCardActionButton = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const toggleDialogOpen = useCallback(
-    () => setIsDialogOpen((prev) => !prev),
-    [setIsDialogOpen],
-  );
   const params = useParams<{ id: string }>();
   const [rows, setRows] = useState<string[]>([nanoid()]);
 
@@ -49,12 +51,50 @@ export const AddCardActionButton = () => {
         },
         reValidateMode: "onSubmit",
       },
+      actionProps: {
+        onSuccess: () => {
+          toggleDialogOpen();
+        },
+      },
     },
   );
 
+  const toggleDialogOpen = useCallback(() => {
+    form.reset();
+    setIsDialogOpen((prev) => !prev);
+    setRows([nanoid()]);
+  }, [setIsDialogOpen, form.reset, setRows]);
+
   const addRow = useCallback(() => {
     setRows((prev) => [...prev, nanoid()]);
-  }, [setRows]);
+
+    form.setValue("cards", [
+      ...form.getValues().cards,
+      { front: "", back: "" },
+    ]);
+  }, [setRows, form.setValue, form.getValues]);
+
+  const removeRow: MouseEventHandler<HTMLButtonElement> = useCallback(
+    (event) => {
+      const dataIndex = (event.target as HTMLElement)
+        .closest("li")
+        ?.getAttribute("data-index");
+
+      if (!dataIndex) {
+        return;
+      }
+
+      const index = Number.parseInt(dataIndex);
+
+      setRows((prev) => prev.filter((_, i) => i !== index));
+
+      form.setValue(
+        "cards",
+        form.getValues().cards.filter((_, i) => i !== index),
+      );
+    },
+    [setRows, form.setValue, form.getValues],
+  );
 
   return (
     <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -71,29 +111,48 @@ export const AddCardActionButton = () => {
       <DialogContent>
         <Form {...form}>
           <form
-            className="flex flex-col space-y-4 min-w-80"
+            className="flex flex-col gap-y-4 min-w-80"
             onSubmit={handleSubmitWithAction}
             noValidate
           >
             <DialogHeader>
-              <DialogTitle>Edit profile</DialogTitle>
+              <DialogTitle>Add Cards</DialogTitle>
               <DialogDescription>
-                Add a new card to this deck. You can add as many cards as you
+                Add new cards to this deck. You can add as many cards as you
                 want.
               </DialogDescription>
+            </DialogHeader>
 
-              <ul>
+            <ScrollArea className="max-h-80">
+              <ul className="flex flex-col mt-4">
                 {rows.map((id, index) => {
                   return (
-                    <li key={id}>
+                    <li
+                      data-index={index}
+                      className="relative flex flex-col gap-y-2 p-3 rounded-lg"
+                      key={id}
+                    >
+                      {index > 0 && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="absolute w-6 h-6 p-1 left-0 top-3 text-muted-foreground"
+                          onClick={removeRow}
+                        >
+                          <X />
+                        </Button>
+                      )}
+
                       <FormField
                         name={`cards.${index}.front`}
                         control={form.control}
                         render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Front</FormLabel>
+                          <FormItem className={formItemClass}>
+                            <FormLabel className={formLabelClass}>
+                              Front
+                            </FormLabel>
 
-                            <FormControl>
+                            <FormControl className={formControlClass}>
                               <Input
                                 type="text"
                                 placeholder="Front of the card"
@@ -102,7 +161,6 @@ export const AddCardActionButton = () => {
                               />
                             </FormControl>
 
-                            <FormDescription />
                             <FormMessage />
                           </FormItem>
                         )}
@@ -112,10 +170,12 @@ export const AddCardActionButton = () => {
                         name={`cards.${index}.back`}
                         control={form.control}
                         render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Back</FormLabel>
+                          <FormItem className={formItemClass}>
+                            <FormLabel className={formLabelClass}>
+                              Back
+                            </FormLabel>
 
-                            <FormControl>
+                            <FormControl className={formControlClass}>
                               <Input
                                 type="text"
                                 placeholder="Back of the card"
@@ -124,44 +184,48 @@ export const AddCardActionButton = () => {
                               />
                             </FormControl>
 
-                            <FormDescription />
                             <FormMessage />
                           </FormItem>
                         )}
                       />
+
+                      {index !== rows.length - 1 && (
+                        <Separator className="mt-6" />
+                      )}
                     </li>
                   );
                 })}
               </ul>
+            </ScrollArea>
 
-              <Button type="button" variant="ghost" onClick={addRow}>
-                <Plus />
-                Add card
+            <Button type="button" variant="ghost" onClick={addRow}>
+              <Plus />
+              Add card
+            </Button>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={form.formState.isSubmitting}
+                onClick={toggleDialogOpen}
+              >
+                Cancel
               </Button>
 
-              <DialogFooter>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={toggleDialogOpen}
-                >
-                  Cancel
-                </Button>
-
-                <Button
-                  className="flex gap-x-4"
-                  disabled={form.formState.isSubmitting}
-                  aria-busy={form.formState.isSubmitting}
-                >
-                  Save
-                  {form.formState.isSubmitting && (
-                    <span className="animate-spin">
-                      <Loader />
-                    </span>
-                  )}
-                </Button>
-              </DialogFooter>
-            </DialogHeader>
+              <Button
+                className="flex gap-x-4"
+                disabled={form.formState.isSubmitting}
+                aria-busy={form.formState.isSubmitting}
+              >
+                Save
+                {form.formState.isSubmitting && (
+                  <span className="animate-spin">
+                    <Loader />
+                  </span>
+                )}
+              </Button>
+            </DialogFooter>
           </form>
         </Form>
       </DialogContent>
