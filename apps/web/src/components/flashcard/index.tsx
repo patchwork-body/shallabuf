@@ -66,7 +66,7 @@ function useStream<T>(cardId: string, callback: (patch: T) => void) {
   };
 }
 
-type StreamOutput =
+type StreamOutput = Array<
   | {
       image: string;
     }
@@ -75,7 +75,8 @@ type StreamOutput =
     }
   | {
       backAudio: string;
-    };
+    }
+>;
 
 export type FlashcardProps = {
   card: CardType;
@@ -87,8 +88,12 @@ const imageContainer =
 export const Flashcard = ({ card }: FlashcardProps) => {
   const [patchedCard, setPatchedCard] = useState(card);
 
-  const stream = useStream<StreamOutput>(card.id, (patch) => {
-    setPatchedCard((prev) => ({ ...prev, ...patch }));
+  const stream = useStream<StreamOutput>(card.id, (patches) => {
+    const patch = patches.reduce((patch, current) => {
+      return Object.assign(patch, current);
+    });
+
+    setPatchedCard((prev) => Object.assign({}, prev, patch));
   });
 
   const [isFlipped, setIsFlipped] = useState(false);
