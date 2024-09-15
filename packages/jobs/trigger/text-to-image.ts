@@ -73,11 +73,11 @@ export const toMatchableHex = (input: string) => {
 
 export const textToImage = async (
   text: string,
-  model = "dall-e-3",
+  model = "dall-e-2",
   n = 1,
   response_format: "url" | "b64_json" = "b64_json",
   quality = "standard",
-  size = "1024x1024",
+  size = "512x512",
   style = "vivid",
   user?: string,
 ) => {
