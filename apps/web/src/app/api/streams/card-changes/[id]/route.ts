@@ -12,48 +12,38 @@ export async function GET(
 ) {
   const encoder = new TextEncoder();
 
+  const runsIds: string[] | null =
+    (await redisClient.get(`runs:${params.id}`)) ?? [];
+
   const stream = new ReadableStream({
     async start(controller) {
-      let runsIds: string[] | null = [];
       let counter = 0;
 
-      do {
-        runsIds = await redisClient.get(`runs:${params.id}`);
-
-        if (!runsIds) {
-          break;
-        }
-
+      while ((runsIds?.length ?? 0) > 0 && counter < 10) {
         const results = await Promise.all(
-          runsIds.map((runId) => {
+          runsIds?.map((runId) => {
             return runs.retrieve(runId);
-          }),
+          }) ?? [],
         );
 
-        const successfulRuns = [];
-        const unsuccessfulRunsIds = [];
+        const completed = results.filter((run) => run.status === "COMPLETED");
 
-        for (const run of results) {
-          if (run.isSuccess) {
-            successfulRuns.push(run);
-          } else {
-            unsuccessfulRunsIds.push(run.id);
-          }
+        for (const run of completed) {
+          runsIds.splice(runsIds.indexOf(run.id), 1);
         }
 
-        await redisClient.set(
-          `runs:${params.id}`,
-          JSON.stringify(unsuccessfulRunsIds),
-          { ex: 120 },
-        );
-
-        for (const run of successfulRuns) {
-          controller.enqueue(encoder.encode(JSON.stringify(run.output)));
-        }
-
+        const output = completed.map((run) => run.output);
         counter++;
+
+        controller.enqueue(encoder.encode(JSON.stringify(output)));
         await delay(1000);
-      } while (runsIds.length > 0 && counter < 10);
+      }
+
+      if (runsIds.length > 0) {
+        await redisClient.set(`runs:${params.id}`, JSON.stringify(runsIds), {
+          ex: 120,
+        });
+      }
 
       controller.close();
     },
