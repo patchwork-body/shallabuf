@@ -19,7 +19,7 @@ export const textToSpeechTask = task({
     const stream = await textToSpeech(payload.text);
     const buffer = await streamToBuffer(stream);
     const textHex = toMatchableHex(payload.text);
-    const result = await put(`${textHex}.mp3`, buffer, { access: "public" });
+    const result = await put(`${textHex}.aac`, buffer, { access: "public" });
     await redisClient.set(`audio:${textHex}`, result.url);
     const [cardId, side] = payload.fingerprint.split(":");
 
@@ -61,9 +61,11 @@ const textToSpeech = async (
   text: string,
   model = "tts-1",
   voice = "alloy",
-  response_format = "mp3",
+  response_format = "aac",
   speed = 1.0,
 ) => {
+  const input = text.trim().split(" ").length === 1 ? `...${text}...` : text;
+
   try {
     const response = await fetch("https://api.openai.com/v1/audio/speech", {
       method: "POST",
@@ -73,7 +75,7 @@ const textToSpeech = async (
       },
       body: JSON.stringify({
         model,
-        input: text,
+        input,
         voice,
         response_format,
         speed,
