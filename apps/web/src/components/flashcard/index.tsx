@@ -81,6 +81,9 @@ export type FlashcardProps = {
   card: CardType;
 };
 
+const imageContainer =
+  "absolute z-10 transition-width-height-border-margin m-5 top-0 left-0 h-12 w-12 bg-cover bg-center rounded-full border-border border-2 bg-secondary";
+
 export const Flashcard = ({ card }: FlashcardProps) => {
   const [patchedCard, setPatchedCard] = useState(card);
 
@@ -127,7 +130,7 @@ export const Flashcard = ({ card }: FlashcardProps) => {
           {patchedCard.image ? (
             <div
               className={cn(
-                "absolute z-10 transition-width-height-border-margin m-5 top-0 left-0 h-12 w-12 bg-cover bg-center rounded-full border-border border-2 bg-secondary",
+                imageContainer,
                 "hover:m-2 hover:h-[calc(100%-15px)] hover:w-[calc(100%-15px)] hover:rounded-lg",
               )}
               style={{ backgroundImage: `url(${patchedCard.image})` }}
@@ -136,12 +139,7 @@ export const Flashcard = ({ card }: FlashcardProps) => {
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <div
-                    className={cn(
-                      "absolute z-10 transition-width-height-border-margin m-5 top-0 left-0 h-12 w-12",
-                      "bg-cover bg-center rounded-full border-border border-2 bg-secondary animate-pulse",
-                    )}
-                  />
+                  <div className={cn(imageContainer, "animate-pulse")} />
                 </TooltipTrigger>
 
                 <TooltipContent>Generating image...</TooltipContent>

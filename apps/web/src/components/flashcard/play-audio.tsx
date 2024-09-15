@@ -77,7 +77,9 @@ export const PlayAudio = (props: PlayAudioProps) => {
       <TooltipProvider>
         <Tooltip>
           <TooltipTrigger asChild className={props.className}>
-            <AudioLines className="animate-pulse" />
+            <Button disabled variant="ghost" size="icon">
+              <AudioLines className="animate-pulse" />
+            </Button>
           </TooltipTrigger>
 
           <TooltipContent>Generating audio...</TooltipContent>
