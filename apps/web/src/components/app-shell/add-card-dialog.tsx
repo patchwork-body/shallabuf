@@ -16,7 +16,6 @@ import {
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -108,7 +107,7 @@ export const AddCardDialog = () => {
         </Button>
       </DialogTrigger>
 
-      <DialogContent>
+      <DialogContent tabIndex={undefined}>
         <Form {...form}>
           <form
             className="flex flex-col gap-y-4 min-w-80"
@@ -156,7 +155,6 @@ export const AddCardDialog = () => {
                               <Input
                                 type="text"
                                 placeholder="Front of the card"
-                                aria-required="true"
                                 {...field}
                               />
                             </FormControl>
@@ -179,7 +177,6 @@ export const AddCardDialog = () => {
                               <Input
                                 type="text"
                                 placeholder="Back of the card"
-                                aria-required="true"
                                 {...field}
                               />
                             </FormControl>

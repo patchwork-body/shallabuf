@@ -7,13 +7,22 @@ import { Button } from "@shallabuf/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@shallabuf/ui/card";
 import { cn } from "@shallabuf/ui/cn";
 import {
+  Popover,
+  PopoverAnchor,
+  PopoverArrow,
+  PopoverContent,
+  PopoverTrigger,
+} from "@shallabuf/ui/popover";
+import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@shallabuf/ui/tooltip";
+import { Ellipsis } from "lucide-react";
 import { FlipHorizontal } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { DeleteCardDialog } from "./delete-card-dialog";
 import { EditCardDialog } from "./edit-card-dialog";
 import { PlayAudio } from "./play-audio";
 
@@ -177,7 +186,30 @@ export const Flashcard = ({ card }: FlashcardProps) => {
 
         <CardFooter className="justify-between">
           <Badge variant="secondary">{isFlipped ? "Back" : "Front"}</Badge>
-          <EditCardDialog card={patchedCard} onCardUpdate={setPatchedCard} />
+
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <Ellipsis />
+              </Button>
+            </PopoverTrigger>
+
+            <PopoverContent side="right" className="max-w-[180px]">
+              <ul className="flex flex-col">
+                <li>
+                  <EditCardDialog
+                    card={patchedCard}
+                    onCardUpdate={setPatchedCard}
+                  />
+
+                  <DeleteCardDialog card={patchedCard} />
+                </li>
+              </ul>
+
+              <PopoverArrow className="fill-background stroke-border stroke-2 -translate-y-[1px]" />
+              <PopoverArrow className="fill-background -translate-y-[2px]" />
+            </PopoverContent>
+          </Popover>
         </CardFooter>
 
         <Button

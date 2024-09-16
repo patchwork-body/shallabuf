@@ -33,6 +33,7 @@
     "./form": "./src/components/form.tsx",
     "./icons": "./src/components/icons.tsx",
     "./scroll-area": "./src/components/scroll-area.tsx",
+    "./popover": "./src/components/popover.tsx",
     "./tailwind.config": "./tailwind.config.ts",
     "./postcss": "./postcss.config.js"
   },
@@ -41,6 +42,7 @@
     "@radix-ui/react-avatar": "^1.1.0",
     "@radix-ui/react-dialog": "^1.1.1",
     "@radix-ui/react-label": "^2.1.0",
+    "@radix-ui/react-popover": "^1.1.1",
     "@radix-ui/react-scroll-area": "^1.1.0",
     "@radix-ui/react-separator": "^1.1.0",
     "@radix-ui/react-slot": "^1.1.0",

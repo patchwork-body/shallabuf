@@ -23,7 +23,7 @@ import {
   FormRootMessage,
 } from "@shallabuf/ui/form";
 import { Input } from "@shallabuf/ui/input";
-import { Loader } from "lucide-react";
+import { Loader, Pencil } from "lucide-react";
 import { useCallback, useState } from "react";
 
 const formItemClass = "flex items-center";
@@ -77,7 +77,12 @@ export const EditCardDialog = ({ card, onCardUpdate }: EditCardDialogProps) => {
   return (
     <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="sm">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="flex items-center justify-start gap-x-2 min-w-full"
+        >
+          <Pencil className="w-4 h-4" />
           Edit
         </Button>
       </DialogTrigger>
