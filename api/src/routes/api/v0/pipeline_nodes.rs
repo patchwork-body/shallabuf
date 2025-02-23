@@ -1,7 +1,10 @@
 use axum::{extract::Path, Json};
 use hyper::StatusCode;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
+use tracing::info;
 use uuid::Uuid;
+use sqlx::Acquire;
 
 use crate::{
     app_state::{Coords, DatabaseConnection},
@@ -47,6 +50,60 @@ pub struct PipelineNodeCreationParams {
     node_id: Uuid,
     node_version: String,
     coords: Coords,
+}
+
+#[derive(Debug, Serialize)]
+struct ApiError {
+    error: String,
+}
+
+impl From<sqlx::Error> for ApiError {
+    fn from(err: sqlx::Error) -> Self {
+        ApiError {
+            error: err.to_string(),
+        }
+    }
+}
+
+pub async fn delete(
+    DatabaseConnection(mut conn): DatabaseConnection,
+    Path(id): Path<Uuid>,
+) -> Result<StatusCode, (StatusCode, Json<ApiError>)> {
+    info!("Attempting to delete pipeline node: {id}");
+
+    let mut tx = conn
+        .begin()
+        .await
+        .map_err(internal_error)?;
+
+    // Check if node exists
+    let node_exists = sqlx::query!("SELECT id FROM pipeline_nodes WHERE id = $1", id)
+        .fetch_optional(&mut *tx)
+        .await
+        .map_err(internal_error)?
+        .is_some();
+
+    if !node_exists {
+        return Err((
+            StatusCode::NOT_FOUND,
+            Json(ApiError {
+                error: "Pipeline node not found".to_string(),
+            }),
+        ));
+    }
+
+    // Delete the node (dependencies handled by ON DELETE CASCADE)
+    sqlx::query!("DELETE FROM pipeline_nodes WHERE id = $1", id)
+        .execute(&mut *tx)
+        .await
+        .map_err(internal_error)?;
+
+    tx.commit()
+        .await
+        .map_err(internal_error)?;
+
+    info!("Successfully deleted pipeline node: {id}");
+    Ok(StatusCode::NO_CONTENT)
 }
 
 pub async fn create(
@@ -162,4 +219,60 @@ pub async fn update(
         inputs: vec![],
         outputs: vec![],
     }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sqlx::PgPool;
+
+    #[tokio::test]
+    async fn test_delete_pipeline_node_success() {
+        // Replace with your test database URL
+        let pool = PgPool::connect("postgres://user:pass@localhost/test_db")
+            .await
+            .unwrap();
+        let mut conn = DatabaseConnection(pool.acquire().await.unwrap());
+
+        // Insert test data
+        let id = Uuid::new_v4();
+        sqlx::query!(
+            "INSERT INTO pipeline_nodes (id, pipeline_id, node_id, node_version, coords) VALUES ($1, $2, $3, $4, $5)",
+            id,
+            Uuid::new_v4,
+            Uuid::new_v4,
+            "1.0",
+            serde_json::json!({"x": 0, "y": 0})
+        )
+        .execute(&mut *conn.0)
+        .await
+        .unwrap();
+
+        // Delete the node
+        let result = delete(conn, Path(id)).await;
+        assert!(matches!(result, Ok(StatusCode::NO_CONTENT)));
+
+        // Verify deletion
+        let exists = sqlx::query!("SELECT id FROM pipeline_nodes WHERE id = $1", id)
+            .fetch_optional(&mut *pool.acquire().await.unwrap())
+            .await
+            .unwrap()
+            .is_none();
+        assert!(exists);
+    }
+
+    #[tokio::test]
+    async fn test_delete_pipeline_node_not_found() {
+        let pool = PgPool::connect("postgres://user:pass@localhost/test_db")
+            .await
+            .unwrap();
+        let conn = DatabaseConnection(pool.acquire().await.unwrap());
+
+        let id = Uuid::new_v4();
+        let result = delete(conn, Path(id)).await;
+        assert!(matches!(
+            result,
+            Err((StatusCode::NOT_FOUND, _))
+        ));
+    }
 }
