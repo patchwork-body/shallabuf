@@ -1,7 +1,7 @@
 use async_nats::jetstream;
 use event_bridge::JETSTREAM_NAME;
 use sqlx::postgres::PgListener;
-use std::{env, io, process};
+use std::io;
 use tokio::signal::ctrl_c;
 use tracing::{error, info};
 use tracing_subscriber::{filter::EnvFilter, fmt, prelude::*};

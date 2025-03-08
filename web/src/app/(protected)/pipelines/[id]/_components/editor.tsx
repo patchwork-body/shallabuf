@@ -69,7 +69,7 @@ export const Editor = (props: EditorProps) => {
   const pipelineId = params.id as string;
   const [execId, setExecId] = useQueryState("exec");
 
-  const clearTaskNodes = useCallback(() => {
+  const _clearTaskNodes = useCallback(() => {
     setNodes((nodes) => {
       return nodes.map((node) => {
         if (node.type === NodeType.Task) {

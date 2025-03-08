@@ -37,9 +37,10 @@ const STATUS_ICONS: Record<ExecStatus, ReactNode> = {
   running: <Loader />,
   completed: <PlayIcon />,
   failed: <PlayIcon />,
+  cancelled: <PlayIcon />,
 } as const;
 
-const getStatusIcon = (status?: ExecStatus) => {
+const _getStatusIcon = (status?: ExecStatus) => {
   if (!status) return <PlayIcon />;
   return STATUS_ICONS[status] ?? <PlayIcon />;
 };

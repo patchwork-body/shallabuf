@@ -206,7 +206,7 @@ async fn main() -> Result<(), async_nats::Error> {
             let new_size = current_size + required_size;
 
             let page_size = memory.page_size(&store);
-            let required_pages = (new_size + page_size - 1) / page_size;
+            let required_pages = new_size.div_ceil(page_size);
             let current_pages = memory.size(&store);
 
             if required_pages > current_pages {
