@@ -1,7 +1,8 @@
+use crate::lib::session::Session as SessionValue;
 use crate::{
     app_state::{DatabaseConnection, RedisConnection},
-    lib::session::{create_session, generate_session_token, invalidate_session},
     extractors::session::Session,
+    lib::session::{create_session, generate_session_token, invalidate_session},
     utils::internal_error,
 };
 use argon2::{password_hash::PasswordHash, Argon2, PasswordVerifier};
@@ -9,7 +10,6 @@ use axum::Json;
 use db::dtos::KeyProviderType;
 use hyper::StatusCode;
 use serde::{Deserialize, Serialize};
-use crate::lib::session::Session as SessionValue;
 
 #[derive(Deserialize)]
 pub struct LoginRequest {
@@ -72,7 +72,7 @@ pub async fn login(
     }))
 }
 
-pub async fn session(Session(session): Session) -> Result<Json<SessionValue>, StatusCode>  {
+pub async fn session(Session(session): Session) -> Result<Json<SessionValue>, StatusCode> {
     Ok(Json(session))
 }
 
@@ -86,9 +86,9 @@ pub async fn logout(
     Session(session): Session,
     RedisConnection(redis): RedisConnection,
 ) -> Result<Json<LogoutResponse>, StatusCode> {
-    invalidate_session(redis, &session.id).await.map_err(internal_error)?;
+    invalidate_session(redis, &session.id)
+        .await
+        .map_err(internal_error)?;
 
-    Ok(Json(LogoutResponse {
-        success: true,
-    }))
+    Ok(Json(LogoutResponse { success: true }))
 }

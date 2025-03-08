@@ -18,25 +18,9 @@ async fn main() -> io::Result<()> {
     let filter_layer = EnvFilter::from_default_env();
     let fmt_layer = fmt::layer().with_target(false).with_line_number(true);
 
-    let (loki_layer, loki_task) = tracing_loki::builder()
-        .label("host", "mine")
-        .expect("Failed to create Loki layer")
-        .extra_field("pid", format!("{}", process::id()))
-        .expect("Failed to add extra field to Loki layer")
-        .build_url(
-            env::var("LOKI_URL")
-                .expect("LOKI_URL must be set")
-                .parse()
-                .expect("Failed to parse Loki URL"),
-        )
-        .expect("Failed to build Loki layer");
-
-    tokio::spawn(loki_task);
-
     tracing_subscriber::registry()
         .with(filter_layer)
         .with(fmt_layer)
-        .with(loki_layer)
         .init();
 
     let nats_url = std::env::var("NATS_URL").expect("NATS_URL must be set");

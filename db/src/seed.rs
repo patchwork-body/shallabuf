@@ -3,6 +3,7 @@ use argon2::{
     Argon2,
 };
 use std::collections::HashMap;
+use tracing::info;
 use uuid::Uuid;
 
 use crate::dtos::{
@@ -13,6 +14,34 @@ use aws_sdk_s3::error::SdkError;
 use aws_sdk_s3::types::BucketVersioningStatus;
 use sqlx::PgPool;
 
+/// Runs database migrations and optionally resets the schema in development.
+pub async fn run_migrations(pool: &PgPool) -> anyhow::Result<()> {
+    let rust_env = std::env::var("RUST_ENV").unwrap_or_else(|_| "dev".to_string());
+
+    if rust_env == "dev" {
+        info!("Dropping and recreating schema in development mode...");
+        sqlx::query!("DROP SCHEMA public CASCADE;")
+            .execute(pool)
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to drop schema: {}", e))?;
+
+        sqlx::query!("CREATE SCHEMA public;")
+            .execute(pool)
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to create schema: {}", e))?;
+
+        info!("Schema dropped and recreated successfully");
+    }
+
+    crate::MIGRATOR
+        .run(pool)
+        .await
+        .map_err(|e| anyhow::anyhow!("Failed to run migrations: {}", e))?;
+
+    info!("Database migrated successfully");
+    Ok(())
+}
+
 /// Seeds the database with initial data.
 ///
 /// # Panics
@@ -21,6 +50,8 @@ use sqlx::PgPool;
 /// or if a json config serialization fails.
 #[allow(clippy::too_many_lines)]
 pub async fn seed_database(db: &PgPool) -> anyhow::Result<()> {
+    info!("Starting database seeding...");
+
     // Setup S3 client
     let minio_endpoint = std::env::var("MINIO_ENDPOINT").expect("MINIO_ENDPOINT must be set");
     let minio_access_key = std::env::var("MINIO_ACCESS_KEY").expect("MINIO_ACCESS_KEY must be set");
@@ -504,7 +535,7 @@ pub async fn seed_database(db: &PgPool) -> anyhow::Result<()> {
     }))
     .unwrap();
 
-    let btc_price_node = sqlx::query!(
+    let _btc_price_node = sqlx::query!(
         r#"
         INSERT INTO nodes (name, identifier_name, description, publisher_name, container_type, config, version_id)
         VALUES ($1, $2, $3, $4, $5, $6, $7)

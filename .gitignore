@@ -13,3 +13,4 @@
 *.bak
 *.old
 *.orig
+.DS_Store

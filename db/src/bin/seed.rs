@@ -1,0 +1,30 @@
+#![cfg(feature = "seed")]
+
+use tracing::{error, info, Level};
+use tracing_subscriber::FmtSubscriber;
+
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    // Initialize logging
+    FmtSubscriber::builder().with_max_level(Level::INFO).init();
+
+    dotenv::dotenv().ok();
+
+    let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+    let db = sqlx::PgPool::connect(&database_url).await?;
+
+    // Run migrations first (this will also reset the schema in dev mode)
+    db::seed::run_migrations(&db).await?;
+
+    // Then seed the database
+    match db::seed::seed_database(&db).await {
+        Ok(()) => {
+            info!("Database seeded successfully");
+            Ok(())
+        }
+        Err(error) => {
+            error!("Failed to seed database: {error}");
+            Err(error)
+        }
+    }
+}

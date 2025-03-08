@@ -92,53 +92,167 @@ This provides a **clear, structured view** of your architecture in **Mermaid for
 
 ### Prerequisites
 
-- rust ^1.84
-- bun ^1.1
-- docker ^27.4
+Required tools:
+
+- Rust ^1.84
+- Bun ^1.1
+- Docker ^27.4
+- just (command runner)
+- MinIO Client (mc)
+- PostgreSQL Client (psql)
+
+Optional but recommended:
+
+- asdf (for managing Bun version)
+- cargo-make (for running Rust services)
+- cargo-watch (for development)
+- cargo-sqlx (for database migrations)
+
+### Installation
+
+1. **Install Just**
+
+   Follow the [official Just installation guide](https://github.com/casey/just?tab=readme-ov-file#installation)
+
+2. **Install Required Tools**
+
+   ```sh
+   # Install all required tools (includes cargo-make and MinIO Client)
+   just install-tools
+
+   # Install Bun using asdf (optional)
+   just install-bun
+   ```
 
 ### Setup
 
-- Start all services
+#### TL;DR
 
 ```sh
-docker compose up --build
+just install-tools   # Install all required tools
+just create-env      # Create .env from template
+just dev             # Start all services
 ```
 
-- Prepare sqlx
+For detailed setup, follow these steps:
+
+1. **Environment Setup**
+
+   ```sh
+   # Create .env file from example
+   just create-env
+   ```
+
+2. **Start Infrastructure**
+
+   ```sh
+   # Start all Docker containers (PostgreSQL, MinIO, NATS, etc.)
+   just docker-up
+   ```
+
+3. **Database and MinIO Setup**
+
+   ```sh
+   # Sets up MinIO credentials, creates database, runs migrations and seeds
+   just setup-db
+   ```
+
+4. **Frontend Setup**
+
+   ```sh
+   # Install frontend dependencies
+   just setup-frontend
+   ```
+
+### Development Workflow
+
+1. **Start All Services**
+
+   ```sh
+   # Starts both frontend and backend services
+   just dev
+   ```
+
+   Or start them separately:
+
+   ```sh
+   # Start frontend only
+   just dev-frontend
+
+   # Start backend services only
+   just dev-backend
+   ```
+
+2. **Backend Services Order**
+   Services start in the following order:
+   1. Event Bridge
+   2. Worker
+   3. Scheduler
+   4. API
+
+3. **Access Services**
+   - Frontend: [http://localhost:3000](http://localhost:3000)
+   - MinIO Console: [http://localhost:30901](http://localhost:30901) (default credentials: minio/minioadmin)
+   - API: [http://localhost:8000](http://localhost:8000)
+   - Grafana: [http://localhost:30001](http://localhost:30001) (default credentials: admin/admin)
+   - Prometheus: [http://localhost:30090](http://localhost:30090)
+
+### Test Users
+
+Pre-configured test users:
+
+- Email: <alex@mail.com>, Password: alexpass
+- Email: <bob@mail.com>, Password: bobpass
+
+### Useful Commands
 
 ```sh
-cargo install sqlx-cli
-cargo sqlx prepare --workspace  --database-url="postgres://shallabuf:secret@localhost:5432/shallabuf"
+# Clean up everything (stop docker, clean database, etc.)
+just clean
+
+# Reset database (drops, recreates, migrates, and seeds)
+just reset-db
+
+# Run all tests
+just test
+
+# Format code
+just fmt
+
+# Lint code
+just lint
 ```
 
-- During active development you can compile and run desired services like so:
+### Troubleshooting
 
-```sh
-# Optinally install cargo-watch
-cargo install cargo-watch
-cargo watch -x "run --bin service_name" # worker || api || scheduler etc...
+1. **MinIO Access Issues**
+   - Ensure MinIO is running: `docker ps | grep minio`
+   - Check credentials in .env file
+   - Try rerunning setup: `just setup-minio`
+
+2. **Database Connection Issues**
+   - Ensure PostgreSQL is running: `docker ps | grep postgres`
+   - Check DATABASE_URL in .env file
+   - Try waiting for database: `just wait-for-db`
+
+3. **Service Start Issues**
+   - Ensure all containers are running: `docker ps`
+   - Check logs: `docker compose logs`
+   - Try restarting services: `just docker-down && just docker-up`
+
+### Project Structure
+
+```txt
+.
+├── api/            # API service
+├── builtins/       # WASM modules
+├── db/             # Database migrations and seed data
+├── event-bridge/   # Event bridge service
+├── scheduler/      # Scheduler service
+├── web/           # Frontend (Next.js)
+├── worker/        # Worker service
+├── .env.example   # Environment template
+├── docker-compose.yaml
+├── justfile       # Command runner recipes
+└── Makefile.toml  # Cargo make tasks
 ```
-
-Note:
-for running services on the host machine make sure you have correct .env file in your root directory
-you can simple copy/paste .env.docker although you will need to replace service names with localhost.
-e.g. replace `minio:9000` with `localhost:9000` and `postgresql:5432` with `localhost:5432`
-
-- Frontend is written in Next.js
-
-```sh
-cd web && bun dev
-```
-
-### Prepare your environment
-
-For MinIO `MINIO_ACCESS_KEY` and `MINIO_SECRET_KEY` you will need to login to MinIO console
-use `admin` as username and `admin` as password
-
-For the frontend simply copy/paste `web/.env.example` to `web/.env`
-For the frontend simply copy/paste `web/.env.example` to `web/.env`
-
-Test Users:
-
-- <alex@mail.com> with password: alexpass
-- <bob@mail.com> with password: bobpass

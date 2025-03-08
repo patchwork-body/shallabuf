@@ -4,39 +4,39 @@ import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import type { ExecStatus, TaskNodeConfig } from "~/lib/dtos";
 
 export type TriggerNodeProps = Node<
-	{
-		id: string;
-		name: string;
-		pipelineId: string;
-		config: TaskNodeConfig;
-		execStatus?: ExecStatus;
-	},
-	"trigger"
+  {
+    id: string;
+    name: string;
+    pipelineId: string;
+    config: TaskNodeConfig;
+    execStatus?: ExecStatus;
+  },
+  "trigger"
 >;
 
 export const TriggerNode = ({
-	data,
-	isConnectable,
+  data,
+  isConnectable,
 }: NodeProps<TriggerNodeProps>) => {
-	return (
-		<Card>
-			<CardHeader>
-				<CardTitle>{data.name}</CardTitle>
-			</CardHeader>
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{data.name}</CardTitle>
+      </CardHeader>
 
-			<CardContent>
-				<Handle
-					type="source"
-					position={Position.Right}
-					isConnectable={isConnectable}
-				/>
+      <CardContent>
+        <Handle
+          type="source"
+          position={Position.Right}
+          isConnectable={isConnectable}
+        />
 
-				<TriggerPipelineDialog
-					pipelineId={data.pipelineId}
-					triggerId={data.id}
-					execStatus={data.execStatus}
-				/>
-			</CardContent>
-		</Card>
-	);
+        <TriggerPipelineDialog
+          pipelineId={data.pipelineId}
+          triggerId={data.id}
+          execStatus={data.execStatus}
+        />
+      </CardContent>
+    </Card>
+  );
 };

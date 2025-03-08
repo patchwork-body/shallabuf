@@ -1,0 +1,82 @@
+[env]
+CARGO_MAKE_EXTEND_WORKSPACE_MAKEFILE = true
+CARGO_MAKE_WORKSPACE_INCLUDE_MEMBERS = ["api", "builtins", "db", "event-bridge", "scheduler", "worker"]
+
+[config]
+default_to_workspace = false
+
+[tasks.install-tools]
+description = "Install required development tools"
+script = '''
+cargo install cargo-watch
+cargo install sqlx-cli
+'''
+
+[tasks.watch-api]
+description = "Watch and run the API service"
+command = "cargo"
+args = ["watch", "-x", "run --bin api"]
+
+[tasks.watch-event-bridge]
+description = "Watch and run the Event Bridge service"
+command = "cargo"
+args = ["watch", "-x", "run --bin event-bridge"]
+
+[tasks.watch-scheduler]
+description = "Watch and run the Scheduler service"
+command = "cargo"
+args = ["watch", "-x", "run --bin scheduler"]
+
+[tasks.watch-worker]
+description = "Watch and run the Worker service"
+command = "cargo"
+args = ["watch", "-x", "run --bin worker"]
+
+[tasks.watch-all]
+description = "Watch and run all Rust services in order"
+script = '''
+#!/usr/bin/env bash
+trap 'kill 0' EXIT
+
+echo "Starting event-bridge..."
+cargo watch -x "run --bin event-bridge" &
+sleep 2
+
+echo "Starting worker..."
+cargo watch -x "run --bin worker" &
+sleep 2
+
+echo "Starting scheduler..."
+cargo watch -x "run --bin scheduler" &
+sleep 2
+
+echo "Starting API..."
+cargo watch -x "run --bin api" &
+
+wait
+'''
+
+[tasks.build-all]
+description = "Build all workspace members"
+command = "cargo"
+args = ["build"]
+
+[tasks.check-all]
+description = "Check all workspace members"
+command = "cargo"
+args = ["check"]
+
+[tasks.test-all]
+description = "Run tests for all workspace members"
+command = "cargo"
+args = ["test"]
+
+[tasks.fmt]
+description = "Format all code"
+command = "cargo"
+args = ["fmt"]
+
+[tasks.lint]
+description = "Run clippy on all code"
+command = "cargo"
+args = ["clippy"]
