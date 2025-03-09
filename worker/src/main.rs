@@ -1,16 +1,32 @@
+use async_trait;
+use bytes::Bytes;
 use db::dtos;
 use dotenvy::dotenv;
 use futures::StreamExt;
-use std::{
-    env,
-    ffi::{c_char, CString},
-    process,
-};
+use http_body_util::{BodyExt, Empty, Full};
+use hyper::body::Body;
+use hyper::header::{HeaderName, HeaderValue};
+use hyper::{Method, Request, Response};
+use hyper_rustls::HttpsConnectorBuilder;
+use hyper_util::client::legacy::Client;
+use hyper_util::rt::TokioExecutor;
+use reqwest;
+use rustls;
+use rustls::ClientConfig;
+use rustls::RootCertStore;
+use rustls_native_certs::load_native_certs;
+use serde_json::json;
+use std::{env, process};
 use tokio::signal::ctrl_c;
 use tracing::{debug, error};
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
-use wasmtime::{Config, Engine, Linker, Module, Store};
-use wasmtime_wasi::{preview1::WasiP1Ctx, WasiCtxBuilder};
+use wasi_http_client::Client;
+use wasmtime::{
+    component::{bindgen, Component, Linker},
+    Config, Engine, Store,
+};
+use wasmtime_wasi::{IoView, ResourceTable, WasiCtx, WasiCtxBuilder, WasiView};
+use webpki_roots::TLS_SERVER_ROOTS;
 
 async fn publish_exec_result(
     nats_client: &async_nats::Client,
@@ -34,6 +50,97 @@ async fn publish_exec_result(
             "Published message to JetStream for pipeline_node_exec_id {}",
             payload.pipeline_node_exec_id
         );
+    }
+}
+
+bindgen!({
+    path: "../builtins/wit/shallabuf.wit",
+    world: "shallabuf",
+    async: true,
+});
+
+struct WasiState {
+    table: ResourceTable,
+    wasi: WasiCtx,
+}
+
+impl IoView for WasiState {
+    fn table(&mut self) -> &mut ResourceTable {
+        &mut self.table
+    }
+}
+
+impl WasiView for WasiState {
+    fn ctx(&mut self) -> &mut WasiCtx {
+        &mut self.wasi
+    }
+}
+
+impl shallabuf::component::http::Host for WasiState {
+    async fn request(
+        &mut self,
+        method: String,
+        url: String,
+        headers: Vec<shallabuf::component::http::Headers>,
+        body: Option<Vec<u8>>,
+    ) -> Result<shallabuf::component::http::Response, String> {
+        debug!("HTTP request from WASM: {} {}", method, url);
+
+        // Create a new HTTP client
+        let client = Client::new();
+
+        // Build the request based on the method
+        let mut req_builder = match method.to_uppercase().as_str() {
+            "GET" => client.get(&url),
+            "POST" => client.post(&url),
+            "PUT" => client.put(&url),
+            "DELETE" => client.delete(&url),
+            "HEAD" => client.head(&url),
+            "PATCH" => client.patch(&url),
+            _ => return Err(format!("Unsupported HTTP method: {}", method)),
+        };
+
+        // Add headers
+        for header in headers {
+            req_builder = req_builder.header(&header.name, &header.value);
+            debug!("Added header: {} = {}", header.name, header.value);
+        }
+
+        // Add body if present
+        if let Some(body_data) = body {
+            req_builder = req_builder.body(body_data);
+            debug!("Request has body of {} bytes", body_data.len());
+        }
+
+        // Send the request
+        debug!("Sending HTTP request to {}", url);
+        let response = req_builder
+            .send()
+            .map_err(|e| format!("Request failed: {}", e))?;
+
+        // Get status code
+        let status = response.status();
+        debug!("Received response with status: {}", status);
+
+        // Get response body
+        let body = response
+            .body()
+            .map_err(|e| format!("Failed to get response body: {}", e))?;
+
+        // Convert headers
+        let mut response_headers = Vec::new();
+        for (name, value) in response.headers() {
+            response_headers.push(shallabuf::component::http::Headers {
+                name: name.to_string(),
+                value: value.to_string(),
+            });
+        }
+
+        Ok(shallabuf::component::http::Response {
+            status,
+            headers: response_headers,
+            body,
+        })
     }
 }
 
@@ -108,6 +215,7 @@ async fn main() -> Result<(), async_nats::Error> {
 
             let mut config = Config::new();
             config.async_support(true);
+            config.wasm_component_model(true);
 
             let engine = match Engine::new(&config) {
                 Ok(engine) => engine,
@@ -117,21 +225,28 @@ async fn main() -> Result<(), async_nats::Error> {
                 }
             };
 
-            let mut linker: Linker<WasiP1Ctx> = Linker::new(&engine);
-            match wasmtime_wasi::preview1::add_to_linker_async(&mut linker, |t| t) {
-                Ok(()) => {}
-                Err(error) => {
-                    error!("Failed to add WASI to linker: {error}");
-                    continue;
-                }
-            };
+            let mut linker = Linker::new(&engine);
+            if let Err(error) = wasmtime_wasi::add_to_linker_async(&mut linker) {
+                error!("Failed to add WASI to linker: {error}");
+                continue;
+            }
 
-            let wasi = WasiCtxBuilder::new()
-                .inherit_stdio()
-                .inherit_network()
-                .build_p1();
+            // Add HTTP interface
+            if let Err(error) =
+                shallabuf::component::http::add_to_linker(&mut linker, |state: &mut WasiState| {
+                    state
+                })
+            {
+                error!("Failed to add HTTP interface to linker: {error}");
+                continue;
+            }
 
-            let mut store = Store::new(&engine, wasi);
+            let table = ResourceTable::new();
+            let wasi = WasiCtxBuilder::new().inherit_stdio().build();
+
+            let state = WasiState { table, wasi };
+
+            let mut store = Store::new(&engine, state);
 
             let parts = payload.path.split('@').collect::<Vec<&str>>();
             let bucket_name = parts[0];
@@ -161,129 +276,60 @@ async fn main() -> Result<(), async_nats::Error> {
                     }
                 };
 
-            let module = match Module::new(&engine, module_bytes) {
-                Ok(module) => module,
+            let component = match Component::new(&engine, module_bytes) {
+                Ok(component) => component,
                 Err(error) => {
-                    error!("Failed to compile module: {error}");
+                    error!("Failed to create component: {error}");
                     continue;
                 }
             };
 
-            let instance = match linker.instantiate_async(&mut store, &module).await {
+            let instance = match Shallabuf::instantiate_async(&mut store, &component, &linker).await
+            {
                 Ok(instance) => instance,
                 Err(error) => {
-                    error!("Failed to instantiate module asynchronously: {error}");
+                    error!("Failed to instantiate component: {error}");
                     continue;
                 }
             };
 
-            let Some(memory) = instance.get_memory(&mut store, "memory") else {
-                error!("Failed to get memory");
-                continue;
-            };
+            let input = payload.params.to_string();
+            debug!("Calling run with input: {input}");
 
-            debug!(
-                "payload params: {} as string {}",
-                payload.params,
-                payload.params.to_string()
-            );
-
-            let message = match CString::new(payload.params.to_string()) {
-                Ok(message) => message,
+            let output = match instance
+                .shallabuf_component_run()
+                .call_run(&mut store, &input)
+                .await
+            {
+                Ok(output) => output,
                 Err(error) => {
-                    error!("Failed to create message: {error}");
+                    error!("Failed to call run function: {error}");
+                    publish_exec_result(
+                        &nats_client,
+                        &dtos::PipelineNodeExecResultPayload {
+                            pipeline_exec_id: payload.pipeline_execs_id,
+                            pipeline_node_exec_id: payload.pipeline_node_exec_id,
+                            outcome: dtos::ExecutionOutcome::Failure(format!(
+                                "Failed to execute run function: {error}"
+                            )),
+                        },
+                    )
+                    .await;
+
                     continue;
                 }
             };
 
             debug!(
-                "Pipeline node exec {} started with message: {message:?}",
+                "Pipeline node exec {} completed with result: {output}",
                 payload.pipeline_node_exec_id
             );
 
-            let required_size = message.as_bytes_with_nul().len() as u64;
-            let current_size = memory.data_size(&store) as u64;
-            let new_size = current_size + required_size;
-
-            let page_size = memory.page_size(&store);
-            let required_pages = new_size.div_ceil(page_size);
-            let current_pages = memory.size(&store);
-
-            if required_pages > current_pages {
-                if let Err(error) = memory.grow(&mut store, required_pages - current_pages) {
-                    error!("Failed to grow memory: {error}");
-                    continue;
-                }
-            }
-
-            let memory_ptr = current_size as usize;
-
-            match memory.write(&mut store, memory_ptr, message.as_bytes_with_nul()) {
-                Ok(()) => {}
-                Err(error) => {
-                    error!("Failed to write message to memory: {error}");
-                    continue;
-                }
-            };
-
-            let Ok(run_fn) = instance.get_typed_func::<u32, u32>(&mut store, "run") else {
-                error!("Failed to get run function");
-                continue;
-            };
-
-            let result_ptr = match run_fn.call_async(&mut store, memory_ptr as u32).await {
-                Ok(result_ptr) => result_ptr as *const c_char,
-                Err(error) => {
-                    error!("Failed to call run_fn: {error}");
-                    continue;
-                }
-            };
-
-            if result_ptr.is_null() {
-                publish_exec_result(
-                    &nats_client,
-                    &dtos::PipelineNodeExecResultPayload {
-                        pipeline_exec_id: payload.pipeline_execs_id,
-                        pipeline_node_exec_id: payload.pipeline_node_exec_id,
-                        outcome: dtos::ExecutionOutcome::Failure(
-                            "Received invalid pointer from run_fn".to_string(),
-                        ),
-                    },
-                )
-                .await;
-
-                continue;
-            }
-
-            let mut buffer = Vec::new();
-
-            let offset = result_ptr as usize;
-            for i in offset..memory.data_size(&store) {
-                let byte = memory.data(&store)[i];
-                if byte == 0 {
-                    break;
-                }
-                buffer.push(byte);
-            }
-
-            let result = match std::str::from_utf8(&buffer) {
-                Ok(s) => s.to_string(),
-                Err(error) => {
-                    error!("Failed to convert result to string: {error}");
-                    continue;
-                }
-            };
-
-            debug!(
-                "Pipeline node exec {} completed with result: {result}",
-                payload.pipeline_node_exec_id
-            );
-
-            let outcome = match serde_json::from_str(&result) {
+            let outcome = match serde_json::from_str(&output) {
                 Ok(value) => dtos::ExecutionOutcome::Success(value),
-                Err(err) => {
-                    dtos::ExecutionOutcome::Failure(format!("Failed to deserialize result: {err}"))
-                }
+                Err(error) => dtos::ExecutionOutcome::Failure(format!(
+                    "Failed to deserialize result: {error}"
+                )),
             };
 
             publish_exec_result(

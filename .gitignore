@@ -1,6 +1,6 @@
 # Build
-/target/
-/Cargo.lock
+target
+Cargo.lock
 
 # Secrets
 .env

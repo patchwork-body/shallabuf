@@ -1,38 +1,25 @@
 #![no_main]
 
-use std::ffi::{CStr, CString};
-use std::os::raw::c_char;
+use serde_json::json;
 
-use serde_json::Value;
+wit_bindgen::generate!({
+    world: "shallabuf",
+    path: "wit"
+});
 
-#[no_mangle]
-/// # Safety
-/// The caller must ensure that `input_ptr` is a valid pointer to a null-terminated string.
-/// The caller is also responsible for managing the memory of the returned pointer.
-///
-/// # Panics
-/// This function will panic if `CString::new` fails, which occurs if the input contains internal null bytes.
-pub unsafe extern "C" fn run(input_ptr: *const c_char) -> *const c_char {
-    if input_ptr.is_null() {
-        return std::ptr::null();
-    }
+use exports::shallabuf::component::run::Guest;
 
-    let input = CStr::from_ptr(input_ptr);
+struct Component;
 
-    let Ok(json_str) = input.to_str() else {
-        return std::ptr::null();
-    };
+impl Guest for Component {
+    fn run(input: String) -> String {
+        let parsed: serde_json::Value =
+            serde_json::from_str(&input).expect("Failed to parse input JSON");
 
-    let Ok(parsed) = serde_json::from_str::<Value>(json_str) else {
-        return std::ptr::null();
-    };
+        let message = parsed.get("message").expect("Missing 'message' field");
 
-    let Some(message) = parsed.get("message") else {
-        return std::ptr::null();
-    };
-
-    match CString::new(serde_json::json!({ "echoed": message }).to_string()) {
-        Ok(data) => data.into_raw(),
-        Err(_) => std::ptr::null(),
+        json!({ "echoed": message }).to_string()
     }
 }
+
+export!(Component);

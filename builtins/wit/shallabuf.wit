@@ -1,0 +1,30 @@
+package shallabuf:component;
+
+interface http {
+    record headers {
+        name: string,
+        value: string,
+    }
+
+    record response {
+        status: u16,
+        headers: list<headers>,
+        body: list<u8>,
+    }
+
+    request: func(
+        method: string,
+        url: string,
+        headers: list<headers>,
+        body: option<list<u8>>,
+    ) -> result<response, string>;
+}
+
+interface run {
+    run: func(input: string) -> string;
+}
+
+world shallabuf {
+    import http;
+    export run;
+}
