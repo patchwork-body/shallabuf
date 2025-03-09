@@ -262,38 +262,23 @@ pub async fn seed_database(db: &PgPool) -> anyhow::Result<()> {
     .execute(db)
     .await?;
 
-    let pipeline = sqlx::query!(
-        r#"
-        INSERT INTO pipelines (id, name, description, team_id)
-        VALUES ($1, $2, $3, $4)
-        RETURNING id
-        "#,
-        pipeline_id,
-        "Quantum Pipeline",
-        Some("A cutting-edge pipeline for quantum data.".to_string()),
-        team.id
-    )
-    .fetch_one(db)
-    .await?;
-
     let pipeline_trigger_config =
         serde_json::to_value(PipelineTriggerConfig::V0(PipelineTriggerConfigV0 {
             allow_manual_execution: true,
         }))
         .unwrap();
 
-    let pipeline_trigger = sqlx::query!(
+    let pipeline = sqlx::query!(
         r#"
-        INSERT INTO pipeline_triggers (pipeline_id, coords, config)
-        VALUES ($1, $2, $3)
+        INSERT INTO pipelines (id, name, description, team_id, trigger_config)
+        VALUES ($1, $2, $3, $4, $5)
         RETURNING id
         "#,
-        pipeline.id,
-        serde_json::json!({
-            "x": -154,
-            "y": -112,
-        }),
-        pipeline_trigger_config
+        pipeline_id,
+        "Quantum Pipeline",
+        Some("A cutting-edge pipeline for quantum data.".to_string()),
+        team.id,
+        pipeline_trigger_config,
     )
     .fetch_one(db)
     .await?;
@@ -554,18 +539,18 @@ pub async fn seed_database(db: &PgPool) -> anyhow::Result<()> {
 
     let echo_pipeline_node = sqlx::query!(
         r#"
-        INSERT INTO pipeline_nodes (pipeline_id, node_id, trigger_id, coords, node_version)
+        INSERT INTO pipeline_nodes (pipeline_id, node_id, coords, node_version, is_trigger)
         VALUES ($1, $2, $3, $4, $5)
         RETURNING id
         "#,
         pipeline.id,
         echo_node.id,
-        Some(pipeline_trigger.id),
         serde_json::json!({
             "x": 2.0,
             "y": -92.0,
         }),
-        "v1"
+        "v1",
+        true
     )
     .fetch_one(db)
     .await?;

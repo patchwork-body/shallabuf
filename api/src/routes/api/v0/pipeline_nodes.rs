@@ -26,7 +26,6 @@ pub struct PipelineNode {
     pub id: Uuid,
     pub node_id: Uuid,
     pub node_version: String,
-    pub trigger_id: Option<Uuid>,
     pub coords: serde_json::Value,
     pub inputs: Vec<Input>,
     pub outputs: Vec<Output>,
@@ -61,7 +60,7 @@ pub async fn create(
             pipeline_nodes (pipeline_id, node_id, node_version, coords)
         VALUES
             ($1, $2, $3, $4)
-        RETURNING id, node_id, node_version, trigger_id, coords
+        RETURNING id, node_id, node_version, coords
         "#,
         payload.pipeline_id,
         payload.node_id,
@@ -108,7 +107,6 @@ pub async fn create(
         id: node.id,
         node_id: node.node_id,
         node_version: node.node_version.clone(),
-        trigger_id: node.trigger_id,
         coords: node.coords.clone(),
         inputs,
         outputs,
@@ -119,7 +117,6 @@ pub async fn create(
 #[serde(rename_all = "camelCase")]
 pub struct PipelineNodeUpdate {
     coords: Option<Coords>,
-    trigger_id: Option<Uuid>,
 }
 
 pub async fn update(
@@ -138,15 +135,13 @@ pub async fn update(
         UPDATE
             pipeline_nodes
         SET
-            coords = COALESCE($1, coords),
-            trigger_id = COALESCE($2, trigger_id)
+            coords = COALESCE($1, coords)
         WHERE
-            id = $3
+            id = $2
         RETURNING
-            id, node_id, node_version, trigger_id, coords
+            id, node_id, node_version, coords
         "#,
         coords,
-        params.trigger_id,
         id
     )
     .fetch_one(&mut *conn)
@@ -157,7 +152,6 @@ pub async fn update(
         id: node.id,
         node_id: node.node_id,
         node_version: node.node_version,
-        trigger_id: node.trigger_id,
         coords: node.coords,
         inputs: vec![],
         outputs: vec![],

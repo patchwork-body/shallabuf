@@ -139,10 +139,6 @@ async fn main() -> io::Result<()> {
             "/trigger/pipelines/:id",
             post(routes::api::v0::pipelines::trigger),
         )
-        .route(
-            "/pipeline-triggers/:id",
-            post(routes::api::v0::pipeline_triggers::update),
-        )
         .route("/nodes", get(routes::api::v0::nodes::list))
         .route(
             "/pipeline-nodes",

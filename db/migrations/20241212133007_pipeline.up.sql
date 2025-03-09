@@ -25,21 +25,11 @@ CREATE TABLE IF NOT EXISTS pipelines (
     description VARCHAR,
     from_template_id UUID,
     team_id UUID NOT NULL,
+    trigger_config JSONB NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (from_template_id) REFERENCES templates(id) ON DELETE SET NULL,
     FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE RESTRICT
-);
-
--- Create 'pipeline_triggers' table
-CREATE TABLE IF NOT EXISTS pipeline_triggers (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    pipeline_id UUID NOT NULL,
-    coords JSONB NOT NULL,
-    config JSONB NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (pipeline_id) REFERENCES pipelines(id) ON DELETE CASCADE
 );
 
 -- Create 'nodes' table
@@ -78,12 +68,11 @@ CREATE TABLE IF NOT EXISTS pipeline_nodes (
     node_id UUID NOT NULL,
     node_version VARCHAR NOT NULL,
     coords JSONB NOT NULL,
-    trigger_id UUID,
+    is_trigger BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (pipeline_id) REFERENCES pipelines(id) ON DELETE CASCADE,
-    FOREIGN KEY (node_id) REFERENCES nodes(id) ON DELETE CASCADE,
-    FOREIGN KEY (trigger_id) REFERENCES pipeline_triggers(id) ON DELETE SET NULL
+    FOREIGN KEY (node_id) REFERENCES nodes(id) ON DELETE CASCADE
 );
 
 -- Create 'pipeline_node_execs' table
@@ -128,17 +117,8 @@ CREATE TABLE IF NOT EXISTS pipeline_node_connections (
 );
 
 -- Create indexes
-CREATE INDEX IF NOT EXISTS idx_pipeline_triggers_pipeline_id
-    ON pipeline_triggers(pipeline_id);
-
 CREATE INDEX IF NOT EXISTS idx_pipeline_node_connections_to_pipeline_node_input_id
     ON pipeline_node_connections(to_pipeline_node_input_id);
-
-CREATE INDEX IF NOT EXISTS idx_pipeline_node_connections_from_pipeline_node_output_id
-    ON pipeline_node_connections(from_pipeline_node_output_id);
-
-CREATE INDEX IF NOT EXISTS idx_pipeline_node_connections_from_to
-    ON pipeline_node_connections(to_pipeline_node_input_id, from_pipeline_node_output_id);
 
 CREATE INDEX IF NOT EXISTS idx_pipeline_nodes_pipeline_id
     ON pipeline_nodes(pipeline_id);
@@ -201,11 +181,6 @@ EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER set_updated_at_pipelines
 BEFORE UPDATE ON pipelines
-FOR EACH ROW
-EXECUTE FUNCTION update_updated_at_column();
-
-CREATE TRIGGER set_updated_at_pipeline_triggers
-BEFORE UPDATE ON pipeline_triggers
 FOR EACH ROW
 EXECUTE FUNCTION update_updated_at_column();
 

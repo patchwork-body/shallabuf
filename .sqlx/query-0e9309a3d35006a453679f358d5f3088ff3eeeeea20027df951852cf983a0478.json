@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        INSERT INTO pipelines (id, name, description, team_id)\n        VALUES ($1, $2, $3, $4)\n        RETURNING id\n        ",
+  "query": "\n        INSERT INTO pipelines (id, name, description, team_id, trigger_config)\n        VALUES ($1, $2, $3, $4, $5)\n        RETURNING id\n        ",
   "describe": {
     "columns": [
       {
@@ -14,12 +14,13 @@
         "Uuid",
         "Varchar",
         "Varchar",
-        "Uuid"
+        "Uuid",
+        "Jsonb"
       ]
     },
     "nullable": [
       false
     ]
   },
-  "hash": "b506681a3f8defad3b8b6271e2caa16b96ef363f807ab9655f06e49b0ea34939"
+  "hash": "0e9309a3d35006a453679f358d5f3088ff3eeeeea20027df951852cf983a0478"
 }

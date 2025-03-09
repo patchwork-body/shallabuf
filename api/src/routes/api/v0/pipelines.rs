@@ -2,7 +2,6 @@ use super::{
     events::to_pipeline_participant_redis_key,
     pipeline_nodes::{Input, Output, PipelineConnection, PipelineNode},
 };
-use crate::routes::api::v0::pipeline_triggers::PipelineTrigger;
 use crate::{
     app_state::{DatabaseConnection, JetStream, RedisConnection},
     extractors::session::Session,
@@ -74,43 +73,26 @@ pub async fn create(
     Session(_): Session,
     Json(params): Json<PipelineCreateParams>,
 ) -> Result<Json<PipelineCreateResponse>, StatusCode> {
-    let pipeline = sqlx::query!(
-        r#"
-        INSERT INTO
-            pipelines (name, description, team_id)
-        VALUES
-            ($1, $2, $3)
-        RETURNING
-            id
-        "#,
-        params.name,
-        params.description,
-        params.team_id
-    )
-    .fetch_one(&mut *conn)
-    .await
-    .map_err(internal_error)?;
-
     let trigger_config = serde_json::to_value(PipelineTriggerConfig::V0(PipelineTriggerConfigV0 {
         allow_manual_execution: true,
     }))
     .map_err(internal_error)?;
 
-    let _ = sqlx::query!(
+    let pipeline = sqlx::query!(
         r#"
         INSERT INTO
-            pipeline_triggers (pipeline_id, coords, config)
+            pipelines (name, description, team_id, trigger_config)
         VALUES
-            ($1, $2, $3)
+            ($1, $2, $3, $4)
+        RETURNING
+            id
         "#,
-        pipeline.id,
-        serde_json::json!({
-            "x": -154,
-            "y": -112,
-        }),
+        params.name,
+        params.description,
+        params.team_id,
         trigger_config
     )
-    .execute(&mut *conn)
+    .fetch_one(&mut *conn)
     .await
     .map_err(internal_error)?;
 
@@ -129,7 +111,7 @@ pub struct PipelineDetails {
     id: Uuid,
     name: String,
     description: Option<String>,
-    trigger: PipelineTrigger,
+    trigger_config: serde_json::Value,
     nodes: Vec<PipelineNode>,
     connections: Vec<PipelineConnection>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -171,14 +153,11 @@ pub async fn details(
     let pipeline = sqlx::query!(
         r#"
         SELECT
-            p.id, p.name, p.description,
-            pt.id AS trigger_id, pt.coords as trigger_coords, pt.config AS trigger_config
+            id, name, description, trigger_config
         FROM
-            pipelines p
-        LEFT JOIN
-            pipeline_triggers pt ON pt.pipeline_id = p.id
+            pipelines
         WHERE
-            p.id = $1
+            id = $1
         "#,
         id
     )
@@ -189,7 +168,7 @@ pub async fn details(
     let pipeline_nodes = sqlx::query!(
         r#"
         SELECT
-            pn.id, pn.node_id, pn.node_version, pn.trigger_id, pn.coords,
+            pn.id, pn.node_id, pn.node_version, pn.coords,
             pni.id AS "input_id?", pni.key as "input_key?", pno.id AS "output_id?", pno.key AS "output_key?",
             pc.id AS "connection_id?", pc.to_pipeline_node_input_id AS "to_pipeline_node_input_id?", pc.from_pipeline_node_output_id AS "from_pipeline_node_output_id?"
         FROM
@@ -220,7 +199,6 @@ pub async fn details(
                     id: row.id,
                     node_id: row.node_id,
                     node_version: row.node_version.clone(),
-                    trigger_id: row.trigger_id,
                     coords: row.coords.clone(),
                     inputs: Vec::new(),
                     outputs: Vec::new(),
@@ -321,11 +299,7 @@ pub async fn details(
         id: pipeline.id,
         name: pipeline.name.clone(),
         description: pipeline.description.clone(),
-        trigger: PipelineTrigger {
-            id: pipeline.trigger_id,
-            coords: pipeline.trigger_coords.clone(),
-            config: pipeline.trigger_config.clone(),
-        },
+        trigger_config: pipeline.trigger_config.clone(),
         nodes,
         connections,
         participants,

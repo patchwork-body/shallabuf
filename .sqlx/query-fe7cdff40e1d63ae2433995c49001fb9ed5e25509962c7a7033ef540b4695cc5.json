@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        INSERT INTO\n            pipeline_nodes (pipeline_id, node_id, node_version, coords)\n        VALUES\n            ($1, $2, $3, $4)\n        RETURNING id, node_id, node_version, trigger_id, coords\n        ",
+  "query": "\n        INSERT INTO\n            pipeline_nodes (pipeline_id, node_id, node_version, coords)\n        VALUES\n            ($1, $2, $3, $4)\n        RETURNING id, node_id, node_version, coords\n        ",
   "describe": {
     "columns": [
       {
@@ -20,11 +20,6 @@
       },
       {
         "ordinal": 3,
-        "name": "trigger_id",
-        "type_info": "Uuid"
-      },
-      {
-        "ordinal": 4,
         "name": "coords",
         "type_info": "Jsonb"
       }
@@ -41,9 +36,8 @@
       false,
       false,
       false,
-      true,
       false
     ]
   },
-  "hash": "ce2b21c414f4f609786ec26ec5a6eb3bbbefb330d1f4767cd616d9fad8ab1d98"
+  "hash": "fe7cdff40e1d63ae2433995c49001fb9ed5e25509962c7a7033ef540b4695cc5"
 }

@@ -1,0 +1,25 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO\n            pipelines (name, description, team_id, trigger_config)\n        VALUES\n            ($1, $2, $3, $4)\n        RETURNING\n            id\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Varchar",
+        "Uuid",
+        "Jsonb"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "b48f2feed39e586b15164d4c7715590fadb39d57178f39cebb642379a806b17d"
+}
