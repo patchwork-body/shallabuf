@@ -1,21 +1,6 @@
-use async_trait;
-use bytes::Bytes;
 use db::dtos;
 use dotenvy::dotenv;
 use futures::StreamExt;
-use http_body_util::{BodyExt, Empty, Full};
-use hyper::body::Body;
-use hyper::header::{HeaderName, HeaderValue};
-use hyper::{Method, Request, Response};
-use hyper_rustls::HttpsConnectorBuilder;
-use hyper_util::client::legacy::Client;
-use hyper_util::rt::TokioExecutor;
-use reqwest;
-use rustls;
-use rustls::ClientConfig;
-use rustls::RootCertStore;
-use rustls_native_certs::load_native_certs;
-use serde_json::json;
 use std::{env, process};
 use tokio::signal::ctrl_c;
 use tracing::{debug, error};
@@ -26,7 +11,6 @@ use wasmtime::{
     Config, Engine, Store,
 };
 use wasmtime_wasi::{IoView, ResourceTable, WasiCtx, WasiCtxBuilder, WasiView};
-use webpki_roots::TLS_SERVER_ROOTS;
 
 async fn publish_exec_result(
     nats_client: &async_nats::Client,
@@ -86,10 +70,8 @@ impl shallabuf::component::http::Host for WasiState {
     ) -> Result<shallabuf::component::http::Response, String> {
         debug!("HTTP request from WASM: {} {}", method, url);
 
-        // Create a new HTTP client
         let client = Client::new();
 
-        // Build the request based on the method
         let mut req_builder = match method.to_uppercase().as_str() {
             "GET" => client.get(&url),
             "POST" => client.post(&url),
@@ -97,37 +79,27 @@ impl shallabuf::component::http::Host for WasiState {
             "DELETE" => client.delete(&url),
             "HEAD" => client.head(&url),
             "PATCH" => client.patch(&url),
-            _ => return Err(format!("Unsupported HTTP method: {}", method)),
+            _ => return Err(format!("Unsupported HTTP method: {method}")),
         };
 
-        // Add headers
         for header in headers {
-            req_builder = req_builder.header(&header.name, &header.value);
+            req_builder = req_builder.header(header.name.as_str(), header.value.as_str());
             debug!("Added header: {} = {}", header.name, header.value);
         }
 
-        // Add body if present
         if let Some(body_data) = body {
-            req_builder = req_builder.body(body_data);
+            req_builder = req_builder.body(body_data.as_slice());
             debug!("Request has body of {} bytes", body_data.len());
         }
 
-        // Send the request
-        debug!("Sending HTTP request to {}", url);
+        debug!("Sending HTTP request to {url}");
         let response = req_builder
             .send()
-            .map_err(|e| format!("Request failed: {}", e))?;
+            .map_err(|error| format!("Request failed: {error}"))?;
 
-        // Get status code
         let status = response.status();
-        debug!("Received response with status: {}", status);
+        debug!("Received response with status: {status}");
 
-        // Get response body
-        let body = response
-            .body()
-            .map_err(|e| format!("Failed to get response body: {}", e))?;
-
-        // Convert headers
         let mut response_headers = Vec::new();
         for (name, value) in response.headers() {
             response_headers.push(shallabuf::component::http::Headers {
@@ -135,6 +107,10 @@ impl shallabuf::component::http::Host for WasiState {
                 value: value.to_string(),
             });
         }
+
+        let body = response
+            .body()
+            .map_err(|error| format!("Failed to get response body: {error}"))?;
 
         Ok(shallabuf::component::http::Response {
             status,
