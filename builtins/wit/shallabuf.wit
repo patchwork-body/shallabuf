@@ -1,6 +1,6 @@
 package shallabuf:component;
 
-interface http {
+interface http-client {
     record headers {
         name: string,
         value: string,
@@ -25,6 +25,6 @@ interface run {
 }
 
 world shallabuf {
-    import http;
+    import http-client;
     export run;
 }

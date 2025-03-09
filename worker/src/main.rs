@@ -1,16 +1,21 @@
 use db::dtos;
 use dotenvy::dotenv;
 use futures::StreamExt;
+use http_body_util::BodyExt;
+use hyper::body::Bytes;
+use hyper_util::client::legacy::Client;
+use hyper_util::rt::TokioExecutor;
 use std::{env, process};
-use tokio::signal::ctrl_c;
+use tokio::{signal::ctrl_c, task::block_in_place};
 use tracing::{debug, error};
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
-use wasi_http_client::Client;
+
 use wasmtime::{
     component::{bindgen, Component, Linker},
     Config, Engine, Store,
 };
 use wasmtime_wasi::{IoView, ResourceTable, WasiCtx, WasiCtxBuilder, WasiView};
+use wasmtime_wasi_http::{WasiHttpCtx, WasiHttpView};
 
 async fn publish_exec_result(
     nats_client: &async_nats::Client,
@@ -40,12 +45,12 @@ async fn publish_exec_result(
 bindgen!({
     path: "../builtins/wit/shallabuf.wit",
     world: "shallabuf",
-    async: true,
 });
 
 struct WasiState {
-    table: ResourceTable,
     wasi: WasiCtx,
+    table: ResourceTable,
+    http: WasiHttpCtx,
 }
 
 impl IoView for WasiState {
@@ -60,62 +65,79 @@ impl WasiView for WasiState {
     }
 }
 
-impl shallabuf::component::http::Host for WasiState {
-    async fn request(
+impl WasiHttpView for WasiState {
+    fn ctx(&mut self) -> &mut WasiHttpCtx {
+        &mut self.http
+    }
+}
+
+impl shallabuf::component::http_client::Host for WasiState {
+    fn request(
         &mut self,
         method: String,
         url: String,
-        headers: Vec<shallabuf::component::http::Headers>,
+        headers: Vec<shallabuf::component::http_client::Headers>,
         body: Option<Vec<u8>>,
-    ) -> Result<shallabuf::component::http::Response, String> {
-        debug!("HTTP request from WASM: {} {}", method, url);
+    ) -> Result<shallabuf::component::http_client::Response, String> {
+        let mut builder = hyper::Request::builder().method(method.as_str()).uri(url);
 
-        let client = Client::new();
+        // Add headers
+        for header in headers {
+            builder = builder.header(header.name, header.value);
+        }
 
-        let mut req_builder = match method.to_uppercase().as_str() {
-            "GET" => client.get(&url),
-            "POST" => client.post(&url),
-            "PUT" => client.put(&url),
-            "DELETE" => client.delete(&url),
-            "HEAD" => client.head(&url),
-            "PATCH" => client.patch(&url),
-            _ => return Err(format!("Unsupported HTTP method: {method}")),
+        // Create request body
+        let body: http_body_util::Full<Bytes> = match body {
+            Some(data) => http_body_util::Full::new(Bytes::from(data)),
+            None => http_body_util::Full::new(Bytes::new()),
         };
 
-        for header in headers {
-            req_builder = req_builder.header(header.name.as_str(), header.value.as_str());
-            debug!("Added header: {} = {}", header.name, header.value);
-        }
+        // Build the request
+        let request = builder
+            .body(body)
+            .map_err(|error| format!("Failed to build request: {error}"))?;
 
-        if let Some(body_data) = body {
-            req_builder = req_builder.body(body_data.as_slice());
-            debug!("Request has body of {} bytes", body_data.len());
-        }
+        // Create HTTP client with TLS support
+        let https = hyper_tls::HttpsConnector::new();
+        let client = Client::builder(TokioExecutor::new()).build(https);
 
-        debug!("Sending HTTP request to {url}");
-        let response = req_builder
-            .send()
-            .map_err(|error| format!("Request failed: {error}"))?;
+        // Execute request using the existing runtime
+        let response = block_in_place(|| {
+            tokio::runtime::Handle::current().block_on(async {
+                client
+                    .request(request)
+                    .await
+                    .map_err(|error| format!("Request failed: {error}"))
+            })
+        })?;
 
-        let status = response.status();
-        debug!("Received response with status: {status}");
-
-        let mut response_headers = Vec::new();
-        for (name, value) in response.headers() {
-            response_headers.push(shallabuf::component::http::Headers {
+        // Extract response components
+        let status = response.status().as_u16();
+        let headers = response
+            .headers()
+            .iter()
+            .map(|(name, value)| shallabuf::component::http_client::Headers {
                 name: name.to_string(),
-                value: value.to_string(),
-            });
-        }
+                value: String::from_utf8_lossy(value.as_bytes()).into_owned(),
+            })
+            .collect();
 
-        let body = response
-            .body()
-            .map_err(|error| format!("Failed to get response body: {error}"))?;
+        // Get response body
+        let body = block_in_place(|| {
+            tokio::runtime::Handle::current().block_on(async {
+                response
+                    .into_body()
+                    .collect()
+                    .await
+                    .map_err(|error| format!("Failed to read response body: {error}"))
+                    .map(http_body_util::Collected::to_bytes)
+            })
+        })?;
 
-        Ok(shallabuf::component::http::Response {
+        Ok(shallabuf::component::http_client::Response {
             status,
-            headers: response_headers,
-            body,
+            headers,
+            body: body.to_vec(),
         })
     }
 }
@@ -190,7 +212,6 @@ async fn main() -> Result<(), async_nats::Error> {
             debug!("payload from worker {payload:?}");
 
             let mut config = Config::new();
-            config.async_support(true);
             config.wasm_component_model(true);
 
             let engine = match Engine::new(&config) {
@@ -202,25 +223,31 @@ async fn main() -> Result<(), async_nats::Error> {
             };
 
             let mut linker = Linker::new(&engine);
-            if let Err(error) = wasmtime_wasi::add_to_linker_async(&mut linker) {
+
+            // Add WASI interfaces
+            if let Err(error) = wasmtime_wasi::add_to_linker_sync(&mut linker) {
                 error!("Failed to add WASI to linker: {error}");
                 continue;
             }
 
-            // Add HTTP interface
-            if let Err(error) =
-                shallabuf::component::http::add_to_linker(&mut linker, |state: &mut WasiState| {
-                    state
-                })
-            {
+            // Add our custom HTTP interface
+            if let Err(error) = shallabuf::component::http_client::add_to_linker(
+                &mut linker,
+                |state: &mut WasiState| state,
+            ) {
                 error!("Failed to add HTTP interface to linker: {error}");
                 continue;
             }
 
             let table = ResourceTable::new();
-            let wasi = WasiCtxBuilder::new().inherit_stdio().build();
+            let wasi = WasiCtxBuilder::new()
+                .inherit_stdio()
+                .inherit_network()
+                .build();
 
-            let state = WasiState { table, wasi };
+            let http = WasiHttpCtx::new();
+
+            let state = WasiState { wasi, table, http };
 
             let mut store = Store::new(&engine, state);
 
@@ -260,8 +287,7 @@ async fn main() -> Result<(), async_nats::Error> {
                 }
             };
 
-            let instance = match Shallabuf::instantiate_async(&mut store, &component, &linker).await
-            {
+            let instance = match Shallabuf::instantiate(&mut store, &component, &linker) {
                 Ok(instance) => instance,
                 Err(error) => {
                     error!("Failed to instantiate component: {error}");
@@ -275,7 +301,6 @@ async fn main() -> Result<(), async_nats::Error> {
             let output = match instance
                 .shallabuf_component_run()
                 .call_run(&mut store, &input)
-                .await
             {
                 Ok(output) => output,
                 Err(error) => {
