@@ -12,7 +12,13 @@ import {
 	useNodesState,
 	useReactFlow,
 } from "@xyflow/react";
-import { MousePointer2, Plus } from "lucide-react";
+import {
+	ArrowBigLeftIcon,
+	MousePointer2,
+	Plus,
+	TriangleIcon,
+} from "lucide-react";
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useQueryState } from "nuqs";
 import type React from "react";
@@ -29,6 +35,7 @@ import { createPipelineNodeConnectionAction } from "~/actions/create-pipeline-no
 import { createPipelineTriggerConnectionAction } from "~/actions/create-pipeline-trigger-connection";
 import { updatePipelineNodeAction } from "~/actions/update-pipeline-node";
 import { updatePipelineTriggerAction } from "~/actions/update-pipeline-trigger";
+import { Button } from "~/components/ui/button";
 import {
 	ContextMenu,
 	ContextMenuContent,
@@ -358,6 +365,14 @@ export const Editor = (props: EditorProps) => {
 		[getAdjustedCursorPosition, updateCursorPosition, pipelineId],
 	);
 
+	const preventContextMenu = useCallback(
+		(event: MouseEvent<HTMLDivElement>) => {
+			event.preventDefault();
+			event.stopPropagation();
+		},
+		[],
+	);
+
 	return (
 		<ContextMenu
 			onOpenChange={(open) => {
@@ -391,15 +406,21 @@ export const Editor = (props: EditorProps) => {
 							hideAttribution: true,
 						}}
 					>
+						<Panel position="top-left" onContextMenu={preventContextMenu}>
+							<Button variant="outline" asChild>
+								<Link href="/pipelines">
+									<ArrowBigLeftIcon />
+									Back
+								</Link>
+							</Button>
+						</Panel>
+
 						<Panel
-							position="top-left"
-							className="bg-white px-4 py-2 border rounded-lg border-gray-200"
-							onContextMenu={(event) => {
-								event.preventDefault();
-								event.stopPropagation();
-							}}
+							position="top-center"
+							className="flex items-center justify-center bg-white px-4 py-2 border rounded-lg border-gray-200"
+							onContextMenu={preventContextMenu}
 						>
-							<h2 className="text-sm font-bold mb-2">Participants</h2>
+							<h2 className="text-sm font-bold">Participants</h2>
 
 							<ul className="list-disc text-xs pl-5">
 								{Object.entries(participants).map(
@@ -416,6 +437,12 @@ export const Editor = (props: EditorProps) => {
 									),
 								)}
 							</ul>
+						</Panel>
+
+						<Panel position="top-right" onContextMenu={preventContextMenu}>
+							<Button size="icon">
+								<TriangleIcon className="size-4 rotate-90" />
+							</Button>
 						</Panel>
 
 						<Background color="#ccc" variant={BackgroundVariant.Dots} />
