@@ -33,6 +33,11 @@ description = "Watch and run the Worker service"
 command = "cargo"
 args = ["watch", "-x", "run --bin worker"]
 
+[tasks.watch-auth]
+description = "Watch and run the Auth service"
+command = "cargo"
+args = ["watch", "-x", "run --bin auth"]
+
 [tasks.watch-all]
 description = "Watch and run all Rust services in order"
 script = '''
@@ -53,6 +58,9 @@ sleep 2
 
 echo "Starting API..."
 cargo watch -x "run --bin api" &
+
+echo "Starting auth..."
+cargo watch -x "run --bin auth" &
 
 wait
 '''
