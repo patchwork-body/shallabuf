@@ -1,7 +1,19 @@
+# Environment variables
+x-env: &env
+  NATS_PORT: 30422
+  MINIO_PORT: 30900
+  MINIO_CONSOLE_PORT: 30901
+  MINIO_ROOT_USER: minio
+  MINIO_ROOT_PASSWORD: minioadmin
+  REDIS_PORT: 30637
+  PROMETHEUS_PORT: 30090
+  LOKI_PORT: 3100
+  GRAFANA_PORT: 30001
+  GRAFANA_ADMIN_PASSWORD: admin
+
 services:
   postgres:
     image: postgres:latest
-    env_file: .env
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -13,6 +25,7 @@ services:
 
   nats:
     image: nats:latest
+    environment: *env
     ports:
       - "${NATS_PORT}:4222" # Client Port
       - "8222:8222" # Monitoring Port
@@ -20,10 +33,7 @@ services:
 
   minio:
     image: minio/minio:latest
-    env_file: .env
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    environment: *env
     command: server /data --console-address ":9001"
     ports:
       - "${MINIO_PORT}:9000" # S3 API
@@ -33,11 +43,13 @@ services:
 
   redis:
     image: redis:latest
+    environment: *env
     ports:
       - "${REDIS_PORT}:6379" # Redis
 
   prometheus:
     image: prom/prometheus:latest
+    environment: *env
     ports:
       - "${PROMETHEUS_PORT}:9090" # Prometheus web interface
     volumes:
@@ -51,6 +63,7 @@ services:
   loki:
     image: grafana/loki:3.3.0
     container_name: loki
+    environment: *env
     ports:
       - "${LOKI_PORT}:3100" # Loki web interface
     volumes:
@@ -60,15 +73,16 @@ services:
 
   grafana:
     image: grafana/grafana:11.4.0
-    ports:
-      - "${GRAFANA_PORT}:3000" # Grafana web interface
     environment:
+      <<: *env
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
       GF_INSTALL_PLUGINS: "grafana-clock-panel,grafana-simple-json-datasource,grafana-piechart-panel"
       GF_AUTH_ANONYMOUS_ENABLED: "true"
       GF_AUTH_ANONYMOUS_ORG_ROLE: "Viewer"
       GF_AUTH_DISABLE_LOGIN_FORM: "false"
       GF_PATHS_PROVISIONING: "/etc/grafana/provisioning"
+    ports:
+      - "${GRAFANA_PORT}:3000" # Grafana web interface
     volumes:
       - ./grafana/datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
       - ./grafana/dashboards.yaml:/etc/grafana/provisioning/dashboards/dashboards.yaml

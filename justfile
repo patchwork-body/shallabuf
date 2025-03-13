@@ -7,6 +7,9 @@ export POSTGRES_PASSWORD := env_var_or_default("POSTGRES_PASSWORD", "secret")
 export POSTGRES_DB := env_var_or_default("POSTGRES_DB", "shallabuf")
 export POSTGRES_HOST := env_var_or_default("POSTGRES_HOST", "localhost")
 export POSTGRES_PORT := env_var_or_default("POSTGRES_PORT", "30432")
+export MINIO_PORT := env_var_or_default("MINIO_PORT", "30900")
+export MINIO_ROOT_USER := env_var_or_default("MINIO_ROOT_USER", "minio")
+export MINIO_ROOT_PASSWORD := env_var_or_default("MINIO_ROOT_PASSWORD", "minioadmin")
 export DATABASE_URL := env_var_or_default("DATABASE_URL", "postgresql://" + POSTGRES_USER + ":" + POSTGRES_PASSWORD + "@" + POSTGRES_HOST + ":" + POSTGRES_PORT + "/" + POSTGRES_DB)
 
 # Default recipe to show help
@@ -15,8 +18,9 @@ default:
 
 # Install Rust tools
 install-rust-tools:
-    cargo install cargo-make
-    cargo make install-tools
+    cd backend && cargo install cargo-make
+    cd backend && cargo make install-tools
+    cd backend && rustup target add wasm32-wasip2
 
 # Install Bun using asdf
 install-bun:
@@ -42,23 +46,31 @@ install-tools: install-rust-tools
 create-env:
     #!/usr/bin/env sh
     if [ ! -f .env ]; then
-        if [ ! -f .env.example ]; then
-            echo "Error: .env.example file not found"
+        if [ ! -f backend/.env.example ]; then
+            echo "Error: backend/.env.example file not found"
             exit 1
         fi
-        echo "Creating .env file from .env.example..."
-        cp .env.example .env
+        echo "Creating .env file from backend/.env.example..."
+        cp backend/.env.example .env
     else
         echo ".env file already exists"
     fi
 
+    # Create symlink in backend folder if it doesn't exist
+    if [ ! -L backend/.env ]; then
+        echo "Creating symlink for .env in backend folder..."
+        ln -sf ../.env backend/.env
+    else
+        echo "Symlink for .env already exists in backend folder"
+    fi
+
 # Start all Docker containers
 docker-up: create-env
-    docker compose up -d
+    docker compose --env-file .env up -d
 
 # Stop all Docker containers
 docker-down:
-    docker compose down
+    docker compose --env-file .env down
 
 # Wait for PostgreSQL to be ready
 wait-for-db:
@@ -72,16 +84,16 @@ wait-for-db:
 
 # Run database migrations
 migrate: wait-for-db
-    cd db && sqlx database create --database-url="{{DATABASE_URL}}"
-    cd db && sqlx migrate run --database-url="{{DATABASE_URL}}"
+    cd backend/db && sqlx database create --database-url="{{DATABASE_URL}}"
+    cd backend/db && sqlx migrate run --database-url="{{DATABASE_URL}}"
 
 # Prepare sqlx offline mode
 sqlx-prepare:
-    cargo sqlx prepare --workspace --database-url="{{DATABASE_URL}}"
+    cd backend && cargo sqlx prepare --workspace --database-url="{{DATABASE_URL}}"
 
 # Seed the database with initial data
 seed: wait-for-db
-    cargo run -p db --bin seed --features seed
+    cd backend && cargo run -p db --bin seed --features seed
 
 # Setup MinIO with proper access keys
 setup-minio:
@@ -118,11 +130,20 @@ setup-minio:
     echo "Updated .env file. Verifying contents:"
     grep MINIO_ .env
 
-    # Create placeholder WASM files
-    mkdir -p builtins
-    dd if=/dev/zero of=builtins/echo.wasm bs=1024 count=1
-    dd if=/dev/zero of=builtins/text-transformer.wasm bs=1024 count=1
-    dd if=/dev/zero of=builtins/btc-price.wasm bs=1024 count=1
+    # Build and copy WASM files
+    cd backend && cargo build --bin text-transformer --release --target wasm32-wasip2
+    cd backend && cargo build --bin echo --release --target wasm32-wasip2
+    cd backend && cargo build --bin btc-price --release --target wasm32-wasip2
+
+    # Create builtins directory and copy WASM files
+    mkdir -p backend/builtins
+    cp backend/target/wasm32-wasip2/release/text_transformer.wasm backend/builtins/
+    cp backend/target/wasm32-wasip2/release/echo.wasm backend/builtins/
+    cp backend/target/wasm32-wasip2/release/btc_price.wasm backend/builtins/
+
+    # Upload WASM files to MinIO
+    mc cp backend/builtins/*.wasm local/builtins/
+
     echo "MinIO setup complete with new access keys and builtins bucket"
 
 # Setup database (create, migrate, and seed)
@@ -141,15 +162,15 @@ setup-db: setup-minio
 
 # Install frontend dependencies
 setup-frontend:
-    cd web && bun install
+    cd frontend && bun install
 
 # Start the Next.js development server
 dev-frontend: setup-frontend
-    cd web && bun dev
+    cd frontend && bun dev
 
 # Start all Rust services in watch mode using cargo-make
 dev-backend:
-    cargo make watch-all
+    cd backend && cargo make watch-all
 
 # Start everything in development mode
 dev: docker-up setup-db
@@ -160,22 +181,22 @@ dev: docker-up setup-db
 
 # Clean up everything (stop docker, clean database, etc.)
 clean: docker-down
-    rm -rf target/
-    rm -rf web/node_modules/
-    rm -rf web/.next/
-    rm -rf web/bun.lockb
+    rm -rf backend/target/
+    rm -rf frontend/node_modules/
+    rm -rf frontend/.next/
+    rm -rf frontend/bun.lockb
 
 # Run all tests
 test:
-    cargo make test-all
-    cd web && bun test
+    cd backend && cargo make test-all
+    cd frontend && bun test
 
 # Format all code (Rust and TypeScript)
 fmt:
-    cargo make fmt
-    cd web && bun run format
+    cd backend && cargo make fmt
+    cd frontend && bun run format
 
 # Lint all code
 lint:
-    cargo make lint
-    cd web && bun run lint
+    cd backend && cargo make lint
+    cd frontend && bun run lint

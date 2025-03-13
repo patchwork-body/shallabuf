@@ -36,7 +36,7 @@ The backend is built in Rust and consists of several key services:
 
 ### Frontend
 
-- **Next.js (`web/`)**: A React-based frontend framework for the user interface.
+- **Next.js (`frontend/`)**: A React-based frontend framework for the user interface.
 - **Bun**: A fast JavaScript runtime used for dependency management and development tooling.
 
 By utilizing **PostgreSQL events and NATS**, Shallabuf achieves a highly efficient **event-driven architecture**, ensuring **real-time updates, decoupled communication, and scalable task execution**.
@@ -130,7 +130,7 @@ Optional but recommended:
 
 ```sh
 just install-tools   # Install all required tools
-just create-env      # Create .env from template
+just create-env      # Create backend/.env from template
 just dev             # Start all services
 ```
 
@@ -139,7 +139,7 @@ For detailed setup, follow these steps:
 1. **Environment Setup**
 
    ```sh
-   # Create .env file from example
+   # Create backend/.env file from example
    just create-env
    ```
 
@@ -227,12 +227,12 @@ just lint
 
 1. **MinIO Access Issues**
    - Ensure MinIO is running: `docker ps | grep minio`
-   - Check credentials in .env file
+   - Check credentials in backend/.env file
    - Try rerunning setup: `just setup-minio`
 
 2. **Database Connection Issues**
    - Ensure PostgreSQL is running: `docker ps | grep postgres`
-   - Check DATABASE_URL in .env file
+   - Check DATABASE_URL in backend/.env file
    - Try waiting for database: `just wait-for-db`
 
 3. **Service Start Issues**
@@ -244,14 +244,16 @@ just lint
 
 ```txt
 .
-├── api/            # API service
-├── builtins/       # WASM modules
-├── db/             # Database migrations and seed data
-├── event-bridge/   # Event bridge service
-├── scheduler/      # Scheduler service
-├── web/           # Frontend (Next.js)
-├── worker/        # Worker service
-├── .env.example   # Environment template
+├── backend/        # All Rust backend services
+│   ├── api/       # API service
+│   ├── builtins/  # WASM modules
+│   ├── db/        # Database migrations and seed data
+│   ├── event-bridge/ # Event bridge service
+│   ├── scheduler/ # Scheduler service
+│   ├── worker/    # Worker service
+│   ├── .env       # Environment variables
+│   └── .env.example # Environment template
+├── frontend/      # Frontend (Next.js)
 ├── docker-compose.yaml
 ├── justfile       # Command runner recipes
 └── Makefile.toml  # Cargo make tasks
