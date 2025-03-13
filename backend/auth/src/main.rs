@@ -22,8 +22,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = Config::from_env().expect("Failed to load configuration");
 
     // Initialize database connection
+    let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     let pg_pool = PgPoolOptions::new()
-        .connect(&config.database_url)
+        .connect(&database_url)
         .await
         .map_err(|error| {
             error!("Failed to connect to database: {error:?}");
@@ -31,8 +32,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         })?;
 
     // Initialize Redis connection
-    let redis_client =
-        redis::Client::open(config.redis_url.clone()).expect("Failed to create Redis client");
+    let redis_url = std::env::var("REDIS_URL").expect("REDIS_URL must be set");
+    let redis_client = redis::Client::open(redis_url).expect("Failed to create Redis client");
 
     let redis_connection_manager = redis::aio::ConnectionManager::new(redis_client)
         .await
