@@ -382,14 +382,17 @@ export const Editor = (props: EditorProps) => {
 			}}
 		>
 			<ContextMenuTrigger
-				onContextMenu={(e) => {
-					const { x, y } = getAdjustedCursorPosition(e.clientX, e.clientY);
+				onContextMenu={(event) => {
+					const { x, y } = getAdjustedCursorPosition(
+						event.clientX,
+						event.clientY,
+					);
 					setContextMenuPosition({ x, y });
 				}}
 			>
 				<div
 					ref={viewportContainer}
-					className="relative h-full w-full border border-gray-200"
+					className="relative h-full w-full border border-primary/10 rounded-lg bg-card/80 backdrop-blur-sm"
 				>
 					<ReactFlow
 						onMouseMove={broadcastCursorPosition}
@@ -407,9 +410,13 @@ export const Editor = (props: EditorProps) => {
 						}}
 					>
 						<Panel position="top-left" onContextMenu={preventContextMenu}>
-							<Button variant="outline" asChild>
+							<Button
+								variant="outline"
+								asChild
+								className="border-primary/10 hover:border-primary/20 bg-card/80 hover:bg-card/90"
+							>
 								<Link href="/pipelines">
-									<ArrowBigLeftIcon />
+									<ArrowBigLeftIcon className="mr-2 h-4 w-4" />
 									Back
 								</Link>
 							</Button>
@@ -417,19 +424,19 @@ export const Editor = (props: EditorProps) => {
 
 						<Panel
 							position="top-center"
-							className="flex items-center justify-center bg-white px-4 py-2 border rounded-lg border-gray-200"
+							className="flex items-center justify-center bg-card/80 backdrop-blur-sm px-4 py-2 rounded-lg border border-primary/10"
 							onContextMenu={preventContextMenu}
 						>
-							<h2 className="text-sm font-bold">Participants</h2>
+							<h2 className="text-sm font-bold text-primary">Participants</h2>
 
-							<ul className="list-disc text-xs pl-5">
+							<ul className="list-disc text-xs pl-5 text-muted-foreground">
 								{Object.entries(participants).map(
 									([id, { username, cursorPosition }]) => (
 										<li key={id} className="py-1">
 											{username}
 
 											{cursorPosition && (
-												<span className="text-xs text-gray-500 ml-2">
+												<span className="text-xs text-muted-foreground/70 ml-2">
 													({cursorPosition.x}, {cursorPosition.y})
 												</span>
 											)}
@@ -445,7 +452,10 @@ export const Editor = (props: EditorProps) => {
 							</Button>
 						</Panel>
 
-						<Background color="#ccc" variant={BackgroundVariant.Dots} />
+						<Background
+							color="var(--color-primary)"
+							variant={BackgroundVariant.Dots}
+						/>
 					</ReactFlow>
 
 					{Object.entries(participants).map(
@@ -465,8 +475,10 @@ export const Editor = (props: EditorProps) => {
 										top: cursorPosition.y * viewport.zoom + viewport.y,
 									}}
 								>
-									<MousePointer2 />
-									<span className="username">{username}</span>
+									<MousePointer2 className="text-primary" />
+									<span className="username text-xs text-primary">
+										{username}
+									</span>
 								</div>
 							);
 						},
@@ -474,16 +486,17 @@ export const Editor = (props: EditorProps) => {
 				</div>
 			</ContextMenuTrigger>
 
-			<ContextMenuContent>
+			<ContextMenuContent className="bg-card border-primary/10">
 				<ContextMenuSub>
-					<ContextMenuSubTrigger>
+					<ContextMenuSubTrigger className="text-primary hover:bg-primary/10">
 						<Plus className="mr-2 h-4 w-4" />
 						Add Node
 					</ContextMenuSubTrigger>
-					<ContextMenuSubContent>
+					<ContextMenuSubContent className="bg-card border-primary/10">
 						{props.availableNodes.map((node) => (
 							<ContextMenuItem
 								key={node.id}
+								className="text-primary hover:bg-primary/10"
 								onSelect={async () => {
 									if (!contextMenuPosition) return;
 
