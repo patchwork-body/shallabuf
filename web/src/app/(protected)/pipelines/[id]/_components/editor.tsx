@@ -1,16 +1,9 @@
 "use client";
 import {
-	DndContext,
-	DragOverlay,
-	type DragStartEvent,
-	type UniqueIdentifier,
-} from "@dnd-kit/core";
-import {
 	Background,
 	BackgroundVariant,
 	type Edge,
 	type OnConnect,
-	Panel,
 	ReactFlow,
 	type ReactFlowProps,
 	addEdge,
@@ -18,10 +11,11 @@ import {
 	useNodesState,
 	useReactFlow,
 } from "@xyflow/react";
-import { MousePointer2 } from "lucide-react";
+import { MousePointer2, Plus } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useQueryState } from "nuqs";
-import React, {
+import type React from "react";
+import {
 	type MouseEvent,
 	useCallback,
 	useEffect,
@@ -34,6 +28,15 @@ import { createPipelineNodeConnectionAction } from "~/actions/create-pipeline-no
 import { createPipelineTriggerConnectionAction } from "~/actions/create-pipeline-trigger-connection";
 import { updatePipelineNodeAction } from "~/actions/update-pipeline-node";
 import { updatePipelineTriggerAction } from "~/actions/update-pipeline-trigger";
+import {
+	ContextMenu,
+	ContextMenuContent,
+	ContextMenuItem,
+	ContextMenuSub,
+	ContextMenuSubContent,
+	ContextMenuSubTrigger,
+	ContextMenuTrigger,
+} from "~/components/ui/context-menu";
 import { useWsStore } from "~/contexts/ws-store-context";
 import { env } from "~/env";
 import {
@@ -45,8 +48,6 @@ import {
 	type PipelineParticipant,
 } from "~/lib/dtos";
 import type { WsStoreState } from "~/stores/ws-store";
-import { Dropzone } from "./dropzone";
-import { NodeItem } from "./node-item";
 import { TaskNode } from "./task-node";
 
 export interface EditorProps {
@@ -66,7 +67,10 @@ export const Editor = (props: EditorProps) => {
 	const params = useParams();
 	const pipelineId = params.id as string;
 	const [execId, setExecId] = useQueryState("exec");
-
+	const [contextMenuPosition, setContextMenuPosition] = useState<{
+		x: number;
+		y: number;
+	} | null>(null);
 	const _clearTaskNodes = useCallback(() => {
 		setNodes((nodes) => {
 			return nodes.map((node) => {
@@ -325,72 +329,33 @@ export const Editor = (props: EditorProps) => {
 	const { getViewport } = useReactFlow();
 	const viewportContainer = useRef<HTMLDivElement>(null);
 
-	const broadcastCursorPosition = useCallback(
-		(event: MouseEvent<HTMLDivElement>) => {
+	const getAdjustedCursorPosition = useCallback(
+		(clientX: number, clientY: number) => {
 			const rect = viewportContainer.current?.getBoundingClientRect();
-
-			if (!rect) {
-				return;
-			}
+			if (!rect) return { x: 0, y: 0 };
 
 			const viewport = getViewport();
+			const adjustedX = (clientX - rect.left - viewport.x) / viewport.zoom;
+			const adjustedY = (clientY - rect.top - viewport.y) / viewport.zoom;
 
-			const adjustedX =
-				(event.clientX - rect.left - viewport.x) / viewport.zoom;
-			const adjustedY = (event.clientY - rect.top - viewport.y) / viewport.zoom;
+			return { x: adjustedX, y: adjustedY };
+		},
+		[getViewport],
+	);
 
+	const broadcastCursorPosition = useCallback(
+		(event: MouseEvent<HTMLDivElement>) => {
+			const { x: adjustedX, y: adjustedY } = getAdjustedCursorPosition(
+				event.clientX,
+				event.clientY,
+			);
 			updateCursorPosition(pipelineId, {
 				x: adjustedX,
 				y: adjustedY,
 			});
 		},
-		[getViewport, updateCursorPosition, pipelineId],
+		[getAdjustedCursorPosition, updateCursorPosition, pipelineId],
 	);
-
-	const [draggableNodeItem, setDraggableNodeItem] =
-		useState<UniqueIdentifier>("");
-
-	const onDragStart = useCallback((event: DragStartEvent) => {
-		setDraggableNodeItem(event.active.id);
-	}, []);
-
-	const onDragEnd = useCallback(async () => {
-		const pipelineNode: PipelineNode = await createPipelineNodeAction({
-			pipelineId,
-			nodeId: draggableNodeItem.toString(),
-			nodeVersion: "v1",
-			// FIXME: This should be the actual cursor position
-			coords: {
-				x: 250,
-				y: 25,
-			},
-		});
-
-		console.log(pipelineNode);
-
-		const node = props.availableNodes.find(
-			(node) => node.id === pipelineNode.nodeId,
-		);
-
-		setDraggableNodeItem("");
-
-		setNodes((nodes) => {
-			return [
-				...nodes,
-				{
-					id: pipelineNode.id,
-					position: pipelineNode.coords,
-					type: NodeType.Task,
-					data: {
-						name: `${node?.name}:${pipelineNode.nodeVersion}`,
-						config: node?.config,
-						inputs: pipelineNode.inputs,
-						outputs: pipelineNode.outputs,
-					},
-				},
-			];
-		});
-	}, [draggableNodeItem, pipelineId, props.availableNodes, setNodes]);
 
 	return (
 		<div className="w-full h-full relative">
@@ -414,8 +379,19 @@ export const Editor = (props: EditorProps) => {
 				</ul>
 			</div>
 
-			<DndContext onDragStart={onDragStart} onDragEnd={onDragEnd}>
-				<Dropzone className="h-full">
+			<ContextMenu
+				onOpenChange={(open) => {
+					if (!open) {
+						setContextMenuPosition(null);
+					}
+				}}
+			>
+				<ContextMenuTrigger
+					onContextMenu={(e) => {
+						const { x, y } = getAdjustedCursorPosition(e.clientX, e.clientY);
+						setContextMenuPosition({ x, y });
+					}}
+				>
 					<div
 						ref={viewportContainer}
 						className="relative h-full w-full border border-gray-200 mt-4"
@@ -435,31 +411,8 @@ export const Editor = (props: EditorProps) => {
 								hideAttribution: true,
 							}}
 						>
-							<Panel
-								className="p-3 border rounded-md top-1 right-1 bottom-1 bg-slate-100"
-								position="top-right"
-							>
-								<ul className="pl-5">
-									{props.availableNodes.map((node) => (
-										<li key={node.id} className="mb-2">
-											<NodeItem id={node.id}>{node.name}</NodeItem>
-										</li>
-									))}
-								</ul>
-							</Panel>
-
 							<Background color="#ccc" variant={BackgroundVariant.Dots} />
 						</ReactFlow>
-
-						<DragOverlay dropAnimation={null}>
-							<NodeItem id="dragged-node">
-								{draggableNodeItem
-									? props.availableNodes.find(
-											(node) => node.id === draggableNodeItem,
-										)?.name
-									: ""}
-							</NodeItem>
-						</DragOverlay>
 
 						{Object.entries(participants).map(
 							([id, { username, cursorPosition }]) => {
@@ -485,8 +438,54 @@ export const Editor = (props: EditorProps) => {
 							},
 						)}
 					</div>
-				</Dropzone>
-			</DndContext>
+				</ContextMenuTrigger>
+
+				<ContextMenuContent>
+					<ContextMenuSub>
+						<ContextMenuSubTrigger>
+							<Plus className="mr-2 h-4 w-4" />
+							Add Node
+						</ContextMenuSubTrigger>
+						<ContextMenuSubContent>
+							{props.availableNodes.map((node) => (
+								<ContextMenuItem
+									key={node.id}
+									onSelect={async () => {
+										if (!contextMenuPosition) return;
+
+										const pipelineNode: PipelineNode =
+											await createPipelineNodeAction({
+												pipelineId,
+												nodeId: node.id,
+												nodeVersion: "v1",
+												coords: contextMenuPosition,
+											});
+
+										setNodes((nodes) => {
+											return [
+												...nodes,
+												{
+													id: pipelineNode.id,
+													position: pipelineNode.coords,
+													type: NodeType.Task,
+													data: {
+														name: `${node.name}:${pipelineNode.nodeVersion}`,
+														config: node.config,
+														inputs: pipelineNode.inputs,
+														outputs: pipelineNode.outputs,
+													},
+												},
+											];
+										});
+									}}
+								>
+									{node.name}
+								</ContextMenuItem>
+							))}
+						</ContextMenuSubContent>
+					</ContextMenuSub>
+				</ContextMenuContent>
+			</ContextMenu>
 		</div>
 	);
 };
