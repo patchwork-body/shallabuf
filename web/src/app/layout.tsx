@@ -4,6 +4,7 @@ import "./globals.css";
 import { ThemeProvider } from "next-themes";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 import { WsStoreProvider } from "~/contexts/ws-store-context";
+import { TRPCProvider } from "~/trpc/client";
 
 const geistSans = Geist({
 	variable: "--font-geist-sans",
@@ -32,7 +33,9 @@ export default async function RootLayout({
 			>
 				<ThemeProvider attribute="class" defaultTheme="system" enableSystem>
 					<NuqsAdapter>
-						<WsStoreProvider>{children}</WsStoreProvider>
+						<TRPCProvider>
+							<WsStoreProvider>{children}</WsStoreProvider>
+						</TRPCProvider>
 					</NuqsAdapter>
 				</ThemeProvider>
 			</body>
