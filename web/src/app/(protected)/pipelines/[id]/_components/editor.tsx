@@ -16,6 +16,7 @@ import {
 	ArrowBigLeftIcon,
 	MousePointer2,
 	Plus,
+	PlusIcon,
 	TriangleIcon,
 } from "lucide-react";
 import Link from "next/link";
@@ -413,7 +414,7 @@ export const Editor = (props: EditorProps) => {
 							<Button
 								variant="outline"
 								asChild
-								className="border-primary/10 hover:border-primary/20 bg-card/80 hover:bg-card/90"
+								className="border-primary/10 hover:border-primary bg-card hover:bg-card"
 							>
 								<Link href="/pipelines">
 									<ArrowBigLeftIcon className="mr-2 h-4 w-4" />
@@ -448,7 +449,7 @@ export const Editor = (props: EditorProps) => {
 
 						<Panel position="top-right" onContextMenu={preventContextMenu}>
 							<Button size="icon">
-								<TriangleIcon className="size-4 rotate-90" />
+								<TriangleIcon className="size-6 rotate-90 fill-background -mr-0.5" />
 							</Button>
 						</Panel>
 
@@ -489,9 +490,10 @@ export const Editor = (props: EditorProps) => {
 			<ContextMenuContent className="bg-card border-primary/10">
 				<ContextMenuSub>
 					<ContextMenuSubTrigger className="text-primary hover:bg-primary/10">
-						<Plus className="mr-2 h-4 w-4" />
+						<PlusIcon className="size-4 mr-2" />
 						Add Node
 					</ContextMenuSubTrigger>
+
 					<ContextMenuSubContent className="bg-card border-primary/10">
 						{props.availableNodes.map((node) => (
 							<ContextMenuItem
