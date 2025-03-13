@@ -10,6 +10,7 @@ description = "Install required development tools"
 script = '''
 cargo install cargo-watch
 cargo install sqlx-cli
+cargo install cargo-tarpaulin
 '''
 
 [tasks.watch-api]
@@ -70,6 +71,31 @@ args = ["check"]
 description = "Run tests for all workspace members"
 command = "cargo"
 args = ["test"]
+
+[tasks.test]
+description = "Run tests for all workspace members"
+command = "cargo"
+args = ["test"]
+
+[tasks.test-coverage]
+description = "Run tests with coverage report"
+command = "cargo"
+args = ["tarpaulin", "--verbose", "--all-features", "--workspace", "--timeout", "120", "--out", "Html"]
+
+[tasks.test-coverage-xml]
+description = "Run tests with coverage report in XML format"
+command = "cargo"
+args = ["tarpaulin", "--verbose", "--all-features", "--workspace", "--timeout", "120", "--out", "Xml"]
+
+[tasks.test-single]
+description = "Run tests for a specific package"
+command = "cargo"
+args = ["test", "--package", "${@}"]
+
+[tasks.test-single-coverage]
+description = "Run tests with coverage for a specific package"
+command = "cargo"
+args = ["tarpaulin", "--verbose", "--all-features", "--package", "${@}", "--timeout", "120", "--out", "Html"]
 
 [tasks.fmt]
 description = "Format all code"

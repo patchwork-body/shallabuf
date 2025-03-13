@@ -5,43 +5,43 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme {
-	--color-background: hsl(var(--background));
-	--color-foreground: hsl(var(--foreground));
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
 
-	--color-card: hsl(var(--card));
-	--color-card-foreground: hsl(var(--card-foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
 
-	--color-popover: hsl(var(--popover));
-	--color-popover-foreground: hsl(var(--popover-foreground));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
 
-	--color-primary: hsl(var(--primary));
-	--color-primary-foreground: hsl(var(--primary-foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
 
-	--color-secondary: hsl(var(--secondary));
-	--color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
 
-	--color-muted: hsl(var(--muted));
-	--color-muted-foreground: hsl(var(--muted-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
 
-	--color-accent: hsl(var(--accent));
-	--color-accent-foreground: hsl(var(--accent-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
 
-	--color-destructive: hsl(var(--destructive));
-	--color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
 
-	--color-border: hsl(var(--border));
-	--color-input: hsl(var(--input));
-	--color-ring: hsl(var(--ring));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
 
-	--color-chart-1: hsl(var(--chart-1));
-	--color-chart-2: hsl(var(--chart-2));
-	--color-chart-3: hsl(var(--chart-3));
-	--color-chart-4: hsl(var(--chart-4));
-	--color-chart-5: hsl(var(--chart-5));
+  --color-chart-1: hsl(var(--chart-1));
+  --color-chart-2: hsl(var(--chart-2));
+  --color-chart-3: hsl(var(--chart-3));
+  --color-chart-4: hsl(var(--chart-4));
+  --color-chart-5: hsl(var(--chart-5));
 
-	--radius-lg: var(--radius);
-	--radius-md: calc(var(--radius) - 2px);
-	--radius-sm: calc(var(--radius) - 4px);
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
 }
 
 /*
@@ -53,84 +53,84 @@
   color utility to any element that depends on these defaults.
 */
 @layer base {
-	*,
-	::after,
-	::before,
-	::backdrop,
-	::file-selector-button {
-		border-color: var(--color-gray-200, currentColor);
-	}
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentColor);
+  }
 }
 
 @layer utilities {
-	body {
-		font-family: Arial, Helvetica, sans-serif;
-	}
+  body {
+    font-family: Arial, Helvetica, sans-serif;
+  }
 }
 
 @layer base {
-	:root {
-		/* Catppuccin Latte (Light theme) */
-		--background: 220 23% 95%; /* Base */
-		--foreground: 234 16% 35%; /* Text */
-		--card: 220 23% 95%; /* Base */
-		--card-foreground: 234 16% 35%; /* Text */
-		--popover: 220 23% 95%; /* Base */
-		--popover-foreground: 234 16% 35%; /* Text */
-		--primary: 220 91% 54%; /* Blue */
-		--primary-foreground: 220 23% 95%; /* Base */
-		--secondary: 220 16% 83%; /* Surface 0 */
-		--secondary-foreground: 234 16% 35%; /* Text */
-		--muted: 220 16% 83%; /* Surface 0 */
-		--muted-foreground: 233 13% 41%; /* Subtext 1 */
-		--accent: 220 16% 83%; /* Surface 0 */
-		--accent-foreground: 234 16% 35%; /* Text */
-		--destructive: 347 87% 44%; /* Red */
-		--destructive-foreground: 220 23% 95%; /* Base */
-		--border: 220 16% 83%; /* Surface 0 */
-		--input: 220 16% 83%; /* Surface 0 */
-		--ring: 220 91% 54%; /* Blue */
-		--chart-1: 220 91% 54%; /* Blue */
-		--chart-2: 183 74% 35%; /* Teal */
-		--chart-3: 316 73% 69%; /* Pink */
-		--chart-4: 35 77% 49%; /* Yellow */
-		--chart-5: 347 87% 44%; /* Red */
-		--radius: 0.5rem;
-	}
-	.dark {
-		/* Catppuccin Mocha (Dark theme) */
-		--background: 240 21% 15%; /* Base */
-		--foreground: 226 64% 88%; /* Text */
-		--card: 240 21% 15%; /* Base */
-		--card-foreground: 226 64% 88%; /* Text */
-		--popover: 240 21% 15%; /* Base */
-		--popover-foreground: 226 64% 88%; /* Text */
-		--primary: 217 92% 76%; /* Blue */
-		--primary-foreground: 240 21% 15%; /* Base */
-		--secondary: 237 16% 23%; /* Surface 0 */
-		--secondary-foreground: 226 64% 88%; /* Text */
-		--muted: 237 16% 23%; /* Surface 0 */
-		--muted-foreground: 228 24% 72%; /* Subtext 0 */
-		--accent: 237 16% 23%; /* Surface 0 */
-		--accent-foreground: 226 64% 88%; /* Text */
-		--destructive: 343 81% 75%; /* Red */
-		--destructive-foreground: 240 21% 15%; /* Base */
-		--border: 237 16% 23%; /* Surface 0 */
-		--input: 237 16% 23%; /* Surface 0 */
-		--ring: 217 92% 76%; /* Blue */
-		--chart-1: 217 92% 76%; /* Blue */
-		--chart-2: 170 57% 73%; /* Teal */
-		--chart-3: 316 72% 86%; /* Pink */
-		--chart-4: 41 86% 83%; /* Yellow */
-		--chart-5: 343 81% 75%; /* Red */
-	}
+  :root {
+    /* Catppuccin Latte (Light theme) */
+    --background: 220 23% 95%; /* Base */
+    --foreground: 234 16% 35%; /* Text */
+    --card: 220 23% 95%; /* Base */
+    --card-foreground: 234 16% 35%; /* Text */
+    --popover: 220 23% 95%; /* Base */
+    --popover-foreground: 234 16% 35%; /* Text */
+    --primary: 220 91% 54%; /* Blue */
+    --primary-foreground: 220 23% 95%; /* Base */
+    --secondary: 220 16% 83%; /* Surface 0 */
+    --secondary-foreground: 234 16% 35%; /* Text */
+    --muted: 220 16% 83%; /* Surface 0 */
+    --muted-foreground: 233 13% 41%; /* Subtext 1 */
+    --accent: 220 16% 83%; /* Surface 0 */
+    --accent-foreground: 234 16% 35%; /* Text */
+    --destructive: 347 87% 44%; /* Red */
+    --destructive-foreground: 220 23% 95%; /* Base */
+    --border: 220 16% 83%; /* Surface 0 */
+    --input: 220 16% 83%; /* Surface 0 */
+    --ring: 220 91% 54%; /* Blue */
+    --chart-1: 220 91% 54%; /* Blue */
+    --chart-2: 183 74% 35%; /* Teal */
+    --chart-3: 316 73% 69%; /* Pink */
+    --chart-4: 35 77% 49%; /* Yellow */
+    --chart-5: 347 87% 44%; /* Red */
+    --radius: 0.5rem;
+  }
+  .dark {
+    /* Catppuccin Mocha (Dark theme) */
+    --background: 240 21% 15%; /* Base */
+    --foreground: 226 64% 88%; /* Text */
+    --card: 240 21% 15%; /* Base */
+    --card-foreground: 226 64% 88%; /* Text */
+    --popover: 240 21% 15%; /* Base */
+    --popover-foreground: 226 64% 88%; /* Text */
+    --primary: 217 92% 76%; /* Blue */
+    --primary-foreground: 240 21% 15%; /* Base */
+    --secondary: 237 16% 23%; /* Surface 0 */
+    --secondary-foreground: 226 64% 88%; /* Text */
+    --muted: 237 16% 23%; /* Surface 0 */
+    --muted-foreground: 228 24% 72%; /* Subtext 0 */
+    --accent: 237 16% 23%; /* Surface 0 */
+    --accent-foreground: 226 64% 88%; /* Text */
+    --destructive: 343 81% 75%; /* Red */
+    --destructive-foreground: 240 21% 15%; /* Base */
+    --border: 237 16% 23%; /* Surface 0 */
+    --input: 237 16% 23%; /* Surface 0 */
+    --ring: 217 92% 76%; /* Blue */
+    --chart-1: 217 92% 76%; /* Blue */
+    --chart-2: 170 57% 73%; /* Teal */
+    --chart-3: 316 72% 86%; /* Pink */
+    --chart-4: 41 86% 83%; /* Yellow */
+    --chart-5: 343 81% 75%; /* Red */
+  }
 }
 
 @layer base {
-	* {
-		@apply border-border;
-	}
-	body {
-		@apply bg-background text-foreground;
-	}
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
 }

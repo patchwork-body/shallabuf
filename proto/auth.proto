@@ -22,11 +22,11 @@ message LogoutResponse {
   bool success = 1;
 }
 
-message SessionRequest {
+message ValidateSessionRequest {
   string token = 1;
 }
 
-message SessionResponse {
+message ValidateSessionResponse {
   string token = 1;
   google.protobuf.Timestamp expires_at = 2;
 }
@@ -34,5 +34,5 @@ message SessionResponse {
 service AuthService {
   rpc Login (LoginRequest) returns (LoginResponse);
   rpc Logout (LogoutRequest) returns (LogoutResponse);
-  rpc Session (SessionRequest) returns (SessionResponse);
+  rpc ValidateSession (ValidateSessionRequest) returns (ValidateSessionResponse);
 }

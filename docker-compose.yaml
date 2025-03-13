@@ -5,7 +5,7 @@ x-env: &env
   MINIO_CONSOLE_PORT: 30901
   MINIO_ROOT_USER: minio
   MINIO_ROOT_PASSWORD: minioadmin
-  REDIS_PORT: 30637
+  dragonfly_PORT: 30637
   PROMETHEUS_PORT: 30090
   LOKI_PORT: 3100
   GRAFANA_PORT: 30001
@@ -41,8 +41,8 @@ services:
     volumes:
       - minio_data:/data
 
-  redis:
-    image: redis:latest
+  dragonfly:
+    image: docker.dragonflydb.io/dragonflydb/dragonfly:latest
     environment: *env
     ports:
       - "${REDIS_PORT}:6379" # Redis
@@ -55,7 +55,7 @@ services:
     volumes:
       - ./prometheus.yaml:/etc/prometheus/prometheus.yaml
     depends_on:
-      - redis
+      - dragonfly
       - nats
     networks:
       - default
