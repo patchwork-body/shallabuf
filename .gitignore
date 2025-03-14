@@ -14,3 +14,6 @@ Cargo.lock
 *.old
 *.orig
 .DS_Store
+
+# Generated proto files
+frontend/src/generated/

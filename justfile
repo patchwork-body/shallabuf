@@ -40,6 +40,8 @@ install-bun:
 # Install all required tools and dependencies
 install-tools: install-rust-tools
     @echo "Run 'just install-bun' if you need to install bun via asdf"
+    brew install bufbuild/buf/buf || echo "Please install buf manually: https://buf.build/docs/installation"
+    cd frontend && buf dep update
     brew install minio/stable/mc || echo "Please install MinIO Client (mc) manually: https://min.io/docs/minio/linux/reference/minio-mc.html"
 
 # Create .env file if it doesn't exist
@@ -160,8 +162,12 @@ setup-db: setup-minio
     just sqlx-prepare
     just seed
 
+# Generate TypeScript code from proto files
+generate-proto:
+    cd frontend && buf generate ../proto
+
 # Install frontend dependencies
-setup-frontend:
+setup-frontend: generate-proto
     cd frontend && bun install
 
 # Start the Next.js development server

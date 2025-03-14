@@ -1,0 +1,9 @@
+version: v1
+plugins:
+  - plugin: buf.build/community/stephenh-ts-proto
+    out: ./src/generated
+    opt:
+      - ts_proto_opt=esModuleInterop=true
+      - outputServices=grpc-js
+      - useOptionals=true
+      - exportCommonSymbols=false

@@ -81,7 +81,7 @@ impl AuthService for AuthServiceImpl {
             &token,
             user.id,
             &user.name,
-            self.config.session_duration,
+            self.config.session_duration_minutes,
         )
         .await?;
 

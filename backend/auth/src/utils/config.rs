@@ -4,11 +4,11 @@ use std::net::SocketAddr;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Config {
-    pub database_url: String,
-    pub redis_url: String,
+    // pub database_url: String,
+    // pub redis_url: String,
     pub listen_addr: SocketAddr,
     #[serde(with = "duration_serde")]
-    pub session_duration: Duration,
+    pub session_duration_minutes: Duration,
 }
 
 impl Config {
@@ -23,7 +23,7 @@ impl Config {
 
     #[must_use]
     pub fn session_extension_duration(&self) -> Duration {
-        self.session_duration / 2
+        self.session_duration_minutes / 2
     }
 }
 
