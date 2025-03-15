@@ -1,2 +1,4 @@
 /bin/
 /node_modules/
+kubeconfig
+gke_gcloud_auth_plugin_cache

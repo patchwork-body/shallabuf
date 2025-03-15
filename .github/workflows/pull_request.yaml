@@ -8,7 +8,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
-      - run: bun install
+      - name: Setup Bun
+        run: bun install
+        working-directory: infrastructure
       - uses: pulumi/actions@v6
         with:
           command: preview
