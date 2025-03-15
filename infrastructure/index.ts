@@ -1,6 +1,7 @@
 import * as gcp from "@pulumi/gcp";
 import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
+import * as random from "@pulumi/random";
 
 const name = "shallabuf";
 
@@ -137,3 +138,88 @@ new k8s.helm.v3.Release(
 export const natsServiceName = pulumi.interpolate`${name}-nats-client`;
 export const natsService = nats.getResource("v1/Service", "nats/nats").status;
 export const natsReleaseServiceName = pulumi.interpolate`${name}-nats-release`;
+
+export const postgresNamespace = new k8s.core.v1.Namespace(
+	"postgres",
+	{
+		metadata: {
+			name: "postgres",
+		},
+	},
+	{ provider: clusterProvider },
+);
+
+export const postgresNamespaceName = postgresNamespace.metadata.apply(
+	(metadata) => metadata.name,
+);
+
+const postgres = new k8s.helm.v3.Chart(
+	`${name}-postgresql-ha`,
+	{
+		chart: "postgresql-ha",
+		version: "15.3.4",
+		namespace: postgresNamespaceName,
+		fetchOpts: {
+			repo: "https://charts.bitnami.com/bitnami",
+		},
+		values: {
+			global: {
+				postgresql: {
+					username: "shallabuf",
+					database: "shallabuf",
+					replicationPassword: new random.RandomPassword("repl-password", {
+						length: 16,
+						special: false,
+					}).result,
+				},
+			},
+			postgresql: {
+				image: {
+					tag: "17.4.0",
+				},
+				replicaCount: 3,
+				resources: {
+					requests: {
+						memory: "1Gi",
+						cpu: "500m",
+					},
+					limits: {
+						memory: "2Gi",
+						cpu: "1000m",
+					},
+				},
+				persistence: {
+					enabled: true,
+					size: "10Gi",
+					storageClass: "standard",
+				},
+				pgpool: {
+					replicaCount: 2,
+					resources: {
+						requests: {
+							memory: "512Mi",
+							cpu: "250m",
+						},
+						limits: {
+							memory: "1Gi",
+							cpu: "500m",
+						},
+					},
+				},
+			},
+			metrics: {
+				enabled: true,
+				serviceMonitor: {
+					enabled: true,
+				},
+			},
+		},
+	},
+	{ provider: clusterProvider },
+);
+
+export const postgresServiceName = pulumi.interpolate`${name}-postgresql-ha-pgpool`;
+export const postgresService = postgres.getResource(
+	"v1/Service",
+	"postgres/postgresql-ha-pgpool",
+).status;
