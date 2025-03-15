@@ -1,0 +1,3 @@
+config:
+  gcp:project: hale-runner-453815-p5
+  gcp:zone: europe-central2-a

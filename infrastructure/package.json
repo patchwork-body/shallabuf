@@ -1,12 +1,13 @@
 {
-    "name": "infrastructure",
-    "main": "index.ts",
-    "devDependencies": {
-        "@types/node": "^18",
-        "typescript": "^5.0.0"
-    },
-    "dependencies": {
-        "@pulumi/kubernetes": "^4.0.0",
-        "@pulumi/pulumi": "^3.113.0"
-    }
+	"name": "infrastructure",
+	"main": "index.ts",
+	"devDependencies": {
+		"@types/node": "^22",
+		"typescript": "^5.0.0"
+	},
+	"dependencies": {
+		"@pulumi/gcp": "^8.22.0",
+		"@pulumi/kubernetes": "^4.0.0",
+		"@pulumi/pulumi": "^3.113.0"
+	}
 }

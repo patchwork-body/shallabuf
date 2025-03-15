@@ -7,4 +7,4 @@ runtime:
 config:
   pulumi:tags:
     value:
-      pulumi:template: kubernetes-typescript
+      pulumi:template: gcp-typescript
