@@ -10,6 +10,8 @@ export const env = createEnv({
 		API_URL: z.string().url(),
 		AUTH_HOST: z.string(),
 		AUTH_PORT: z.string(),
+		USER_HOST: z.string(),
+		USER_PORT: z.string(),
 	},
 	/*
 	 * Environment variables available on the client (and server).

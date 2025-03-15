@@ -38,6 +38,7 @@ mod duration_serde {
     {
         let minutes = String::deserialize(deserializer)?;
         let minutes = i64::from_str(&minutes).map_err(serde::de::Error::custom)?;
+
         Ok(Duration::minutes(minutes))
     }
 }

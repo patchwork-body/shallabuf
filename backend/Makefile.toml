@@ -59,8 +59,12 @@ sleep 2
 echo "Starting API..."
 cargo watch -x "run --bin api" &
 
-echo "Starting auth..."
+echo "Starting auth service..."
 cargo watch -x "run --bin auth" &
+sleep 2
+
+echo "Starting user service..."
+cargo watch -x "run --bin user" &
 
 wait
 '''

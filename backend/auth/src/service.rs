@@ -24,9 +24,12 @@ pub struct AuthServiceImpl {
 }
 
 impl AuthServiceImpl {
-    #[must_use]
-    pub fn new(db: sqlx::PgPool, redis: redis::aio::ConnectionManager, config: Config) -> Self {
-        Self { db, redis, config }
+    pub fn new(
+        db: sqlx::PgPool,
+        redis: redis::aio::ConnectionManager,
+        config: Config,
+    ) -> Result<Self, AuthError> {
+        Ok(Self { db, redis, config })
     }
 }
 
@@ -97,9 +100,13 @@ impl AuthService for AuthServiceImpl {
         &self,
         request: Request<LogoutRequest>,
     ) -> Result<Response<LogoutResponse>, Status> {
-        let LogoutRequest { token } = request.into_inner();
+        let metadata = request.metadata();
+        let token = metadata
+            .get("authorization")
+            .and_then(|value| value.to_str().ok())
+            .ok_or_else(|| Status::unauthenticated("Missing authorization token"))?;
 
-        invalidate_session(self.redis.clone(), &token).await?;
+        invalidate_session(self.redis.clone(), token).await?;
 
         Ok(Response::new(LogoutResponse { success: true }))
     }
@@ -108,11 +115,15 @@ impl AuthService for AuthServiceImpl {
         &self,
         request: Request<ValidateSessionRequest>,
     ) -> Result<Response<ValidateSessionResponse>, Status> {
-        let ValidateSessionRequest { token } = request.into_inner();
+        let metadata = request.metadata();
+        let token = metadata
+            .get("authorization")
+            .and_then(|value| value.to_str().ok())
+            .ok_or_else(|| Status::unauthenticated("Missing authorization token"))?;
 
         let session = validate_session_token(
             self.redis.clone(),
-            &token,
+            token,
             self.config.session_extension_duration(),
         )
         .await
@@ -123,7 +134,7 @@ impl AuthService for AuthServiceImpl {
         };
 
         Ok(Response::new(ValidateSessionResponse {
-            token,
+            user_id: session.user_id.to_string(),
             expires_at: Some(prost_types::Timestamp::from(std::time::SystemTime::from(
                 session.expires_at,
             ))),

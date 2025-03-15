@@ -14,20 +14,16 @@ message LoginResponse {
   google.protobuf.Timestamp expires_at = 2;
 }
 
-message LogoutRequest {
-  string token = 1;
-}
+message LogoutRequest {}
 
 message LogoutResponse {
   bool success = 1;
 }
 
-message ValidateSessionRequest {
-  string token = 1;
-}
+message ValidateSessionRequest {}
 
 message ValidateSessionResponse {
-  string token = 1;
+  string user_id = 1;
   google.protobuf.Timestamp expires_at = 2;
 }
 

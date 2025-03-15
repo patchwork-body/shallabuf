@@ -2,12 +2,14 @@
 DROP TRIGGER IF EXISTS set_updated_at_organizations ON organizations;
 DROP TRIGGER IF EXISTS set_updated_at_teams ON teams;
 DROP TRIGGER IF EXISTS set_updated_at_users ON users;
+DROP TRIGGER IF EXISTS set_updated_at_user_organizations ON user_organizations;
 DROP TRIGGER IF EXISTS set_updated_at_user_teams ON user_teams;
 DROP TRIGGER IF EXISTS set_updated_at_keys ON keys;
 
 -- Drop tables
 DROP TABLE IF EXISTS keys;
 DROP TABLE IF EXISTS user_teams;
+DROP TABLE IF EXISTS user_organizations;
 DROP TABLE IF EXISTS users;
 DROP TABLE IF EXISTS teams;
 DROP TABLE IF EXISTS organizations;

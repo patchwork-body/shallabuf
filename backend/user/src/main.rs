@@ -1,9 +1,13 @@
-use auth::{AuthServiceImpl, proto::auth_service_server::AuthServiceServer, utils::config::Config};
 use dotenvy::dotenv;
 use sqlx::postgres::PgPoolOptions;
 use tonic::transport::Server;
 use tracing::{error, info};
 use tracing_subscriber::{EnvFilter, fmt, layer::SubscriberExt, util::SubscriberInitExt};
+use user::{
+    UserServiceImpl,
+    proto::{auth_service_client::AuthServiceClient, user_service_server::UserServiceServer},
+    utils::{config::Config, interceptor::AuthMiddlewareLayer},
+};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -31,22 +35,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             error
         })?;
 
-    // Initialize Redis connection
-    let redis_url = std::env::var("REDIS_URL").expect("REDIS_URL must be set");
-    let redis_client = redis::Client::open(redis_url).expect("Failed to create Redis client");
-
-    let redis_connection_manager = redis::aio::ConnectionManager::new(redis_client)
+    let auth_grpc_client = AuthServiceClient::connect(config.auth_grpc_addr.clone())
         .await
-        .expect("Failed to create Redis connection manager");
+        .expect("Failed to create Auth gRPC client");
 
-    info!("Auth service listening on {}", config.listen_addr);
+    info!("User service listening on {}", config.listen_addr);
+
+    let auth_interceptor = AuthMiddlewareLayer::new(auth_grpc_client);
+    let service_impl = UserServiceImpl::new(pg_pool).expect("Failed to initialize user service");
 
     // Start the gRPC server
     Server::builder()
-        .add_service(AuthServiceServer::new(
-            AuthServiceImpl::new(pg_pool, redis_connection_manager, config.clone())
-                .expect("Failed to initialize auth service"),
-        ))
+        .layer(auth_interceptor)
+        .add_service(UserServiceServer::new(service_impl))
         .serve(config.listen_addr)
         .await?;
 

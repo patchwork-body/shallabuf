@@ -1,0 +1,52 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT\n                o.id AS organization_id,\n                o.name AS organization_name,\n                t.id AS team_id,\n                t.name AS team_name,\n                t.created_at AS team_created_at,\n                t.updated_at AS team_updated_at\n            FROM\n                organizations o\n            JOIN\n                user_organizations uo ON o.id = uo.organization_id\n            LEFT JOIN\n                teams t ON t.organization_id = o.id\n            LEFT JOIN\n                user_teams ut ON ut.team_id = t.id AND ut.user_id = uo.user_id\n            WHERE\n                uo.user_id = $1\n            ORDER BY\n                o.created_at DESC, t.created_at DESC;\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "organization_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "organization_name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "team_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 3,
+        "name": "team_name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "team_created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 5,
+        "name": "team_updated_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "84b2cd2e86742850523ceef25840036f54024c27f4d091fb03a6dafd70921c94"
+}

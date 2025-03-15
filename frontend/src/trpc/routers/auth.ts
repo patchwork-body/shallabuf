@@ -1,3 +1,4 @@
+import { Metadata } from "@grpc/grpc-js";
 import { TRPCError } from "@trpc/server";
 import { cookies } from "next/headers";
 import { loginSchema } from "~/lib/schemas";
@@ -28,9 +29,10 @@ export const authRouter = createTRPCRouter({
 	}),
 
 	logout: protectedProcedure.mutation(async ({ ctx }) => {
-		const response = await auth.logout({
-			token: ctx.sessionToken,
-		});
+		const metadata = new Metadata();
+		metadata.set("authorization", ctx.sessionToken);
+
+		const response = await auth.logout(metadata);
 
 		(await cookies()).delete("session");
 
@@ -38,10 +40,9 @@ export const authRouter = createTRPCRouter({
 	}),
 
 	validateSession: protectedProcedure.mutation(async ({ ctx }) => {
-		const response = await auth.validateSession({
-			token: ctx.sessionToken,
-		});
+		const metadata = new Metadata();
+		metadata.set("authorization", ctx.sessionToken);
 
-		return response;
+		return await auth.validateSession(metadata);
 	}),
 });

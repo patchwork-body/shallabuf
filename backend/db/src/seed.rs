@@ -23,12 +23,12 @@ pub async fn run_migrations(pool: &PgPool) -> anyhow::Result<()> {
         sqlx::query!("DROP SCHEMA public CASCADE;")
             .execute(pool)
             .await
-            .map_err(|e| anyhow::anyhow!("Failed to drop schema: {}", e))?;
+            .map_err(|error| anyhow::anyhow!("Failed to drop schema: {error}"))?;
 
         sqlx::query!("CREATE SCHEMA public;")
             .execute(pool)
             .await
-            .map_err(|e| anyhow::anyhow!("Failed to create schema: {}", e))?;
+            .map_err(|error| anyhow::anyhow!("Failed to create schema: {error}"))?;
 
         info!("Schema dropped and recreated successfully");
     }
@@ -36,7 +36,7 @@ pub async fn run_migrations(pool: &PgPool) -> anyhow::Result<()> {
     crate::MIGRATOR
         .run(pool)
         .await
-        .map_err(|e| anyhow::anyhow!("Failed to run migrations: {}", e))?;
+        .map_err(|error| anyhow::anyhow!("Failed to run migrations: {error}"))?;
 
     info!("Database migrated successfully");
     Ok(())
@@ -179,18 +179,28 @@ pub async fn seed_database(db: &PgPool) -> anyhow::Result<()> {
 
     let user_alex = sqlx::query!(
         r#"
-        INSERT INTO users (id, name, email, password_hash, email_verified, organization_id)
-        VALUES ($1, $2, $3, $4, $5, $6)
+        INSERT INTO users (id, name, email, password_hash, email_verified)
+        VALUES ($1, $2, $3, $4, $5)
         RETURNING id
         "#,
         alex_id,
         "Alex",
         "alex@mail.com",
         hashed_password,
-        true,
-        organization_id
+        true
     )
     .fetch_one(db)
+    .await?;
+
+    let _user_alex_org = sqlx::query!(
+        r#"
+        INSERT INTO user_organizations (user_id, organization_id)
+        VALUES ($1, $2)
+        "#,
+        user_alex.id,
+        organization_id
+    )
+    .execute(db)
     .await?;
 
     let _user_alex_key = sqlx::query!(
@@ -213,18 +223,28 @@ pub async fn seed_database(db: &PgPool) -> anyhow::Result<()> {
 
     let user_bob = sqlx::query!(
         r#"
-        INSERT INTO users (id, name, email, password_hash, email_verified, organization_id)
-        VALUES ($1, $2, $3, $4, $5, $6)
+        INSERT INTO users (id, name, email, password_hash, email_verified)
+        VALUES ($1, $2, $3, $4, $5)
         RETURNING id
         "#,
         bob_id,
         "Bob",
         "bob@mail.com",
         hashed_password,
-        true,
-        organization_id
+        true
     )
     .fetch_one(db)
+    .await?;
+
+    let _user_bob_org = sqlx::query!(
+        r#"
+        INSERT INTO user_organizations (user_id, organization_id)
+        VALUES ($1, $2)
+        "#,
+        user_bob.id,
+        organization_id
+    )
+    .execute(db)
     .await?;
 
     let _user_bob_key = sqlx::query!(
@@ -663,10 +683,10 @@ pub async fn seed_database(db: &PgPool) -> anyhow::Result<()> {
 
     let image_generator_pipeline_node = sqlx::query!(
         r#"
-            INSERT INTO pipeline_nodes (pipeline_id, node_id, coords, node_version)
-            VALUES ($1, $2, $3, $4)
-            RETURNING id
-            "#,
+        INSERT INTO pipeline_nodes (pipeline_id, node_id, coords, node_version)
+        VALUES ($1, $2, $3, $4)
+        RETURNING id
+        "#,
         pipeline.id,
         image_generator_node.id,
         serde_json::json!({
