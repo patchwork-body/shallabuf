@@ -17,3 +17,7 @@ Cargo.lock
 
 # Generated proto files
 frontend/src/generated/
+
+# Pulumi
+Pulumi.*.yaml
+!Pulumi.yaml
