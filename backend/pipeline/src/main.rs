@@ -1,10 +1,13 @@
 use common::utils::interceptor::AuthMiddlewareLayer;
 use dotenvy::dotenv;
+use pipeline::{
+    PipelineServiceImpl, proto::pipeline_service_server::PipelineServiceServer,
+    utils::config::Config,
+};
 use sqlx::postgres::PgPoolOptions;
 use tonic::transport::Server;
 use tracing::{error, info};
 use tracing_subscriber::{EnvFilter, fmt, layer::SubscriberExt, util::SubscriberInitExt};
-use user::{UserServiceImpl, proto::user_service_server::UserServiceServer, utils::config::Config};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -35,12 +38,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!("User service listening on {}", config.listen_addr);
 
     let auth_interceptor = AuthMiddlewareLayer::new(config.auth_grpc_addr.clone()).await?;
-    let service_impl = UserServiceImpl::new(pg_pool).expect("Failed to initialize user service");
+    let service_impl =
+        PipelineServiceImpl::new(pg_pool).expect("Failed to initialize pipeline service");
 
     // Start the gRPC server
     Server::builder()
         .layer(auth_interceptor)
-        .add_service(UserServiceServer::new(service_impl))
+        .add_service(PipelineServiceServer::new(service_impl))
         .serve(config.listen_addr)
         .await?;
 

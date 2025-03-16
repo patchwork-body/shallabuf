@@ -1,23 +1,15 @@
 import Link from "next/link";
-import { env } from "~/env";
-import { getSessionToken } from "~/lib/auth";
+import { trpc } from "~/trpc/server";
 
-interface Pipeline {
-	id: string;
-	name: string;
-	description: string;
-}
-
-export default async function Home() {
-	const sessionToken = await getSessionToken();
-
-	const pipelines_req = await fetch(`${env.API_URL}/pipelines`, {
-		headers: {
-			Authorization: `Bearer ${sessionToken}`,
-		},
+export default async function PipelinesPage({
+	params,
+}: {
+	params: Promise<{ teamId: string }>;
+}) {
+	const { teamId } = await params;
+	const { pipelines } = await trpc.pipeline.list({
+		teamId,
 	});
-
-	const pipelines: Pipeline[] = await pipelines_req.json();
 
 	return (
 		<ul className="w-full max-w-2xl">

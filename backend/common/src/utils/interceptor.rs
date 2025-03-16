@@ -1,10 +1,12 @@
-use crate::proto::{ValidateSessionRequest, auth_service_client::AuthServiceClient};
 use std::pin::Pin;
 use std::task::Context;
 use std::task::Poll;
 use tonic::{Request, Status};
 use tower::{Layer, Service};
+use tracing::error;
 use uuid::Uuid;
+
+use crate::proto::{ValidateSessionRequest, auth_service_client::AuthServiceClient};
 
 #[derive(Clone)]
 pub struct AuthMiddlewareLayer {
@@ -12,8 +14,15 @@ pub struct AuthMiddlewareLayer {
 }
 
 impl AuthMiddlewareLayer {
-    pub fn new(auth_client: AuthServiceClient<tonic::transport::Channel>) -> Self {
-        Self { auth_client }
+    pub async fn new(auth_grpc_addr: String) -> Result<Self, Box<dyn std::error::Error>> {
+        let auth_client = AuthServiceClient::connect(auth_grpc_addr)
+            .await
+            .map_err(|err| {
+                error!("Failed to create Auth gRPC client: {err:?}");
+                err
+            })?;
+
+        Ok(Self { auth_client })
     }
 }
 

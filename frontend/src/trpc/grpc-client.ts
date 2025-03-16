@@ -12,6 +12,11 @@ import {
 	type ValidateSessionResponse,
 } from "~/generated/auth";
 import {
+	ListPipelinesRequest,
+	type ListPipelinesResponse,
+	PipelineServiceClient,
+} from "~/generated/pipeline";
+import {
 	MeRequest,
 	type MeResponse,
 	UserServiceClient,
@@ -103,6 +108,24 @@ export const user = {
 		return await promisify(
 			userClient.me.bind(userClient),
 			MeRequest.create(),
+			metadata,
+		);
+	},
+};
+
+export const pipelineClient = new PipelineServiceClient(
+	`${env.PIPELINE_HOST}:${env.PIPELINE_PORT}`,
+	grpc.credentials.createInsecure(),
+);
+
+export const pipeline = {
+	list: async (
+		input: ListPipelinesRequest,
+		metadata?: Metadata,
+	): Promise<ListPipelinesResponse> => {
+		return await promisify(
+			pipelineClient.list.bind(pipelineClient),
+			ListPipelinesRequest.create(input),
 			metadata,
 		);
 	},

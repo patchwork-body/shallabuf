@@ -61,10 +61,15 @@ cargo watch -x "run --bin api" &
 
 echo "Starting auth service..."
 cargo watch -x "run --bin auth" &
-sleep 2
+while ! nc -z localhost 50051; do sleep 1; done
 
 echo "Starting user service..."
 cargo watch -x "run --bin user" &
+while ! nc -z localhost 50052; do sleep 1; done
+
+echo "Starting pipeline service..."
+cargo watch -x "run --bin pipeline" &
+while ! nc -z localhost 50053; do sleep 1; done
 
 wait
 '''

@@ -1,5 +1,5 @@
 [workspace]
-members = ["api", "auth", "builtins", "db", "event-bridge", "scheduler", "user", "worker"]
+members = ["common", "api", "auth", "builtins", "db", "event-bridge", "scheduler", "user", "worker", "pipeline"]
 resolver = "2"
 
 [profile.dev]

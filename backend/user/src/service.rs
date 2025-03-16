@@ -5,8 +5,9 @@ use uuid::Uuid;
 
 use crate::{
     proto::{MeRequest, MeResponse, Organization, Team, user_service_server::UserService},
-    utils::{error::AuthError, interceptor::AuthExtension},
+    utils::error::AuthError,
 };
+use common::utils::interceptor::AuthExtension;
 
 #[derive(Clone)]
 pub struct UserServiceImpl {

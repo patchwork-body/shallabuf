@@ -12,6 +12,8 @@ export const env = createEnv({
 		AUTH_PORT: z.string(),
 		USER_HOST: z.string(),
 		USER_PORT: z.string(),
+		PIPELINE_HOST: z.string(),
+		PIPELINE_PORT: z.string(),
 	},
 	/*
 	 * Environment variables available on the client (and server).
