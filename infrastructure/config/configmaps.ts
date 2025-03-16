@@ -68,7 +68,14 @@ export function createGrafanaConfigMap(
 		{
 			GF_SERVER_ROOT_URL: `https://${config.require("domain")}`,
 			GF_AUTH_DISABLE_LOGIN_FORM: "false",
+			GF_AUTH_BASIC_ENABLED: "true",
 			GF_AUTH_OAUTH_AUTO_LOGIN: "false",
+			GF_SECURITY_ALLOW_EMBEDDING: "true",
+			GF_SECURITY_COOKIE_SECURE: "true",
+			GF_SECURITY_STRICT_TRANSPORT_SECURITY: "true",
+			GF_SECURITY_STRICT_TRANSPORT_SECURITY_MAX_AGE_SECONDS: "31536000",
+			GF_SECURITY_STRICT_TRANSPORT_SECURITY_PRELOAD: "true",
+			GF_SECURITY_STRICT_TRANSPORT_SECURITY_SUBDOMAINS: "true",
 			GF_INSTALL_PLUGINS:
 				"grafana-clock-panel,grafana-simple-json-datasource,grafana-piechart-panel",
 		},

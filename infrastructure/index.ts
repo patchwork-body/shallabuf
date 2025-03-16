@@ -132,209 +132,196 @@ export const ns = new k8s.core.v1.Namespace(
 
 export const namespaceName = ns.metadata.apply((metadata) => metadata.name);
 
-// Set up all components with configurations
+// // Set up all components with configurations
 const components = setupComponents({
 	namespace: namespaceName,
 	provider: clusterProvider,
 });
 
-// PostgreSQL
-const postgres = new k8s.helm.v3.Release(
-	`${name}-postgres`,
-	{
-		chart: "bitnami/postgresql",
-		version: "16.5.0",
-		namespace: namespaceName,
-		values: {
-			global: {
-				storageClass: "standard",
-			},
-			auth: {
-				existingSecret: components.secrets.database.metadata.name,
-				database: getConfig("database").require("name"),
-			},
-			primary: {
-				persistence: {
-					enabled: true,
-					size: "10Gi",
-					storageClass: "standard",
-				},
-				resources: {
-					requests: {
-						memory: "256Mi",
-						cpu: "250m",
-					},
-					limits: {
-						memory: "512Mi",
-						cpu: "500m",
-					},
-				},
-			},
-			metrics: {
-				enabled: false,
-			},
-			volumePermissions: {
-				enabled: true,
-			},
-		},
-		skipAwait: true,
-	},
-	{ provider: clusterProvider },
-);
+// // PostgreSQL
+// const postgres = new k8s.helm.v3.Release(
+// 	`${name}-postgres`,
+// 	{
+// 		chart: "bitnami/postgresql",
+// 		version: "16.5.0",
+// 		namespace: namespaceName,
+// 		values: {
+// 			auth: {
+// 				existingSecret: "postgres-secret-db84a531",
+// 				database: getConfig("database").require("name"),
+// 				username: getConfig("database").require("username"),
+// 			},
+// 			primary: {
+// 				persistence: {
+// 					enabled: true,
+// 					size: "10Gi",
+// 					storageClass: "standard",
+// 				},
+// 				resources: {
+// 					requests: {
+// 						memory: "256Mi",
+// 						cpu: "250m",
+// 					},
+// 					limits: {
+// 						memory: "512Mi",
+// 						cpu: "500m",
+// 					},
+// 				},
+// 			},
+// 			metrics: {
+// 				enabled: false,
+// 			},
+// 			volumePermissions: {
+// 				enabled: true,
+// 			},
+// 		},
+// 		skipAwait: true,
+// 	},
+// 	{ provider: clusterProvider },
+// );
 
-export const postgresService = postgres.status.apply((status) => status?.name);
+// export const postgresService = postgres.status.apply((status) => status?.name);
 
-// NATS
-const nats = new k8s.helm.v3.Release(
-	`${name}-nats`,
-	{
-		chart: "bitnami/nats",
-		version: "9.0.6",
-		namespace: namespaceName,
-		values: {
-			existingSecret: components.secrets.nats.metadata.name,
-			jetstream: {
-				enabled: true,
-			},
-			persistence: {
-				enabled: true,
-				size: "10Gi",
-			},
-			resources: {
-				requests: {
-					memory: "128Mi",
-					cpu: "100m",
-				},
-				limits: {
-					memory: "256Mi",
-					cpu: "250m",
-				},
-			},
-			startupProbe: {
-				enabled: true,
-				failureThreshold: 30,
-				periodSeconds: 10,
-			},
-			livenessProbe: {
-				enabled: true,
-				initialDelaySeconds: 30,
-				periodSeconds: 10,
-				timeoutSeconds: 5,
-				failureThreshold: 6,
-			},
-			readinessProbe: {
-				enabled: true,
-				initialDelaySeconds: 5,
-				periodSeconds: 10,
-				timeoutSeconds: 5,
-				failureThreshold: 6,
-			},
-		},
-		timeout: 600,
-		skipAwait: true,
-	},
-	{ provider: clusterProvider },
-);
+// // NATS
+// const nats = new k8s.helm.v3.Release(
+// 	`${name}-nats`,
+// 	{
+// 		chart: "bitnami/nats",
+// 		version: "9.0.6",
+// 		namespace: namespaceName,
+// 		values: {
+// 			nats: {
+// 				jetstream: {
+// 					enabled: true,
+// 					memStorage: {
+// 						enabled: true,
+// 						size: "2Gi",
+// 					},
+// 					fileStorage: {
+// 						enabled: true,
+// 						size: "10Gi",
+// 					},
+// 				},
+// 				logging: {
+// 					debug: true,
+// 					trace: false,
+// 				},
+// 				resources: {
+// 					requests: {
+// 						cpu: "100m",
+// 						memory: "128Mi",
+// 					},
+// 					limits: {
+// 						cpu: "500m",
+// 						memory: "512Mi",
+// 					},
+// 				},
+// 			},
+// 		},
+// 		skipAwait: true,
+// 	},
+// 	{ provider: clusterProvider },
+// );
 
-export const natsService = nats.status.apply((status) => status?.name);
+// export const natsService = nats.status.apply((status) => status?.name);
 
-// MinIO
-const minio = new k8s.helm.v3.Release(
-	`${name}-minio`,
-	{
-		chart: "bitnami/minio",
-		version: "15.0.7",
-		namespace: namespaceName,
-		values: {
-			existingSecret: components.secrets.minio.metadata.name,
-			mode: "standalone",
-			persistence: {
-				enabled: true,
-				size: "10Gi",
-				storageClass: "standard",
-			},
-			resources: {
-				requests: {
-					memory: "128Mi",
-					cpu: "100m",
-				},
-				limits: {
-					memory: "256Mi",
-					cpu: "250m",
-				},
-			},
-			startupProbe: {
-				enabled: true,
-				failureThreshold: 30,
-				periodSeconds: 10,
-			},
-			livenessProbe: {
-				enabled: true,
-				initialDelaySeconds: 30,
-				periodSeconds: 10,
-				timeoutSeconds: 5,
-				failureThreshold: 6,
-			},
-			readinessProbe: {
-				enabled: true,
-				initialDelaySeconds: 5,
-				periodSeconds: 10,
-				timeoutSeconds: 5,
-				failureThreshold: 6,
-			},
-		},
-		timeout: 600,
-		skipAwait: true,
-	},
-	{ provider: clusterProvider },
-);
+// // MinIO
+// const minio = new k8s.helm.v3.Release(
+// 	`${name}-minio`,
+// 	{
+// 		chart: "bitnami/minio",
+// 		version: "15.0.7",
+// 		namespace: namespaceName,
+// 		values: {
+// 			existingSecret: components.secrets.minio.metadata.name,
+// 			mode: "standalone",
+// 			persistence: {
+// 				enabled: true,
+// 				size: "10Gi",
+// 				storageClass: "standard",
+// 			},
+// 			resources: {
+// 				requests: {
+// 					memory: "128Mi",
+// 					cpu: "100m",
+// 				},
+// 				limits: {
+// 					memory: "256Mi",
+// 					cpu: "250m",
+// 				},
+// 			},
+// 			startupProbe: {
+// 				enabled: true,
+// 				failureThreshold: 30,
+// 				periodSeconds: 10,
+// 			},
+// 			livenessProbe: {
+// 				enabled: true,
+// 				initialDelaySeconds: 30,
+// 				periodSeconds: 10,
+// 				timeoutSeconds: 5,
+// 				failureThreshold: 6,
+// 			},
+// 			readinessProbe: {
+// 				enabled: true,
+// 				initialDelaySeconds: 5,
+// 				periodSeconds: 10,
+// 				timeoutSeconds: 5,
+// 				failureThreshold: 6,
+// 			},
+// 		},
+// 		timeout: 600,
+// 		skipAwait: true,
+// 	},
+// 	{ provider: clusterProvider },
+// );
 
-export const minioService = minio.status.apply((status) => status?.name);
+// export const minioService = minio.status.apply((status) => status?.name);
 
-// Redis
-const redis = new k8s.helm.v3.Release(
-	`${name}-redis`,
-	{
-		chart: "bitnami/redis",
-		version: "20.11.3",
-		namespace: namespaceName,
-		values: {
-			architecture: "standalone",
-			auth: {
-				enabled: true,
-				existingSecret: components.secrets.redis.metadata.name,
-			},
-			master: {
-				persistence: {
-					enabled: true,
-					size: "10Gi",
-					storageClass: "standard",
-				},
-				resources: {
-					requests: {
-						memory: "128Mi",
-						cpu: "100m",
-					},
-					limits: {
-						memory: "256Mi",
-						cpu: "250m",
-					},
-				},
-			},
-			replica: {
-				replicaCount: 0,
-			},
-			metrics: {
-				enabled: false,
-			},
-		},
-		timeout: 600,
-		skipAwait: true,
-	},
-	{ provider: clusterProvider },
-);
+// // Redis
+// const redis = new k8s.helm.v3.Release(
+// 	`${name}-redis`,
+// 	{
+// 		chart: "bitnami/redis",
+// 		version: "20.11.3",
+// 		namespace: namespaceName,
+// 		values: {
+// 			architecture: "standalone",
+// 			auth: {
+// 				enabled: true,
+// 				existingSecret: components.secrets.redis.metadata.name,
+// 			},
+// 			master: {
+// 				persistence: {
+// 					enabled: true,
+// 					size: "10Gi",
+// 					storageClass: "standard",
+// 				},
+// 				resources: {
+// 					requests: {
+// 						memory: "128Mi",
+// 						cpu: "100m",
+// 					},
+// 					limits: {
+// 						memory: "256Mi",
+// 						cpu: "250m",
+// 					},
+// 				},
+// 			},
+// 			replica: {
+// 				replicaCount: 0,
+// 			},
+// 			metrics: {
+// 				enabled: false,
+// 			},
+// 		},
+// 		timeout: 600,
+// 		skipAwait: true,
+// 	},
+// 	{ provider: clusterProvider },
+// );
 
-export const redisService = redis.status.apply((status) => status?.name);
+// export const redisService = redis.status.apply((status) => status?.name);
 
 // Grafana setup
 const grafanaIp = new gcp.compute.GlobalAddress(`${name}-grafana-ip`, {
@@ -396,11 +383,9 @@ const backendConfig = new k8s.apiextensions.CustomResource(
 			namespace: namespaceName,
 		},
 		spec: {
+			// Disable IAP since we're using IP-based restriction
 			iap: {
-				enabled: true,
-				oauthclientCredentials: {
-					secretName: components.secrets.grafana.metadata.name,
-				},
+				enabled: false,
 			},
 			healthCheck: {
 				checkIntervalSec: 15,
@@ -408,25 +393,9 @@ const backendConfig = new k8s.apiextensions.CustomResource(
 				type: "HTTP",
 				requestPath: "/api/health",
 			},
-			securityPolicy: {
-				name: sslPolicy.name,
-			},
 		},
 	},
 	{ provider: clusterProvider },
-);
-
-// Create IAP Web IAM binding for the backend service
-const iapSettings = new gcp.iap.WebBackendServiceIamBinding(
-	`${name}-iap-binding`,
-	{
-		project: project,
-		webBackendService:
-			"k8s1-154d377f-shallabuf-n-shallabuf-grafana-a942d9-300-31871577",
-		role: "roles/iap.httpsResourceAccessor",
-		members: ["user:personal.gugfug@gmail.com"],
-	},
-	{ provider },
 );
 
 // Grafana

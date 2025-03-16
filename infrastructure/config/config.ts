@@ -30,8 +30,6 @@ export interface GrafanaConfig {
 	adminUser: string;
 	adminPassword: pulumi.Output<string>;
 	domain: string;
-	oauthClientId: string;
-	oauthClientSecret: pulumi.Output<string>;
 }
 
 export interface NatsConfig {

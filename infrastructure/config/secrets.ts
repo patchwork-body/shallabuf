@@ -72,8 +72,6 @@ export function createGrafanaSecrets(
 		namespace,
 		{
 			admin_password: getSecret(config, "adminPassword"),
-			client_id: toOutput(config.require("oauthClientId")),
-			client_secret: getSecret(config, "oauthClientSecret"),
 		},
 		provider,
 	);
