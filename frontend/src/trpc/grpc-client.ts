@@ -12,6 +12,8 @@ import {
 	type ValidateSessionResponse,
 } from "~/generated/auth";
 import {
+	CreatePipelineRequest,
+	type CreatePipelineResponse,
 	ListPipelinesRequest,
 	type ListPipelinesResponse,
 	PipelineServiceClient,
@@ -126,6 +128,16 @@ export const pipeline = {
 		return await promisify(
 			pipelineClient.list.bind(pipelineClient),
 			ListPipelinesRequest.create(input),
+			metadata,
+		);
+	},
+	create: async (
+		input: CreatePipelineRequest,
+		metadata?: Metadata,
+	): Promise<CreatePipelineResponse> => {
+		return await promisify(
+			pipelineClient.create.bind(pipelineClient),
+			CreatePipelineRequest.create(input),
 			metadata,
 		);
 	},

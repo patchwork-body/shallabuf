@@ -1,132 +1,146 @@
 "use client";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader } from "lucide-react";
-import { memo, useActionState, useCallback, useState } from "react";
+import { useRouter } from "next/navigation";
+import { memo, useCallback, useState } from "react";
 import { useForm } from "react-hook-form";
 import type { z } from "zod";
-import { createPipelineAction } from "~/actions/create-pipeline";
 import { Button } from "~/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogHeader,
+	DialogTitle,
+	DialogTrigger,
 } from "~/components/ui/dialog";
 import {
-  Form,
-  FormControl,
-  FormField,
-  FormFieldMessage,
-  FormItem,
-  FormLabel,
+	Form,
+	FormControl,
+	FormField,
+	FormFieldMessage,
+	FormItem,
+	FormLabel,
 } from "~/components/ui/form";
 import { Input } from "~/components/ui/input";
 import { Textarea } from "~/components/ui/textarea";
 import { createPipelineSchema } from "~/lib/schemas";
+import { trpc } from "~/trpc/client";
 
 export interface CreatePipelineDialogProps {
-  teamId: string;
+	teamId: string;
 }
 
+type FormValues = z.infer<typeof createPipelineSchema>;
+
 export const CreatePipelineDialog = memo(
-  ({ teamId }: CreatePipelineDialogProps) => {
-    const form = useForm<z.infer<typeof createPipelineSchema>>({
-      resolver: zodResolver(createPipelineSchema),
-      defaultValues: {
-        teamId,
-        name: "",
-        description: "",
-      },
-    });
+	({ teamId }: CreatePipelineDialogProps) => {
+		const router = useRouter();
+		const form = useForm<FormValues>({
+			resolver: zodResolver(createPipelineSchema),
+			defaultValues: {
+				teamId,
+				name: "",
+				description: "",
+			},
+		});
 
-    const [, formAction] = useActionState(createPipelineAction, {
-      errors: {
-        teamId: undefined,
-        name: undefined,
-        description: undefined,
-      },
-    });
+		const [open, setOpen] = useState(false);
 
-    const [open, setOpen] = useState(false);
+		const createPipelineMutation = trpc.pipeline.create.useMutation({
+			onSuccess: async () => {
+				setOpen(false);
+				router.refresh();
+			},
+		});
 
-    const submit = useCallback(
-      (formData: FormData) => {
-        formAction(formData);
-        setOpen(false);
-      },
-      [formAction],
-    );
+		const submit = useCallback(
+			async (formData: FormValues) => {
+				console.log(formData);
 
-    return (
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogTrigger asChild>
-          <Button variant="default">Create</Button>
-        </DialogTrigger>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Create new pipeline</DialogTitle>
-            <DialogDescription>
-              This action will create a new pipeline. Please fill out the form
-              below.
-            </DialogDescription>
-          </DialogHeader>
+				await createPipelineMutation.mutateAsync({
+					teamId: formData.teamId,
+					name: formData.name,
+					description: formData.description,
+				});
+			},
+			[createPipelineMutation.mutateAsync],
+		);
 
-          <Form {...form}>
-            <form className="flex flex-col items-center gap-4" action={submit}>
-              <FormField
-                name="teamId"
-                control={form.control}
-                render={({ field }) => <input type="hidden" {...field} />}
-              />
+		return (
+			<Dialog open={open} onOpenChange={setOpen}>
+				<DialogTrigger asChild>
+					<Button variant="default">Create</Button>
+				</DialogTrigger>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle>Create new pipeline</DialogTitle>
+						<DialogDescription>
+							This action will create a new pipeline. Please fill out the form
+							below.
+						</DialogDescription>
+					</DialogHeader>
 
-              <FormField
-                name="name"
-                control={form.control}
-                render={({ field }) => (
-                  <FormItem className="min-w-full">
-                    <FormLabel>Name</FormLabel>
+					<Form {...form}>
+						<form
+							className="flex flex-col items-center gap-4"
+							onSubmit={form.handleSubmit(submit)}
+						>
+							<FormField
+								name="teamId"
+								control={form.control}
+								render={({ field }) => <input type="hidden" {...field} />}
+							/>
 
-                    <FormControl>
-                      <Input placeholder="Pipeline name" {...field} />
-                    </FormControl>
+							<FormField
+								name="name"
+								control={form.control}
+								render={({ field }) => (
+									<FormItem className="min-w-full">
+										<FormLabel>Name</FormLabel>
 
-                    <FormFieldMessage />
-                  </FormItem>
-                )}
-              />
+										<FormControl>
+											<Input placeholder="Pipeline name" {...field} />
+										</FormControl>
 
-              <FormField
-                name="description"
-                control={form.control}
-                render={({ field }) => (
-                  <FormItem className="min-w-full">
-                    <FormLabel>Description</FormLabel>
+										<FormFieldMessage />
+									</FormItem>
+								)}
+							/>
 
-                    <FormControl>
-                      <Textarea
-                        placeholder="Pipeline description"
-                        className="resize-none"
-                        {...field}
-                      />
-                    </FormControl>
+							<FormField
+								name="description"
+								control={form.control}
+								render={({ field }) => (
+									<FormItem className="min-w-full">
+										<FormLabel>Description</FormLabel>
 
-                    <FormFieldMessage />
-                  </FormItem>
-                )}
-              />
+										<FormControl>
+											<Textarea
+												placeholder="Pipeline description"
+												className="resize-none"
+												{...field}
+											/>
+										</FormControl>
 
-              <Button className="ml-auto" type="submit">
-                {form.formState.isSubmitting ? <Loader /> : null}
-                Create Pipeline
-              </Button>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
-    );
-  },
+										<FormFieldMessage />
+									</FormItem>
+								)}
+							/>
+
+							<Button
+								type="submit"
+								className="ml-auto"
+								disabled={createPipelineMutation.isPending}
+							>
+								{createPipelineMutation.isPending ? "Creating..." : "Create"}
+							</Button>
+						</form>
+					</Form>
+				</DialogContent>
+			</Dialog>
+		);
+	},
 );
 
 CreatePipelineDialog.displayName = "CreatePipelineDialog";
