@@ -14,6 +14,8 @@ import {
 import {
 	CreatePipelineRequest,
 	type CreatePipelineResponse,
+	DetailsPipelineRequest,
+	type DetailsPipelineResponse,
 	ListPipelinesRequest,
 	type ListPipelinesResponse,
 	PipelineServiceClient,
@@ -138,6 +140,16 @@ export const pipeline = {
 		return await promisify(
 			pipelineClient.create.bind(pipelineClient),
 			CreatePipelineRequest.create(input),
+			metadata,
+		);
+	},
+	details: async (
+		input: DetailsPipelineRequest,
+		metadata?: Metadata,
+	): Promise<DetailsPipelineResponse> => {
+		return await promisify(
+			pipelineClient.details.bind(pipelineClient),
+			DetailsPipelineRequest.create(input),
 			metadata,
 		);
 	},

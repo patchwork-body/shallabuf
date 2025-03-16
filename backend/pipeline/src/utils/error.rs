@@ -5,6 +5,8 @@ use tonic::Status;
 pub enum PipelineError {
     #[error("Database error: {0}")]
     Database(#[from] sqlx::Error),
+    #[error("Redis error: {0}")]
+    Redis(#[from] redis::RedisError),
 
     #[error("Invalid credentials")]
     InvalidCredentials,
@@ -22,6 +24,7 @@ impl From<PipelineError> for tonic::Status {
                 Status::unauthenticated(error.to_string())
             }
             PipelineError::Database(_) => Status::internal(error.to_string()),
+            PipelineError::Redis(error) => Status::internal(error.to_string()),
             PipelineError::Internal(message) => Status::internal(message),
         }
     }

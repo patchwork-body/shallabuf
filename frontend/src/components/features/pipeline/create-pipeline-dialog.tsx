@@ -72,6 +72,7 @@ export const CreatePipelineDialog = memo(
 				<DialogTrigger asChild>
 					<Button variant="default">Create</Button>
 				</DialogTrigger>
+
 				<DialogContent>
 					<DialogHeader>
 						<DialogTitle>Create new pipeline</DialogTitle>

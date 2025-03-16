@@ -26,13 +26,49 @@ message CreatePipelineResponse {
   Pipeline pipeline = 1;
 }
 
-// message DetailsPipelineRequest {
-//   string id = 1;
-// }
+message PipelineNodeInput {
+  string id = 1;
+  string key = 2;
+}
 
-// message DetailsPipelineResponse {
-//   Pipeline pipeline = 1;
-// }
+message PipelineNodeOutput {
+  string id = 1;
+  string key = 2;
+}
+
+message PipelineNode {
+  string id = 1;
+  string node_id = 2;
+  string node_version = 3;
+  string coords = 4;
+  repeated PipelineNodeInput inputs = 5;
+  repeated PipelineNodeOutput outputs = 6;
+}
+
+message PipelineConnection {
+  string id = 1;
+  string from_pipeline_node_output_id = 2;
+  string to_pipeline_node_input_id = 3;
+}
+
+message DetailsPipelineRequest {
+  string id = 1;
+}
+
+message PipelineParticipant {
+  string id = 1;
+  string name = 2;
+}
+
+message DetailsPipelineResponse {
+  string id = 1;
+  string name = 2;
+  optional string description = 3;
+  string trigger_config = 4;
+  repeated PipelineNode nodes = 5;
+  repeated PipelineConnection connections = 6;
+  repeated PipelineParticipant participants = 7;
+}
 
 // message TriggerPipelineRequest {
 //   string id = 1;
@@ -45,6 +81,6 @@ message CreatePipelineResponse {
 service PipelineService {
   rpc List(ListPipelinesRequest) returns (ListPipelinesResponse);
   rpc Create(CreatePipelineRequest) returns (CreatePipelineResponse);
-  // rpc Details(DetailsPipelineRequest) returns (DetailsPipelineResponse);
+  rpc Details(DetailsPipelineRequest) returns (DetailsPipelineResponse);
   // rpc Trigger(TriggerPipelineRequest) returns (TriggerPipelineResponse);
 }
