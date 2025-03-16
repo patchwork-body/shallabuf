@@ -1,15 +1,19 @@
 import * as gcp from "@pulumi/gcp";
 import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
+import { setupComponents } from "./components";
+import { getConfig } from "./config/config";
 
 const name = "shallabuf";
-const config = new pulumi.Config("gcp");
-const project = config.require("project");
+const gcpConfig = getConfig("gcp");
+const project = gcpConfig.require("project");
+const region = gcpConfig.require("region");
+const zone = gcpConfig.require("zone");
 
 const provider = new gcp.Provider("gcp", {
 	project: project,
-	region: "europe-central2",
-	zone: "europe-central2-a",
+	region: region,
+	zone: zone,
 });
 
 const network = new gcp.compute.Network(`${name}-network`, {
@@ -21,7 +25,7 @@ const subnet = new gcp.compute.Subnetwork(`${name}-subnet`, {
 	name: `${name}-subnet`,
 	ipCidrRange: "10.0.0.0/20",
 	network: network.id,
-	region: "europe-central2",
+	region: region,
 	secondaryIpRanges: [
 		{
 			rangeName: "pods",
@@ -36,8 +40,8 @@ const subnet = new gcp.compute.Subnetwork(`${name}-subnet`, {
 
 const engineVersion = gcp.container
 	.getEngineVersions({
-		location: "europe-central2-a",
-		project: "hale-runner-453815-p5",
+		location: zone,
+		project: project,
 	})
 	.then((versions) => versions.latestMasterVersion);
 
@@ -45,7 +49,7 @@ const cluster = new gcp.container.Cluster(name, {
 	initialNodeCount: 2,
 	minMasterVersion: engineVersion,
 	nodeVersion: engineVersion,
-	location: "europe-central2-a",
+	location: zone,
 	deletionProtection: false,
 	network: network.name,
 	subnetwork: subnet.name,
@@ -81,9 +85,7 @@ const cluster = new gcp.container.Cluster(name, {
 
 export const clusterName = cluster.name;
 
-// Manufacture a GKE-style kubeconfig. Note that this is slightly "different"
-// because of the way GKE requires gcloud to be in the picture for cluster
-// authentication (rather than using the client cert/key directly).
+// Manufacture a GKE-style kubeconfig
 export const kubeconfig = pulumi
 	.all([cluster.name, cluster.endpoint, cluster.masterAuth])
 	.apply(([name, endpoint, masterAuth]) => {
@@ -130,6 +132,13 @@ export const ns = new k8s.core.v1.Namespace(
 
 export const namespaceName = ns.metadata.apply((metadata) => metadata.name);
 
+// Set up all components with configurations
+const components = setupComponents({
+	namespace: namespaceName,
+	provider: clusterProvider,
+});
+
+// PostgreSQL
 const postgres = new k8s.helm.v3.Release(
 	`${name}-postgres`,
 	{
@@ -141,8 +150,8 @@ const postgres = new k8s.helm.v3.Release(
 				storageClass: "standard",
 			},
 			auth: {
-				postgresPassword: "secret",
-				database: "shallabuf",
+				existingSecret: components.secrets.database.metadata.name,
+				database: getConfig("database").require("name"),
 			},
 			primary: {
 				persistence: {
@@ -175,6 +184,7 @@ const postgres = new k8s.helm.v3.Release(
 
 export const postgresService = postgres.status.apply((status) => status?.name);
 
+// NATS
 const nats = new k8s.helm.v3.Release(
 	`${name}-nats`,
 	{
@@ -182,6 +192,7 @@ const nats = new k8s.helm.v3.Release(
 		version: "9.0.6",
 		namespace: namespaceName,
 		values: {
+			existingSecret: components.secrets.nats.metadata.name,
 			jetstream: {
 				enabled: true,
 			},
@@ -219,12 +230,15 @@ const nats = new k8s.helm.v3.Release(
 				failureThreshold: 6,
 			},
 		},
+		timeout: 600,
+		skipAwait: true,
 	},
 	{ provider: clusterProvider },
 );
 
 export const natsService = nats.status.apply((status) => status?.name);
 
+// MinIO
 const minio = new k8s.helm.v3.Release(
 	`${name}-minio`,
 	{
@@ -232,10 +246,7 @@ const minio = new k8s.helm.v3.Release(
 		version: "15.0.7",
 		namespace: namespaceName,
 		values: {
-			auth: {
-				rootUser: "admin",
-				rootPassword: "supersecret",
-			},
+			existingSecret: components.secrets.minio.metadata.name,
 			mode: "standalone",
 			persistence: {
 				enabled: true,
@@ -280,6 +291,7 @@ const minio = new k8s.helm.v3.Release(
 
 export const minioService = minio.status.apply((status) => status?.name);
 
+// Redis
 const redis = new k8s.helm.v3.Release(
 	`${name}-redis`,
 	{
@@ -290,7 +302,7 @@ const redis = new k8s.helm.v3.Release(
 			architecture: "standalone",
 			auth: {
 				enabled: true,
-				password: "secret",
+				existingSecret: components.secrets.redis.metadata.name,
 			},
 			master: {
 				persistence: {
@@ -324,6 +336,7 @@ const redis = new k8s.helm.v3.Release(
 
 export const redisService = redis.status.apply((status) => status?.name);
 
+// Grafana setup
 const grafanaIp = new gcp.compute.GlobalAddress(`${name}-grafana-ip`, {
 	name: `${name}-grafana-ip`,
 });
@@ -347,7 +360,7 @@ const managedCert = new k8s.apiextensions.CustomResource(
 			},
 		},
 		spec: {
-			domains: ["grafana.shallabuf.com"],
+			domains: [getConfig("grafana").require("domain")],
 		},
 	},
 	{ provider: clusterProvider },
@@ -373,22 +386,6 @@ const frontendConfig = new k8s.apiextensions.CustomResource(
 	{ provider: clusterProvider },
 );
 
-const oauthSecret = new k8s.core.v1.Secret(
-	`${name}-oauth-secret`,
-	{
-		metadata: {
-			name: "grafana-oauth-secret",
-			namespace: namespaceName,
-		},
-		stringData: {
-			client_id:
-				"37115128573-46gu6b5k8k1i577qnqm644iv0217eodo.apps.googleusercontent.com",
-			client_secret: "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",
-		},
-	},
-	{ provider: clusterProvider },
-);
-
 const backendConfig = new k8s.apiextensions.CustomResource(
 	`${name}-backend-config`,
 	{
@@ -402,7 +399,7 @@ const backendConfig = new k8s.apiextensions.CustomResource(
 			iap: {
 				enabled: true,
 				oauthclientCredentials: {
-					secretName: "grafana-oauth-secret",
+					secretName: components.secrets.grafana.metadata.name,
 				},
 			},
 			healthCheck: {
@@ -432,6 +429,7 @@ const iapSettings = new gcp.iap.WebBackendServiceIamBinding(
 	{ provider },
 );
 
+// Grafana
 const grafana = new k8s.helm.v3.Release(
 	`${name}-grafana`,
 	{
@@ -440,8 +438,8 @@ const grafana = new k8s.helm.v3.Release(
 		namespace: namespaceName,
 		values: {
 			admin: {
-				user: "admin",
-				password: "supersecret",
+				existingSecret: components.secrets.grafana.metadata.name,
+				user: getConfig("grafana").require("adminUser"),
 			},
 			service: {
 				type: "NodePort",
@@ -452,7 +450,7 @@ const grafana = new k8s.helm.v3.Release(
 			},
 			ingress: {
 				enabled: true,
-				hostname: "grafana.shallabuf.com",
+				hostname: getConfig("grafana").require("domain"),
 				annotations: {
 					"kubernetes.io/ingress.class": "gce",
 					"networking.gke.io/managed-certificates": "grafana-certificate",
@@ -467,11 +465,13 @@ const grafana = new k8s.helm.v3.Release(
 				storageClass: "standard",
 				accessModes: ["ReadWriteOnce"],
 			},
-			env: {
-				GF_SERVER_ROOT_URL: "https://grafana.shallabuf.com",
-				GF_AUTH_DISABLE_LOGIN_FORM: "false",
-				GF_AUTH_OAUTH_AUTO_LOGIN: "false",
-			},
+			envFrom: [
+				{
+					configMapRef: {
+						name: components.configMaps.grafana.metadata.name,
+					},
+				},
+			],
 			resources: {
 				requests: {
 					memory: "128Mi",

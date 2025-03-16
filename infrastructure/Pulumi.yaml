@@ -1,10 +1,35 @@
 name: shallabuf
-description: A Pulumi program that deploys a Kubernetes cluster with a PostgreSQL database, NATS messaging server, MinIO object storage, Redis cache, Prometheus monitoring, Loki logging, and Grafana visualization.
-runtime:
-  name: nodejs
-  options:
-    packagemanager: auto
+runtime: nodejs
+description: Shallabuf infrastructure configuration
+
 config:
-  pulumi:tags:
-    value:
-      pulumi:template: gcp-typescript
+  gcp:project: hale-runner-453815-p5
+  gcp:region: europe-central2
+  gcp:zone: europe-central2-a
+
+  database:host: localhost
+  database:port: "5432"
+  database:name: shallabuf
+  database:username: postgres
+  database:password: "[secret]"
+
+  redis:host: localhost
+  redis:port: "6379"
+  redis:password: "[secret]"
+
+  minio:rootUser: admin
+  minio:rootPassword: "[secret]"
+  minio:accessKey: "[secret]"
+  minio:secretKey: "[secret]"
+  minio:bucketName: shallabuf
+
+  grafana:domain: grafana.shallabuf.com
+  grafana:adminUser: admin
+  grafana:adminPassword: "[secret]"
+  grafana:oauthClientId: 37115128573-46gu6b5k8k1i577qnqm644iv0217eodo.apps.googleusercontent.com
+  grafana:oauthClientSecret: "[secret]"
+
+  nats:host: localhost
+  nats:port: "4222"
+  nats:user: admin
+  nats:password: "[secret]"
