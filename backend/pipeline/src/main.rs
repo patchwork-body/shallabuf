@@ -3,9 +3,11 @@ use dotenvy::dotenv;
 use pipeline::{
     PipelineServiceImpl,
     proto::{
-        node_service_server::NodeServiceServer, pipeline_service_server::PipelineServiceServer,
+        node_service_server::NodeServiceServer,
+        pipeline_node_service_server::PipelineNodeServiceServer,
+        pipeline_service_server::PipelineServiceServer,
     },
-    services::NodeServiceImpl,
+    services::{NodeServiceImpl, PipelineNodeServiceImpl},
     utils::config::Config,
 };
 use sqlx::postgres::PgPoolOptions;
@@ -56,11 +58,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let node_service_impl =
         NodeServiceImpl::new(pg_pool.clone()).expect("Failed to initialize node service");
 
+    let pipeline_node_service_impl = PipelineNodeServiceImpl::new(pg_pool.clone())
+        .expect("Failed to initialize pipeline node service");
+
     // Start the gRPC server
     Server::builder()
         .layer(auth_interceptor)
         .add_service(PipelineServiceServer::new(pipeline_service_impl))
         .add_service(NodeServiceServer::new(node_service_impl))
+        .add_service(PipelineNodeServiceServer::new(pipeline_node_service_impl))
         .serve(config.listen_addr)
         .await?;
 

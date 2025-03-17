@@ -101,3 +101,23 @@ message ListNodesResponse {
 service NodeService {
   rpc List(ListNodesRequest) returns (ListNodesResponse);
 }
+
+message Coords {
+  int32 x = 1;
+  int32 y = 2;
+}
+
+message CreatePipelineNodeRequest {
+  string pipeline_id = 1;
+  string node_id = 2;
+  string node_version = 3;
+  Coords coords = 4;
+}
+
+message CreatePipelineNodeResponse {
+  PipelineNode node = 1;
+}
+
+service PipelineNodeService {
+  rpc Create(CreatePipelineNodeRequest) returns (CreatePipelineNodeResponse);
+}

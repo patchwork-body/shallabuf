@@ -55,6 +55,7 @@ import {
 	type PipelineParticipant,
 } from "~/lib/dtos";
 import type { WsStoreState } from "~/stores/ws-store";
+import { trpc } from "~/trpc/client";
 import { TaskNode } from "./task-node";
 
 export interface EditorProps {
@@ -373,6 +374,8 @@ export const Editor = (props: EditorProps) => {
 		[],
 	);
 
+	const createPipelineNodeMutation = trpc.pipelineNode.create.useMutation();
+
 	return (
 		<ContextMenu
 			onOpenChange={(open) => {
@@ -387,7 +390,8 @@ export const Editor = (props: EditorProps) => {
 						event.clientX,
 						event.clientY,
 					);
-					setContextMenuPosition({ x, y });
+
+					setContextMenuPosition({ x: Math.round(x), y: Math.round(y) });
 				}}
 			>
 				<div
@@ -499,8 +503,8 @@ export const Editor = (props: EditorProps) => {
 								onSelect={async () => {
 									if (!contextMenuPosition) return;
 
-									const pipelineNode: PipelineNode =
-										await createPipelineNodeAction({
+									const pipelineNode =
+										await createPipelineNodeMutation.mutateAsync({
 											pipelineId,
 											nodeId: node.id,
 											nodeVersion: "v1",

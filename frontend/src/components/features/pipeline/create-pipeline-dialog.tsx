@@ -48,7 +48,7 @@ export const CreatePipelineDialog = memo(
 		const [open, setOpen] = useState(false);
 
 		const createPipelineMutation = trpc.pipeline.create.useMutation({
-			onSuccess: async () => {
+			onSuccess: async (...args) => {
 				setOpen(false);
 				router.refresh();
 			},
