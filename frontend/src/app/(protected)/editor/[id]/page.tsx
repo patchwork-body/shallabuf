@@ -26,6 +26,7 @@ export default async function PipelineDetails(props: {
 				position: JSON.parse(pipelineNode.coords),
 				type: NodeType.Task,
 				data: {
+					id: pipelineNode.id,
 					name: `${node?.name}:${pipelineNode.nodeVersion}`,
 					config: node?.config,
 					inputs: pipelineNode.inputs.map((input) => ({

@@ -16,6 +16,8 @@ import {
 	type CreatePipelineNodeResponse,
 	CreatePipelineRequest,
 	type CreatePipelineResponse,
+	DeletePipelineNodeRequest,
+	type DeletePipelineNodeResponse,
 	DetailsPipelineRequest,
 	type DetailsPipelineResponse,
 	ListNodesRequest,
@@ -25,6 +27,8 @@ import {
 	NodeServiceClient,
 	PipelineNodeServiceClient,
 	PipelineServiceClient,
+	UpdatePipelineNodeRequest,
+	type UpdatePipelineNodeResponse,
 } from "~/generated/pipeline";
 import {
 	MeRequest,
@@ -192,6 +196,26 @@ export const pipelineNode = {
 		return await promisify(
 			pipelineNodeClient.create.bind(pipelineNodeClient),
 			CreatePipelineNodeRequest.create(input),
+			metadata,
+		);
+	},
+	update: async (
+		input: UpdatePipelineNodeRequest,
+		metadata?: Metadata,
+	): Promise<UpdatePipelineNodeResponse> => {
+		return await promisify(
+			pipelineNodeClient.update.bind(pipelineNodeClient),
+			UpdatePipelineNodeRequest.create(input),
+			metadata,
+		);
+	},
+	delete: async (
+		input: DeletePipelineNodeRequest,
+		metadata?: Metadata,
+	): Promise<DeletePipelineNodeResponse> => {
+		return await promisify(
+			pipelineNodeClient.delete.bind(pipelineNodeClient),
+			DeletePipelineNodeRequest.create(input),
 			metadata,
 		);
 	},

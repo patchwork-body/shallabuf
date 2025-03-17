@@ -103,8 +103,8 @@ service NodeService {
 }
 
 message Coords {
-  int32 x = 1;
-  int32 y = 2;
+  float x = 1;
+  float y = 2;
 }
 
 message CreatePipelineNodeRequest {
@@ -118,6 +118,23 @@ message CreatePipelineNodeResponse {
   PipelineNode node = 1;
 }
 
+message UpdatePipelineNodeRequest {
+  string id = 1;
+  Coords coords = 2;
+}
+
+message UpdatePipelineNodeResponse {
+  PipelineNode node = 1;
+}
+
+message DeletePipelineNodeRequest {
+  string id = 1;
+}
+
+message DeletePipelineNodeResponse {}
+
 service PipelineNodeService {
   rpc Create(CreatePipelineNodeRequest) returns (CreatePipelineNodeResponse);
+  rpc Update(UpdatePipelineNodeRequest) returns (UpdatePipelineNodeResponse);
+  rpc Delete(DeletePipelineNodeRequest) returns (DeletePipelineNodeResponse);
 }

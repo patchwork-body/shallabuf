@@ -31,8 +31,6 @@ import {
 import { useShallow } from "zustand/react/shallow";
 import { createPipelineNodeConnectionAction } from "~/actions/create-pipeline-node-connection";
 import { createPipelineTriggerConnectionAction } from "~/actions/create-pipeline-trigger-connection";
-import { updatePipelineNodeAction } from "~/actions/update-pipeline-node";
-import { updatePipelineTriggerAction } from "~/actions/update-pipeline-trigger";
 import { Button } from "~/components/ui/button";
 import {
 	ContextMenu,
@@ -79,6 +77,7 @@ export const Editor = (props: EditorProps) => {
 		x: number;
 		y: number;
 	} | null>(null);
+
 	const _clearTaskNodes = useCallback(() => {
 		setNodes((nodes) => {
 			return nodes.map((node) => {
@@ -312,27 +311,22 @@ export const Editor = (props: EditorProps) => {
 		[pipelineId, updateNodePosition],
 	);
 
+	const updatePipelineNodeMutation = trpc.pipelineNode.update.useMutation();
+
 	const saveNodePosition: NonNullable<
 		Parameters<typeof ReactFlow>[0]["onNodeDragStop"]
-	> = useCallback(async (_event, node) => {
-		if (node.type === NodeType.Trigger) {
-			await updatePipelineTriggerAction({
+	> = useCallback(
+		async (_event, node) => {
+			await updatePipelineNodeMutation.mutateAsync({
 				id: node.id,
 				coords: {
 					x: node.position.x,
 					y: node.position.y,
 				},
 			});
-		} else {
-			await updatePipelineNodeAction({
-				id: node.id,
-				coords: {
-					x: node.position.x,
-					y: node.position.y,
-				},
-			});
-		}
-	}, []);
+		},
+		[updatePipelineNodeMutation.mutateAsync],
+	);
 
 	const { getViewport } = useReactFlow();
 	const viewportContainer = useRef<HTMLDivElement>(null);
@@ -390,7 +384,7 @@ export const Editor = (props: EditorProps) => {
 						event.clientY,
 					);
 
-					setContextMenuPosition({ x: Math.round(x), y: Math.round(y) });
+					setContextMenuPosition({ x, y });
 				}}
 			>
 				<div
@@ -518,6 +512,7 @@ export const Editor = (props: EditorProps) => {
 												position: pipelineNode.coords,
 												type: NodeType.Task,
 												data: {
+													id: pipelineNode.id,
 													name: `${node.name}:${pipelineNode.nodeVersion}`,
 													config: node.config,
 													inputs: pipelineNode.inputs,
