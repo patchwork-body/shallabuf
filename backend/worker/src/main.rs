@@ -6,9 +6,10 @@ use hyper::body::Bytes;
 use hyper_util::client::legacy::Client;
 use hyper_util::rt::TokioExecutor;
 use std::{env, process};
-use tokio::{signal::ctrl_c, task::block_in_place};
+use tokio::signal::ctrl_c;
 use tracing::{debug, error};
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
+use uuid::Uuid;
 
 use wasmtime::{
     component::{bindgen, Component, Linker},
@@ -17,10 +18,104 @@ use wasmtime::{
 use wasmtime_wasi::{IoView, ResourceTable, WasiCtx, WasiCtxBuilder, WasiView};
 use wasmtime_wasi_http::{WasiHttpCtx, WasiHttpView};
 
+// Maximum size for NATS messages in bytes (1MB)
+const MAX_NATS_MESSAGE_SIZE: usize = 1_000_000;
+
+async fn store_large_result_in_s3(
+    s3_client: &aws_sdk_s3::Client,
+    pipeline_node_exec_id: Uuid,
+    data: &str,
+) -> Result<String, String> {
+    let bucket =
+        std::env::var("S3_RESULTS_BUCKET").unwrap_or_else(|_| "execution-results".to_string());
+    let key = format!("result_{}.json", pipeline_node_exec_id);
+
+    debug!(
+        "Storing large result in S3: bucket={}, key={}, size={} bytes",
+        bucket,
+        key,
+        data.len()
+    );
+
+    match s3_client
+        .put_object()
+        .bucket(&bucket)
+        .key(&key)
+        .body(aws_sdk_s3::primitives::ByteStream::from(
+            data.as_bytes().to_vec(),
+        ))
+        .content_type("application/json")
+        .send()
+        .await
+    {
+        Ok(_) => {
+            debug!("Successfully stored large result in S3");
+            Ok(format!("s3://{}/{}", bucket, key))
+        }
+        Err(error) => {
+            error!("Failed to store result in S3: {error}");
+            Err(format!("Failed to store result in S3: {error}"))
+        }
+    }
+}
+
 async fn publish_exec_result(
     nats_client: &async_nats::Client,
-    payload: &dtos::PipelineNodeExecResultPayload,
+    s3_client: &aws_sdk_s3::Client,
+    payload: &mut dtos::PipelineNodeExecResultPayload,
 ) {
+    // Check if we need to store the result in S3 due to size
+    let serialized = match serde_json::to_string(payload) {
+        Ok(serialized) => serialized,
+        Err(error) => {
+            error!("Failed to serialize payload: {error}");
+            return;
+        }
+    };
+
+    // If the serialized payload is too large, store the result in S3
+    if serialized.len() > MAX_NATS_MESSAGE_SIZE {
+        debug!(
+            "Result payload is too large ({} bytes), storing in S3",
+            serialized.len()
+        );
+
+        // Extract the result data based on the outcome type
+        let result_data = match &payload.outcome {
+            dtos::ExecutionOutcome::Success(value) => {
+                serde_json::to_string(value).unwrap_or_default()
+            }
+            dtos::ExecutionOutcome::Failure(message) => message.clone(),
+        };
+
+        // Store the result in S3
+        match store_large_result_in_s3(s3_client, payload.pipeline_node_exec_id, &result_data).await
+        {
+            Ok(s3_url) => {
+                // Replace the outcome with a reference to the S3 object
+                payload.outcome = match &payload.outcome {
+                    dtos::ExecutionOutcome::Success(_) => {
+                        dtos::ExecutionOutcome::Success(serde_json::json!({
+                            "s3_reference": s3_url,
+                            "original_size": result_data.len(),
+                            "content_type": "application/json"
+                        }))
+                    }
+                    dtos::ExecutionOutcome::Failure(_) => {
+                        dtos::ExecutionOutcome::Failure(format!("Error stored in S3: {}", s3_url))
+                    }
+                };
+            }
+            Err(error) => {
+                error!("Failed to store large result in S3: {error}");
+                payload.outcome = dtos::ExecutionOutcome::Failure(format!(
+                    "Result was too large and failed to store in S3: {error}"
+                ));
+            }
+        }
+    }
+
+    // Now serialize the (potentially modified) payload
     let payload_bytes = match serde_json::to_string(payload) {
         Ok(payload) => payload.into(),
         Err(error) => {
@@ -79,66 +174,99 @@ impl shallabuf::component::http_client::Host for WasiState {
         headers: Vec<shallabuf::component::http_client::Headers>,
         body: Option<Vec<u8>>,
     ) -> Result<shallabuf::component::http_client::Response, String> {
-        let mut builder = hyper::Request::builder().method(method.as_str()).uri(url);
-
-        // Add headers
-        for header in headers {
-            builder = builder.header(header.name, header.value);
-        }
-
-        // Create request body
-        let body: http_body_util::Full<Bytes> = match body {
-            Some(data) => http_body_util::Full::new(Bytes::from(data)),
-            None => http_body_util::Full::new(Bytes::new()),
-        };
-
-        // Build the request
-        let request = builder
-            .body(body)
-            .map_err(|error| format!("Failed to build request: {error}"))?;
+        debug!("Making {} request to {}", method, url);
 
         // Create HTTP client with TLS support
         let https = hyper_tls::HttpsConnector::new();
         let client = Client::builder(TokioExecutor::new()).build(https);
 
-        // Execute request using the existing runtime
-        let response = block_in_place(|| {
-            tokio::runtime::Handle::current().block_on(async {
-                client
-                    .request(request)
-                    .await
-                    .map_err(|error| format!("Request failed: {error}"))
-            })
+        // Build request
+        let mut builder = hyper::Request::builder().method(method.as_str()).uri(url);
+
+        // Add headers
+        for header in &headers {
+            builder = builder.header(&header.name, &header.value);
+            debug!("Adding header: {}: {}", header.name, header.value);
+        }
+
+        // Create request body
+        let body_data = if let Some(data) = &body {
+            debug!("Request body size: {} bytes", data.len());
+            http_body_util::Full::new(Bytes::from(data.clone()))
+        } else {
+            debug!("No request body");
+            http_body_util::Full::new(Bytes::new())
+        };
+
+        // Build request
+        let request = builder.body(body_data).map_err(|error| {
+            error!("Failed to build request: {error}");
+            format!("Failed to build request: {error}")
         })?;
 
-        // Extract response components
-        let status = response.status().as_u16();
-        let headers = response
-            .headers()
-            .iter()
-            .map(|(name, value)| shallabuf::component::http_client::Headers {
-                name: name.to_string(),
-                value: String::from_utf8_lossy(value.as_bytes()).into_owned(),
-            })
-            .collect();
+        // Create a thread to handle the HTTP request
+        let (tx, rx) = std::sync::mpsc::channel();
 
-        // Get response body
-        let body = block_in_place(|| {
-            tokio::runtime::Handle::current().block_on(async {
-                response
-                    .into_body()
-                    .collect()
-                    .await
-                    .map_err(|error| format!("Failed to read response body: {error}"))
-                    .map(http_body_util::Collected::to_bytes)
-            })
-        })?;
+        std::thread::spawn(move || {
+            // Create a new runtime for this thread
+            let rt = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .expect("Failed to build runtime");
 
-        Ok(shallabuf::component::http_client::Response {
-            status,
-            headers,
-            body: body.to_vec(),
-        })
+            // Execute the request in the new runtime
+            let result = rt.block_on(async {
+                match client.request(request).await {
+                    Ok(response) => {
+                        let status = response.status().as_u16();
+                        debug!("Response status: {status}");
+
+                        let headers = response
+                            .headers()
+                            .iter()
+                            .map(|(name, value)| shallabuf::component::http_client::Headers {
+                                name: name.to_string(),
+                                value: String::from_utf8_lossy(value.as_bytes()).into_owned(),
+                            })
+                            .collect();
+
+                        // Collect the response body
+                        match response.into_body().collect().await {
+                            Ok(body) => {
+                                let body_bytes = body.to_bytes();
+                                debug!("Response body size: {} bytes", body_bytes.len());
+
+                                Ok(shallabuf::component::http_client::Response {
+                                    status,
+                                    headers,
+                                    body: body_bytes.to_vec(),
+                                })
+                            }
+                            Err(error) => {
+                                error!("Failed to read response body: {error}");
+                                Err(format!("Failed to read response body: {error}"))
+                            }
+                        }
+                    }
+                    Err(error) => {
+                        error!("Request failed: {error}");
+                        Err(format!("Request failed: {error}"))
+                    }
+                }
+            });
+
+            // Send the result back through the channel
+            let _ = tx.send(result);
+        });
+
+        // Wait for the result from the thread
+        match rx.recv() {
+            Ok(result) => result,
+            Err(error) => {
+                error!("Failed to receive response from thread: {error}");
+                Err(format!("Failed to receive response from thread: {error}"))
+            }
+        }
     }
 }
 
@@ -307,7 +435,8 @@ async fn main() -> Result<(), async_nats::Error> {
                     error!("Failed to call run function: {error}");
                     publish_exec_result(
                         &nats_client,
-                        &dtos::PipelineNodeExecResultPayload {
+                        &s3_client,
+                        &mut dtos::PipelineNodeExecResultPayload {
                             pipeline_exec_id: payload.pipeline_execs_id,
                             pipeline_node_exec_id: payload.pipeline_node_exec_id,
                             outcome: dtos::ExecutionOutcome::Failure(format!(
@@ -335,7 +464,8 @@ async fn main() -> Result<(), async_nats::Error> {
 
             publish_exec_result(
                 &nats_client,
-                &dtos::PipelineNodeExecResultPayload {
+                &s3_client,
+                &mut dtos::PipelineNodeExecResultPayload {
                     pipeline_exec_id: payload.pipeline_execs_id,
                     pipeline_node_exec_id: payload.pipeline_node_exec_id,
                     outcome,

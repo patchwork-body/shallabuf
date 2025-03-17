@@ -133,15 +133,16 @@ setup-minio:
     grep MINIO_ .env
 
     # Build and copy WASM files
-    cd backend && cargo build --bin text-transformer --release --target wasm32-wasip2
-    cd backend && cargo build --bin echo --release --target wasm32-wasip2
-    cd backend && cargo build --bin btc-price --release --target wasm32-wasip2
+    cd backend/builtins && cargo build --bin text-transformer --release --target wasm32-wasip2
+    cd backend/builtins && cargo build --bin echo --release --target wasm32-wasip2
+    cd backend/builtins && cargo build --bin btc-price --release --target wasm32-wasip2
+    cd backend/builtins && cargo build --bin mistralai --release --target wasm32-wasip2
 
     # Create builtins directory and copy WASM files
-    mkdir -p backend/builtins
-    cp backend/target/wasm32-wasip2/release/text_transformer.wasm backend/builtins/
-    cp backend/target/wasm32-wasip2/release/echo.wasm backend/builtins/
-    cp backend/target/wasm32-wasip2/release/btc_price.wasm backend/builtins/
+    cp ./backend/target/wasm32-wasip2/release/text_transformer.wasm backend/builtins/
+    cp ./backend/target/wasm32-wasip2/release/echo.wasm backend/builtins/
+    cp ./backend/target/wasm32-wasip2/release/btc_price.wasm backend/builtins/
+    cp ./backend/target/wasm32-wasip2/release/mistralai.wasm backend/builtins/
 
     # Upload WASM files to MinIO
     mc cp backend/builtins/*.wasm local/builtins/

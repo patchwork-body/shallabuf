@@ -137,6 +137,19 @@ pub async fn seed_database(db: &PgPool) -> anyhow::Result<()> {
 
     let btc_price_wasm_id = put_object_output.version_id().unwrap_or_default();
 
+    let mistral_ocr_wasm_path = "./builtins/mistralai.wasm";
+    let mistral_ocr_body = tokio::fs::read(mistral_ocr_wasm_path).await?;
+
+    let put_object_output = s3_client
+        .put_object()
+        .bucket(bucket_name)
+        .key("mistralai:v1.wasm")
+        .body(mistral_ocr_body.into())
+        .send()
+        .await?;
+
+    let mistral_ocr_wasm_id = put_object_output.version_id().unwrap_or_default();
+
     // Define predetermined UUIDs
     let organization_id = Uuid::parse_str("123e4567-e89b-12d3-a456-426614174000").unwrap();
     let team_id = Uuid::parse_str("123e4567-e89b-12d3-a456-426614174001").unwrap();
@@ -553,6 +566,38 @@ pub async fn seed_database(db: &PgPool) -> anyhow::Result<()> {
         NodeContainerType::Wasm as NodeContainerType,
         btc_price_node_config,
         btc_price_wasm_id
+    )
+    .fetch_one(db)
+    .await?;
+
+    let mistral_ocr_node_config = serde_json::to_value(NodeConfig::V0(NodeConfigV0 {
+        inputs: vec![],
+        outputs: vec![NodeOutput {
+            key: "text".to_string(),
+            output: NodeOutputType::Text,
+            label: {
+                let mut map = HashMap::new();
+                map.insert("en".to_string(), "Text".to_string());
+                Some(map)
+            },
+            description: None,
+        }],
+    }))
+    .unwrap();
+
+    let _mistral_ocr_node = sqlx::query!(
+        r#"
+        INSERT INTO nodes (name, identifier_name, description, publisher_name, container_type, config, version_id)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        RETURNING id
+        "#,
+        "Mistral",
+        "mistralai",
+        Some("A simple node that extracts text from an image.".to_string()),
+        "builtins",
+        NodeContainerType::Wasm as NodeContainerType,
+        mistral_ocr_node_config,
+        mistral_ocr_wasm_id
     )
     .fetch_one(db)
     .await?;

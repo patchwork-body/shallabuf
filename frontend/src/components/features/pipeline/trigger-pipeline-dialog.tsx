@@ -1,10 +1,8 @@
 "use client";
-import { useHandleConnections, useNodesData } from "@xyflow/react";
 import { ClockIcon, Loader, PlayIcon } from "lucide-react";
 import { type ReactNode, memo, useCallback, useState } from "react";
 import { useForm } from "react-hook-form";
 import { triggerPipelineAction } from "~/actions/trigger-pipeline";
-import type { TaskNodeProps } from "~/app/(protected)/editor/[id]/_components/task-node";
 import { Button } from "~/components/ui/button";
 import {
 	Dialog,
@@ -15,15 +13,10 @@ import {
 	DialogTrigger,
 } from "~/components/ui/dialog";
 import { Form, FormField } from "~/components/ui/form";
-import {
-	type ExecStatus,
-	getDefaultFromTaskNodeConfigV0Input,
-} from "~/lib/dtos";
-import { NodeInput } from "./node-input";
+import type { ExecStatus } from "~/lib/dtos";
 
 export interface TriggerPipelineDialogProps {
 	pipelineId: string;
-	triggerId: string;
 	execStatus?: ExecStatus;
 }
 
@@ -46,34 +39,10 @@ const _getStatusIcon = (status?: ExecStatus) => {
 };
 
 export const TriggerPipelineDialog = memo(
-	({ pipelineId, triggerId, execStatus }: TriggerPipelineDialogProps) => {
-		const connections = useHandleConnections({
-			type: "source",
-			nodeId: triggerId,
-		});
-
-		const connectedNodesData = useNodesData<TaskNodeProps>(
-			connections.map((connection) => connection.target),
-		);
-
+	({ pipelineId, execStatus }: TriggerPipelineDialogProps) => {
 		const defaultValues = {
 			pipelineId,
-			inputs: connectedNodesData.reduce(
-				(acc, { id, data }) =>
-					Object.assign(acc, {
-						[id]: data.config?.inputs.reduce(
-							(acc, { key, input }) =>
-								Object.assign(acc, {
-									[key]: getDefaultFromTaskNodeConfigV0Input(input),
-								}),
-							{},
-						),
-					}),
-				{},
-			),
 		};
-
-		console.log("trigger form default values", defaultValues);
 
 		const form = useForm<TriggerPipelineFormData>({
 			defaultValues,
@@ -86,8 +55,7 @@ export const TriggerPipelineDialog = memo(
 			const formData = new FormData();
 
 			formData.append("pipelineId", values.pipelineId);
-			console.log("inputs", values);
-			formData.append("inputs", JSON.stringify(values.inputs));
+			// formData.append("inputs", JSON.stringify(values.inputs));
 
 			await triggerPipelineAction(formData);
 		}, []);
@@ -124,7 +92,7 @@ export const TriggerPipelineDialog = memo(
 								render={({ field }) => <input type="hidden" {...field} />}
 							/>
 
-							{connectedNodesData.map(({ id, data }) => (
+							{/* {connectedNodesData.map(({ id, data }) => (
 								<fieldset key={id}>
 									{data.config?.inputs.map(({ key, label, input }) => (
 										<FormField
@@ -142,7 +110,7 @@ export const TriggerPipelineDialog = memo(
 										/>
 									))}
 								</fieldset>
-							))}
+							))} */}
 
 							<Button className="ml-auto" type="submit">
 								{form.formState.isSubmitting ? <Loader /> : null}

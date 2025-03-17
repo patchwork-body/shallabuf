@@ -31,6 +31,7 @@ import {
 import { useShallow } from "zustand/react/shallow";
 import { createPipelineNodeConnectionAction } from "~/actions/create-pipeline-node-connection";
 import { createPipelineTriggerConnectionAction } from "~/actions/create-pipeline-trigger-connection";
+import { TriggerPipelineDialog } from "~/components/features/pipeline/trigger-pipeline-dialog";
 import { Button } from "~/components/ui/button";
 import {
 	ContextMenu,
@@ -97,70 +98,70 @@ export const Editor = (props: EditorProps) => {
 		});
 	}, [setNodes]);
 
-	useEffect(() => {
-		if (execId) {
-			const eventSource = new EventSource(
-				`${env.NEXT_PUBLIC_API_URL}/pipeline-execs/${execId}/events`,
-			);
+	// useEffect(() => {
+	// 	if (execId) {
+	// 		const eventSource = new EventSource(
+	// 			`${env.NEXT_PUBLIC_API_URL}/pipeline-execs/${execId}/events`,
+	// 		);
 
-			eventSource.onmessage = (event) => {
-				const notification: PipelineExecNotification = JSON.parse(event.data);
+	// 		eventSource.onmessage = (event) => {
+	// 			const notification: PipelineExecNotification = JSON.parse(event.data);
 
-				if (notification.type === "pipeline") {
-					setNodes((nodes) => {
-						return nodes.map((node) => {
-							if (node.type === NodeType.Trigger) {
-								return {
-									...node,
-									data: {
-										...node.data,
-										execStatus: notification.data.status,
-									},
-								};
-							}
+	// 			if (notification.type === "pipeline") {
+	// 				setNodes((nodes) => {
+	// 					return nodes.map((node) => {
+	// 						if (node.type === NodeType.Trigger) {
+	// 							return {
+	// 								...node,
+	// 								data: {
+	// 									...node.data,
+	// 									execStatus: notification.data.status,
+	// 								},
+	// 							};
+	// 						}
 
-							return node;
-						});
-					});
+	// 						return node;
+	// 					});
+	// 				});
 
-					if (
-						notification.data.status === "completed" ||
-						notification.data.status === "failed" ||
-						notification.data.status === "cancelled"
-					) {
-						setExecId(null);
-						// clearTaskNodes();
-						eventSource.close();
-					}
-				}
+	// 				if (
+	// 					notification.data.status === "completed" ||
+	// 					notification.data.status === "failed" ||
+	// 					notification.data.status === "cancelled"
+	// 				) {
+	// 					setExecId(null);
+	// 					// clearTaskNodes();
+	// 					eventSource.close();
+	// 				}
+	// 			}
 
-				if (notification.type === "node") {
-					setNodes((nodes) => {
-						return nodes.map((node) => {
-							if (node.id === notification.data.pipelineNodeId) {
-								return {
-									...node,
-									data: {
-										...node.data,
-										result: notification.data.result,
-										execStatus: notification.data.status,
-									},
-								};
-							}
+	// 			if (notification.type === "node") {
+	// 				setNodes((nodes) => {
+	// 					return nodes.map((node) => {
+	// 						if (node.id === notification.data.pipelineNodeId) {
+	// 							return {
+	// 								...node,
+	// 								data: {
+	// 									...node.data,
+	// 									result: notification.data.result,
+	// 									execStatus: notification.data.status,
+	// 								},
+	// 							};
+	// 						}
 
-							return node;
-						});
-					});
-				}
-			};
+	// 						return node;
+	// 					});
+	// 				});
+	// 			}
+	// 		};
 
-			eventSource.onerror = (event) => {
-				setExecId(null);
-				// clearTaskNodes();
-				console.error(event);
-			};
-		}
-	}, [execId, setNodes, setExecId]);
+	// 		eventSource.onerror = (event) => {
+	// 			setExecId(null);
+	// 			// clearTaskNodes();
+	// 			console.error(event);
+	// 		};
+	// 	}
+	// }, [execId, setNodes, setExecId]);
 
 	const [
 		participants,
@@ -442,9 +443,7 @@ export const Editor = (props: EditorProps) => {
 						</Panel>
 
 						<Panel position="top-right" onContextMenu={preventContextMenu}>
-							<Button size="icon">
-								<TriangleIcon className="size-6 rotate-90 fill-background -mr-0.5" />
-							</Button>
+							<TriggerPipelineDialog pipelineId={pipelineId} />
 						</Panel>
 
 						<Background
