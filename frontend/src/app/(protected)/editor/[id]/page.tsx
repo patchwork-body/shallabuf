@@ -4,9 +4,7 @@ import {
 	type useEdgesState,
 	type useNodesState,
 } from "@xyflow/react";
-import { env } from "~/env";
-import { getSessionToken } from "~/lib/auth";
-import { type Node, NodeType } from "~/lib/dtos";
+import { NodeType } from "~/lib/dtos";
 import { trpc } from "~/trpc/server";
 import { Editor } from "./_components/editor";
 
@@ -16,31 +14,12 @@ export default async function PipelineDetails(props: {
 	params: Params;
 }) {
 	const { id } = await props.params;
-	const sessionToken = await getSessionToken();
 	const pipeline = await trpc.pipeline.details({ id });
+	const nodes = await trpc.node.list();
 
-	let availableNodes: Node[] = [];
-
-	try {
-		const response = await fetch(`${env.API_URL}/nodes`, {
-			headers: {
-				Accept: "application/json",
-				"Content-Type": "application/json",
-				Authorization: `Bearer ${sessionToken}`,
-			},
-		});
-
-		availableNodes = await response.json();
-	} catch (error) {
-		console.error(error);
-		return <div>Failed to fetch nodes</div>;
-	}
-
-	const nodes: Parameters<typeof useNodesState>[0] = pipeline.nodes.map(
+	const pipelineNodes: Parameters<typeof useNodesState>[0] = pipeline.nodes.map(
 		(pipelineNode) => {
-			const node = availableNodes.find(
-				(available_node) => available_node.id === pipelineNode.nodeId,
-			);
+			const node = nodes.find((node) => node.id === pipelineNode.nodeId);
 
 			return {
 				id: pipelineNode.id,
@@ -96,10 +75,10 @@ export default async function PipelineDetails(props: {
 		<div className="grid min-h-screen font-[family-name:var(--font-geist-sans)]">
 			<ReactFlowProvider>
 				<Editor
-					nodes={nodes}
+					nodes={pipelineNodes}
 					edges={edges}
 					participants={pipeline.participants}
-					availableNodes={availableNodes}
+					availableNodes={nodes}
 				/>
 			</ReactFlowProvider>
 		</div>

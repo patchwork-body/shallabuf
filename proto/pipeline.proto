@@ -84,3 +84,20 @@ service PipelineService {
   rpc Details(DetailsPipelineRequest) returns (DetailsPipelineResponse);
   // rpc Trigger(TriggerPipelineRequest) returns (TriggerPipelineResponse);
 }
+
+message Node {
+  string id = 1;
+  string name = 2;
+  optional string description = 3;
+  string config = 4;
+}
+
+message ListNodesRequest {}
+
+message ListNodesResponse {
+  repeated Node nodes = 1;
+}
+
+service NodeService {
+  rpc List(ListNodesRequest) returns (ListNodesResponse);
+}

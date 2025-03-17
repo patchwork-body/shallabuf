@@ -16,8 +16,11 @@ import {
 	type CreatePipelineResponse,
 	DetailsPipelineRequest,
 	type DetailsPipelineResponse,
+	ListNodesRequest,
+	type ListNodesResponse,
 	ListPipelinesRequest,
 	type ListPipelinesResponse,
+	NodeServiceClient,
 	PipelineServiceClient,
 } from "~/generated/pipeline";
 import {
@@ -150,6 +153,24 @@ export const pipeline = {
 		return await promisify(
 			pipelineClient.details.bind(pipelineClient),
 			DetailsPipelineRequest.create(input),
+			metadata,
+		);
+	},
+};
+
+export const nodeClient = new NodeServiceClient(
+	`${env.PIPELINE_HOST}:${env.PIPELINE_PORT}`,
+	grpc.credentials.createInsecure(),
+);
+
+export const node = {
+	list: async (
+		input: ListNodesRequest,
+		metadata?: Metadata,
+	): Promise<ListNodesResponse> => {
+		return await promisify(
+			nodeClient.list.bind(nodeClient),
+			ListNodesRequest.create(input),
 			metadata,
 		);
 	},

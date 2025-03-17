@@ -1,7 +1,11 @@
 use common::utils::interceptor::AuthMiddlewareLayer;
 use dotenvy::dotenv;
 use pipeline::{
-    PipelineServiceImpl, proto::pipeline_service_server::PipelineServiceServer,
+    PipelineServiceImpl,
+    proto::{
+        node_service_server::NodeServiceServer, pipeline_service_server::PipelineServiceServer,
+    },
+    services::NodeServiceImpl,
     utils::config::Config,
 };
 use sqlx::postgres::PgPoolOptions;
@@ -46,13 +50,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!("User service listening on {}", config.listen_addr);
 
     let auth_interceptor = AuthMiddlewareLayer::new(config.auth_grpc_addr.clone()).await?;
-    let service_impl = PipelineServiceImpl::new(pg_pool, redis_connection_manager)
+    let pipeline_service_impl = PipelineServiceImpl::new(pg_pool.clone(), redis_connection_manager)
         .expect("Failed to initialize pipeline service");
+
+    let node_service_impl =
+        NodeServiceImpl::new(pg_pool.clone()).expect("Failed to initialize node service");
 
     // Start the gRPC server
     Server::builder()
         .layer(auth_interceptor)
-        .add_service(PipelineServiceServer::new(service_impl))
+        .add_service(PipelineServiceServer::new(pipeline_service_impl))
+        .add_service(NodeServiceServer::new(node_service_impl))
         .serve(config.listen_addr)
         .await?;
 

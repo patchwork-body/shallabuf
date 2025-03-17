@@ -1,6 +1,5 @@
 import { Metadata } from "@grpc/grpc-js";
 import { z } from "zod";
-import { Pipeline } from "~/lib/dtos";
 import { createPipelineSchema } from "~/lib/schemas";
 import { pipeline } from "../grpc-client";
 import { createTRPCRouter, protectedProcedure } from "../init";
