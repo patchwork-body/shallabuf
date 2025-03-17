@@ -29,7 +29,6 @@ import {
 	useState,
 } from "react";
 import { useShallow } from "zustand/react/shallow";
-import { createPipelineNodeAction } from "~/actions/create-pipeline-node";
 import { createPipelineNodeConnectionAction } from "~/actions/create-pipeline-node-connection";
 import { createPipelineTriggerConnectionAction } from "~/actions/create-pipeline-trigger-connection";
 import { updatePipelineNodeAction } from "~/actions/update-pipeline-node";
