@@ -5,12 +5,10 @@ use http_body_util::BodyExt;
 use hyper::body::Bytes;
 use hyper_util::client::legacy::Client;
 use hyper_util::rt::TokioExecutor;
-use std::{env, process};
+use std::{env, process, sync::Arc};
 use tokio::signal::ctrl_c;
 use tracing::{debug, error};
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
-use uuid::Uuid;
-
 use wasmtime::{
     component::{bindgen, Component, Linker},
     Config, Engine, Store,
@@ -18,104 +16,18 @@ use wasmtime::{
 use wasmtime_wasi::{IoView, ResourceTable, WasiCtx, WasiCtxBuilder, WasiView};
 use wasmtime_wasi_http::{WasiHttpCtx, WasiHttpView};
 
-// Maximum size for NATS messages in bytes (1MB)
-const MAX_NATS_MESSAGE_SIZE: usize = 1_000_000;
-
-async fn store_large_result_in_s3(
-    s3_client: &aws_sdk_s3::Client,
-    pipeline_node_exec_id: Uuid,
-    data: &str,
-) -> Result<String, String> {
-    let bucket =
-        std::env::var("S3_RESULTS_BUCKET").unwrap_or_else(|_| "execution-results".to_string());
-    let key = format!("result_{}.json", pipeline_node_exec_id);
-
-    debug!(
-        "Storing large result in S3: bucket={}, key={}, size={} bytes",
-        bucket,
-        key,
-        data.len()
-    );
-
-    match s3_client
-        .put_object()
-        .bucket(&bucket)
-        .key(&key)
-        .body(aws_sdk_s3::primitives::ByteStream::from(
-            data.as_bytes().to_vec(),
-        ))
-        .content_type("application/json")
-        .send()
-        .await
-    {
-        Ok(_) => {
-            debug!("Successfully stored large result in S3");
-            Ok(format!("s3://{}/{}", bucket, key))
-        }
-        Err(error) => {
-            error!("Failed to store result in S3: {error}");
-            Err(format!("Failed to store result in S3: {error}"))
-        }
-    }
-}
+// Create a thread-safe HTTP client that can be reused
+type HttpClient = Arc<
+    Client<
+        hyper_tls::HttpsConnector<hyper_util::client::legacy::connect::HttpConnector>,
+        http_body_util::Full<Bytes>,
+    >,
+>;
 
 async fn publish_exec_result(
     nats_client: &async_nats::Client,
-    s3_client: &aws_sdk_s3::Client,
-    payload: &mut dtos::PipelineNodeExecResultPayload,
+    payload: &dtos::PipelineNodeExecResultPayload,
 ) {
-    // Check if we need to store the result in S3 due to size
-    let serialized = match serde_json::to_string(payload) {
-        Ok(serialized) => serialized,
-        Err(error) => {
-            error!("Failed to serialize payload: {error}");
-            return;
-        }
-    };
-
-    // If the serialized payload is too large, store the result in S3
-    if serialized.len() > MAX_NATS_MESSAGE_SIZE {
-        debug!(
-            "Result payload is too large ({} bytes), storing in S3",
-            serialized.len()
-        );
-
-        // Extract the result data based on the outcome type
-        let result_data = match &payload.outcome {
-            dtos::ExecutionOutcome::Success(value) => {
-                serde_json::to_string(value).unwrap_or_default()
-            }
-            dtos::ExecutionOutcome::Failure(message) => message.clone(),
-        };
-
-        // Store the result in S3
-        match store_large_result_in_s3(s3_client, payload.pipeline_node_exec_id, &result_data).await
-        {
-            Ok(s3_url) => {
-                // Replace the outcome with a reference to the S3 object
-                payload.outcome = match &payload.outcome {
-                    dtos::ExecutionOutcome::Success(_) => {
-                        dtos::ExecutionOutcome::Success(serde_json::json!({
-                            "s3_reference": s3_url,
-                            "original_size": result_data.len(),
-                            "content_type": "application/json"
-                        }))
-                    }
-                    dtos::ExecutionOutcome::Failure(_) => {
-                        dtos::ExecutionOutcome::Failure(format!("Error stored in S3: {}", s3_url))
-                    }
-                };
-            }
-            Err(error) => {
-                error!("Failed to store large result in S3: {error}");
-                payload.outcome = dtos::ExecutionOutcome::Failure(format!(
-                    "Result was too large and failed to store in S3: {error}"
-                ));
-            }
-        }
-    }
-
-    // Now serialize the (potentially modified) payload
     let payload_bytes = match serde_json::to_string(payload) {
         Ok(payload) => payload.into(),
         Err(error) => {
@@ -143,9 +55,12 @@ bindgen!({
 });
 
 struct WasiState {
+    node_exec_id: String,
     wasi: WasiCtx,
     table: ResourceTable,
     http: WasiHttpCtx,
+    http_client: HttpClient,
+    s3_client: Arc<aws_sdk_s3::Client>,
 }
 
 impl IoView for WasiState {
@@ -174,11 +89,7 @@ impl shallabuf::component::http_client::Host for WasiState {
         headers: Vec<shallabuf::component::http_client::Headers>,
         body: Option<Vec<u8>>,
     ) -> Result<shallabuf::component::http_client::Response, String> {
-        debug!("Making {} request to {}", method, url);
-
-        // Create HTTP client with TLS support
-        let https = hyper_tls::HttpsConnector::new();
-        let client = Client::builder(TokioExecutor::new()).build(https);
+        debug!("Making {method} request to {url}");
 
         // Build request
         let mut builder = hyper::Request::builder().method(method.as_str()).uri(url);
@@ -206,6 +117,7 @@ impl shallabuf::component::http_client::Host for WasiState {
 
         // Create a thread to handle the HTTP request
         let (tx, rx) = std::sync::mpsc::channel();
+        let client = Arc::clone(&self.http_client);
 
         std::thread::spawn(move || {
             // Create a new runtime for this thread
@@ -268,6 +180,69 @@ impl shallabuf::component::http_client::Host for WasiState {
             }
         }
     }
+
+    fn upload_file(&mut self, filename: String, data: Vec<u8>) -> Result<String, String> {
+        debug!(
+            "Uploading file with key: {filename}, size: {} bytes",
+            data.len()
+        );
+
+        // Get bucket and path from key (assuming format: bucket@path)
+        let bucket_name = "node-execs-results";
+        let object_key = format!("{}/{}", self.node_exec_id, filename);
+
+        // Create a thread to handle the S3 upload
+        let (tx, rx) = std::sync::mpsc::channel();
+        let s3_client = Arc::clone(&self.s3_client);
+        let data_clone = data.clone();
+
+        std::thread::spawn(move || {
+            // Create a new runtime for this thread
+            let rt = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .expect("Failed to build runtime");
+
+            // Execute the upload in the new runtime
+            let result = rt.block_on(async {
+                let body = aws_sdk_s3::primitives::ByteStream::from(data_clone);
+
+                debug!("Uploading file to S3: {bucket_name}/{object_key}");
+
+                match s3_client
+                    .put_object()
+                    .bucket(bucket_name)
+                    .key(object_key.clone())
+                    .body(body)
+                    .send()
+                    .await
+                {
+                    Ok(_) => {
+                        debug!("Successfully uploaded file to {bucket_name}/{object_key}");
+                        Ok(format!("{bucket_name}@{object_key}"))
+                    }
+                    Err(error) => {
+                        error!("Failed to upload file to S3: {error}");
+                        Err(format!("Failed to upload file to S3: {error}"))
+                    }
+                }
+            });
+
+            // Send the result back through the channel
+            let _ = tx.send(result);
+        });
+
+        // Wait for the result from the thread
+        match rx.recv() {
+            Ok(result) => result,
+            Err(error) => {
+                error!("Failed to receive upload result from thread: {error}");
+                Err(format!(
+                    "Failed to receive upload result from thread: {error}"
+                ))
+            }
+        }
+    }
 }
 
 #[tokio::main]
@@ -324,7 +299,11 @@ async fn main() -> Result<(), async_nats::Error> {
         .behavior_version_latest()
         .build();
 
-    let s3_client = aws_sdk_s3::Client::from_conf(s3_config);
+    let s3_client = Arc::new(aws_sdk_s3::Client::from_conf(s3_config));
+
+    // Create a reusable HTTPS client
+    let https = hyper_tls::HttpsConnector::new();
+    let http_client = Arc::new(Client::builder(TokioExecutor::new()).build(https));
 
     tokio::spawn(async move {
         while let Some(message) = pipeline_node_execs_subscriber.next().await {
@@ -375,7 +354,15 @@ async fn main() -> Result<(), async_nats::Error> {
 
             let http = WasiHttpCtx::new();
 
-            let state = WasiState { wasi, table, http };
+            // Use the shared HTTP client
+            let state = WasiState {
+                node_exec_id: payload.pipeline_node_exec_id.to_string(),
+                wasi,
+                table,
+                http,
+                http_client: Arc::clone(&http_client),
+                s3_client: Arc::clone(&s3_client),
+            };
 
             let mut store = Store::new(&engine, state);
 
@@ -435,8 +422,7 @@ async fn main() -> Result<(), async_nats::Error> {
                     error!("Failed to call run function: {error}");
                     publish_exec_result(
                         &nats_client,
-                        &s3_client,
-                        &mut dtos::PipelineNodeExecResultPayload {
+                        &dtos::PipelineNodeExecResultPayload {
                             pipeline_exec_id: payload.pipeline_execs_id,
                             pipeline_node_exec_id: payload.pipeline_node_exec_id,
                             outcome: dtos::ExecutionOutcome::Failure(format!(
@@ -464,8 +450,7 @@ async fn main() -> Result<(), async_nats::Error> {
 
             publish_exec_result(
                 &nats_client,
-                &s3_client,
-                &mut dtos::PipelineNodeExecResultPayload {
+                &dtos::PipelineNodeExecResultPayload {
                     pipeline_exec_id: payload.pipeline_execs_id,
                     pipeline_node_exec_id: payload.pipeline_node_exec_id,
                     outcome,

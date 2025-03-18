@@ -15,6 +15,7 @@ pub struct PipelineRun {
     pub graph: DiGraph<Uuid, GraphEdgeConnection>,
     pub payloads: HashMap<Uuid, dtos::PipelineNodeExecPayload>,
     pub nodes_exec_results: HashMap<Uuid, serde_json::Value>,
+    pub nodes_in_progress: HashMap<Uuid, bool>,
 }
 
 impl PipelineRun {
@@ -26,11 +27,17 @@ impl PipelineRun {
             graph,
             payloads,
             nodes_exec_results: HashMap::new(),
+            nodes_in_progress: HashMap::new(),
         }
     }
 
     pub fn update_node_exec_result(&mut self, node_exec_id: Uuid, result: serde_json::Value) {
         self.nodes_exec_results.insert(node_exec_id, result);
+        self.nodes_in_progress.remove(&node_exec_id);
+    }
+
+    pub fn mark_node_in_progress(&mut self, node_exec_id: Uuid) {
+        self.nodes_in_progress.insert(node_exec_id, true);
     }
 
     pub fn next_nodes_to_execute(
@@ -41,10 +48,13 @@ impl PipelineRun {
             .node_indices()
             .filter_map(|node_index| {
                 let pipeline_node_id = self.graph[node_index];
-                let pipeline_node_exec_id =
-                    self.payloads.get(&pipeline_node_id)?.pipeline_node_exec_id;
+                let payload = self.payloads.get(&pipeline_node_id)?;
 
-                if self.nodes_exec_results.contains_key(&pipeline_node_exec_id) {
+                let pipeline_node_exec_id = payload.pipeline_node_exec_id;
+
+                if self.nodes_exec_results.contains_key(&pipeline_node_exec_id)
+                    || self.nodes_in_progress.contains_key(&pipeline_node_exec_id)
+                {
                     return None;
                 }
 

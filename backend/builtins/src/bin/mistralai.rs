@@ -90,65 +90,15 @@ impl Guest for Component {
         )
         .expect("Failed to make request");
 
-        let response_text = String::from_utf8(response.body).expect("Failed to decode response");
+        let file_path = shallabuf::component::http_client::upload_file(
+            "mistralai_ocr_response.json",
+            &response.body,
+        );
 
-        match serde_json::from_str::<OCRResponse>(&response_text) {
-            Ok(parsed_response) => {
-                // Extract text from all pages, but limit the amount of text per page
-                // to avoid exceeding message size limits
-                let max_chars_per_page = 5000; // Limit characters per page
-                let max_pages = 10; // Limit number of pages
-
-                let all_text = parsed_response
-                    .pages
-                    .iter()
-                    .take(max_pages) // Limit number of pages
-                    .map(|page| {
-                        let truncated_text = if page.markdown.len() > max_chars_per_page {
-                            format!(
-                                "{}... (truncated, {} more characters)",
-                                &page.markdown[0..max_chars_per_page],
-                                page.markdown.len() - max_chars_per_page
-                            )
-                        } else {
-                            page.markdown.clone()
-                        };
-
-                        format!("--- Page {} ---\n{}", page.index, truncated_text)
-                    })
-                    .collect::<Vec<String>>()
-                    .join("\n\n");
-
-                let total_pages = parsed_response.pages.len();
-                let pages_included = std::cmp::min(total_pages, max_pages);
-
-                json!({
-                    "text": all_text,
-                    "model": parsed_response.model,
-                    "pages_processed": parsed_response.usage_info.pages_processed,
-                    "pages_included": pages_included,
-                    "total_pages": total_pages,
-                    "truncated": total_pages > max_pages || parsed_response.pages.iter().any(|p| p.markdown.len() > max_chars_per_page),
-                    "dimensions": parsed_response.pages.first().map(|p| &p.dimensions)
-                })
-                .to_string()
-            }
-            Err(e) => {
-                // Return error information along with a limited portion of the raw response for debugging
-                let truncated_response = if response_text.len() > 1000 {
-                    format!("{}... (truncated)", &response_text[0..1000])
-                } else {
-                    response_text.clone()
-                };
-
-                json!({
-                    "error": format!("Failed to parse JSON: {}", e),
-                    "raw_response_preview": truncated_response,
-                    "response_size_bytes": response_text.len()
-                })
-                .to_string()
-            }
-        }
+        json!({
+            "response": file_path,
+        })
+        .to_string()
     }
 }
 

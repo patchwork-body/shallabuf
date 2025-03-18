@@ -338,9 +338,9 @@ async fn main() -> Result<(), async_nats::Error> {
                     }
                 };
 
-            let runs = runs_clone.read().await;
+            let mut runs = runs_clone.write().await;
 
-            let Some(pipeline_run) = runs.get(&payload.pipeline_exec_id) else {
+            let Some(pipeline_run) = runs.get_mut(&payload.pipeline_exec_id) else {
                 error!(
                     "Pipeline run not found for ID: {}",
                     payload.pipeline_exec_id
@@ -390,6 +390,9 @@ async fn main() -> Result<(), async_nats::Error> {
                     "Publishing message to JetStream for pipeline_node_exec_id: {} with payload: {payload:?}",
                     payload.pipeline_node_exec_id
                 );
+
+                // Mark the node as in progress before scheduling it
+                pipeline_run.mark_node_in_progress(payload.pipeline_node_exec_id);
 
                 match sqlx::query!(
                     r#"

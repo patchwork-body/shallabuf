@@ -18,6 +18,11 @@ interface http-client {
         headers: list<headers>,
         body: option<list<u8>>,
     ) -> result<response, string>;
+
+    upload-file: func(
+        key: string,
+        data: list<u8>,
+    ) -> result<string, string>;
 }
 
 interface run {
