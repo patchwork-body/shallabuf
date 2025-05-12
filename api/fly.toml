@@ -1,0 +1,30 @@
+# fly.toml app configuration file generated for sonicus-api-green-frost-8508 on 2025-03-23T19:39:22+01:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'sonicus-api'
+primary_region = 'cdg'
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  LISTEN_ADDR = "0.0.0.0:8000"
+  PORT = "8000"
+  RUST_ENV = "prod"
+  RUST_LOG = "info"
+  SESSION_DURATION_MINUTES = "30"
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ["app"]
+
+[[vm]]
+  memory = "1gb"
+  cpu_kind = "shared"
+  cpus = 1

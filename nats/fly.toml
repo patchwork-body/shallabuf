@@ -1,0 +1,40 @@
+# fly.toml app configuration file generated for sonicus-nats on 2025-03-20T21:30:37+01:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'sonicus-nats'
+primary_region = 'lax'
+
+[build]
+  dockerfile = 'Dockerfile'
+
+[processes]
+  app = 'nats-server --port 4222 --http_port 8222'
+
+[http_service]
+  internal_port = 8222
+  force_https = true
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ['app']
+
+[[services]]
+  protocol = 'tcp'
+  internal_port = 4222
+  processes = ['app']
+
+  [[services.ports]]
+    port = 4222
+    handlers = ['tls']
+
+  [[services.tcp_checks]]
+    interval = '30s'
+    timeout = '5s'
+    grace_period = '10s'
+
+[[vm]]
+  memory = '512mb'
+  cpu_kind = 'shared'
+  cpus = 1
