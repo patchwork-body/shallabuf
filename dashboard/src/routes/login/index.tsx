@@ -5,6 +5,8 @@ import { useMutation } from "@tanstack/react-query";
 import { Label } from "~/components/ui/label";
 import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/button";
+import { env } from "~/env";
+import { FormEventHandler, useCallback } from "react";
 
 export const Route = createFileRoute("/login/")({
   component: Login,
@@ -13,16 +15,28 @@ export const Route = createFileRoute("/login/")({
 // Mock async login function
 async function mockLogin({ email, password }: { email: string; password: string }) {
   await new Promise((r) => setTimeout(r, 500));
+
   if (email === "test@example.com" && password === "password") {
     return { success: true };
   }
+
   throw new Error("Invalid email or password");
 }
 
 function Login() {
   const navigate = useNavigate();
   const mutation = useMutation({
-    mutationFn: mockLogin,
+    mutationFn: async (value: { email: string; password: string }) => {
+      const response = await fetch(`${env.VITE_API_URL}/auth/login`, {
+        method: "POST",
+        body: JSON.stringify(value),
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      return response.json();
+    },
   });
 
   const form = useForm({
@@ -32,19 +46,24 @@ function Login() {
     },
     onSubmit: async ({ value }) => {
       try {
-        await mutation.mutateAsync(value);
-        navigate({ to: "/" as any });
+        console.log(await mutation.mutateAsync(value));
       } catch (err) {
-        // error handled by mutation.error
+        console.error(err);
       }
     },
   });
+
+  const submit: FormEventHandler<HTMLFormElement> = useCallback((event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    form.handleSubmit();
+  }, [form]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-100 via-white to-pink-100 dark:bg-gradient-to-br dark:from-gray-900 dark:via-gray-950 dark:to-gray-800">
       <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8 border border-gray-100 dark:bg-gray-900 dark:border-gray-800">
         <h1 className="text-3xl font-bold text-center mb-8 text-gray-800 dark:text-gray-100">Login</h1>
-        <form onSubmit={form.handleSubmit} className="space-y-6">
+        <form onSubmit={submit} className="space-y-6">
           <form.Field name="email">
             {(field) => (
               <div className="space-y-1">
@@ -53,6 +72,7 @@ function Login() {
                   id={field.name}
                   type="email"
                   autoComplete="email"
+                  placeholder="your@email.com"
                   value={field.state.value}
                   onChange={e => field.handleChange(e.target.value)}
                   required
@@ -73,6 +93,7 @@ function Login() {
                   id={field.name}
                   type="password"
                   autoComplete="current-password"
+                  placeholder="********"
                   value={field.state.value}
                   onChange={e => field.handleChange(e.target.value)}
                   required

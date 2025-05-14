@@ -6,16 +6,17 @@ import {
 } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
-import * as React from "react";
 import { DefaultCatchBoundary } from "~/components/DefaultCatchBoundary";
 import { NotFound } from "~/components/NotFound";
 import appCss from "~/styles/app.css?url";
 import { seo } from "~/utils/seo";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { getQueryClient } from "~/lib/query-client";
+import { ReactNode } from "react";
 
 export const Route = createRootRouteWithContext<{
-  queryClient: QueryClient
+  queryClient: QueryClient;
+  theme?: "light" | "dark";
 }>()({
   head: () => ({
     meta: [
@@ -55,6 +56,10 @@ export const Route = createRootRouteWithContext<{
       { rel: "icon", href: "/favicon.ico" },
     ],
   }),
+  // SSR: read theme from cookie and pass as context
+  loader: async ({ context }) => {
+    return { theme: context.theme };
+  },
   errorComponent: (props) => {
     return (
       <RootDocument>
@@ -74,22 +79,29 @@ function RootComponent() {
   );
 }
 
-function RootDocument({ children }: { children: React.ReactNode }) {
+function RootDocument({
+  children,
+}: {
+  children: ReactNode;
+}) {
   const queryClient = getQueryClient();
-  const isClient = typeof window !== "undefined";
-
   return (
-    <html lang="en" data-theme="dark">
+    <html lang="en" data-theme='dark'>
       <head>
         <HeadContent />
       </head>
       <body>
+        <header className="sticky top-0 z-30 w-full bg-white/90 dark:bg-gray-900/90 border-b border-gray-200 dark:border-gray-800 shadow-sm px-6 py-4 flex items-center justify-between backdrop-blur">
+          <span className="text-lg font-bold text-gray-800 dark:text-gray-100">
+            Shallabuf
+          </span>
+        </header>
         <QueryClientProvider client={queryClient}>
           {children}
           <ReactQueryDevtools buttonPosition="bottom-left" />
         </QueryClientProvider>
         <TanStackRouterDevtools position="bottom-right" />
-        {isClient && <Scripts />}
+        <Scripts />
       </body>
     </html>
   );

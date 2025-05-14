@@ -1,12 +1,10 @@
-[package]
-name = "shallabuf"
-version = "0.1.0"
-edition = "2024"
-
 [workspace]
-members = [
-    "api",
-    "platform"
-]
+members = ["api", "platform"]
+resolver = "2"
 
-[dependencies]
+[profile.dev]
+opt-level = 0
+
+[profile.release]
+lto = true
+opt-level = 'z'
