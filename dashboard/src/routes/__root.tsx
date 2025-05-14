@@ -10,12 +10,12 @@ import { DefaultCatchBoundary } from "~/components/DefaultCatchBoundary";
 import { NotFound } from "~/components/NotFound";
 import appCss from "~/styles/app.css?url";
 import { seo } from "~/utils/seo";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { getQueryClient } from "~/lib/query-client";
 import { ReactNode } from "react";
+import { TRPCProvider } from "~/trpc/client";
+import { trpc } from "~/trpc/client";
 
 export const Route = createRootRouteWithContext<{
-  queryClient: QueryClient;
+  trpc: typeof trpc;
   theme?: "light" | "dark";
 }>()({
   head: () => ({
@@ -84,7 +84,6 @@ function RootDocument({
 }: {
   children: ReactNode;
 }) {
-  const queryClient = getQueryClient();
   return (
     <html lang="en" data-theme='dark'>
       <head>
@@ -96,10 +95,10 @@ function RootDocument({
             Shallabuf
           </span>
         </header>
-        <QueryClientProvider client={queryClient}>
+        <TRPCProvider>
           {children}
           <ReactQueryDevtools buttonPosition="bottom-left" />
-        </QueryClientProvider>
+        </TRPCProvider>
         <TanStackRouterDevtools position="bottom-right" />
         <Scripts />
       </body>

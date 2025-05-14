@@ -1,43 +1,19 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useNavigate } from "@tanstack/react-router";
 import { useForm } from "@tanstack/react-form";
-import { useMutation } from "@tanstack/react-query";
 import { Label } from "~/components/ui/label";
 import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/button";
-import { env } from "~/env";
 import { FormEventHandler, useCallback } from "react";
+import { trpc } from "~/trpc/client";
 
 export const Route = createFileRoute("/login/")({
   component: Login,
 });
 
-// Mock async login function
-async function mockLogin({ email, password }: { email: string; password: string }) {
-  await new Promise((r) => setTimeout(r, 500));
-
-  if (email === "test@example.com" && password === "password") {
-    return { success: true };
-  }
-
-  throw new Error("Invalid email or password");
-}
-
 function Login() {
   const navigate = useNavigate();
-  const mutation = useMutation({
-    mutationFn: async (value: { email: string; password: string }) => {
-      const response = await fetch(`${env.VITE_API_URL}/auth/login`, {
-        method: "POST",
-        body: JSON.stringify(value),
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-
-      return response.json();
-    },
-  });
+  const loginMutation = trpc.login.useMutation();
 
   const form = useForm({
     defaultValues: {
@@ -46,7 +22,7 @@ function Login() {
     },
     onSubmit: async ({ value }) => {
       try {
-        console.log(await mutation.mutateAsync(value));
+        console.log(await loginMutation.mutateAsync(value));
       } catch (err) {
         console.error(err);
       }
@@ -76,7 +52,7 @@ function Login() {
                   value={field.state.value}
                   onChange={e => field.handleChange(e.target.value)}
                   required
-                  disabled={mutation.isPending}
+                  disabled={loginMutation.isPending}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100 dark:disabled:bg-gray-800"
                 />
                 {!field.state.meta.isValid && (
@@ -97,7 +73,7 @@ function Login() {
                   value={field.state.value}
                   onChange={e => field.handleChange(e.target.value)}
                   required
-                  disabled={mutation.isPending}
+                  disabled={loginMutation.isPending}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100 dark:disabled:bg-gray-800"
                 />
                 {!field.state.meta.isValid && (
@@ -106,15 +82,15 @@ function Login() {
               </div>
             )}
           </form.Field>
-          {mutation.error && (
-            <div className="text-sm text-red-600 text-center dark:text-red-400">{(mutation.error as Error).message}</div>
+          {loginMutation.error && (
+            <div className="text-sm text-red-600 text-center dark:text-red-400">{loginMutation.error.message}</div>
           )}
           <Button
             type="submit"
-            disabled={mutation.isPending}
+            disabled={loginMutation.isPending}
             className="w-full py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-lg shadow-md transition-colors duration-200 disabled:bg-blue-300 dark:bg-blue-600 dark:hover:bg-blue-700 dark:disabled:bg-blue-400"
           >
-            {mutation.isPending ? "Logging in..." : "Login"}
+            {loginMutation.isPending ? "Logging in..." : "Login"}
           </Button>
         </form>
       </div>
