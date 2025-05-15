@@ -1,0 +1,81 @@
+import { TRPCError } from "@trpc/server";
+import { loginSchema } from "~/lib/schemas";
+import { createTRPCRouter, protectedProcedure, publicProcedure } from "../index";
+import { env } from "~/env";
+import { z } from "zod";
+
+export const authRouter = createTRPCRouter({
+  login: publicProcedure.input(loginSchema).mutation(async ({ input, ctx }) => {
+    try {
+      const response = await fetch(`${env.API_URL}/auth/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(input),
+      });
+
+      if (!response.ok) {
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "Login failed",
+        });
+      }
+
+      const data = await response.json();
+
+      if (!data.expiresAt) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Invalid login response: missing expiration time",
+        });
+      }
+
+      ctx.resHeaders.append(
+        "Set-Cookie",
+        `session=${data.token}; HttpOnly; Path=/; SameSite=${process.env.NODE_ENV === "production" ? "Strict" : "Lax"}; Secure=${process.env.NODE_ENV === "production"}; Expires=${new Date(data.expiresAt).toUTCString()}`
+      );
+
+      return data;
+    } catch (error) {
+      if (error instanceof TRPCError) {
+        throw error;
+      }
+      throw new TRPCError({
+        code: "INTERNAL_SERVER_ERROR",
+        message: "An unexpected error occurred during login",
+      });
+    }
+  }),
+
+  validateSession: publicProcedure.input(z.object({ token: z.string() })).query(async ({ input }) => {
+    try {
+      const response = await fetch(`${env.API_URL}/auth/validate-session`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ token: input.token }),
+      });
+
+      if (!response.ok) {
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "Invalid session",
+        });
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      if (error instanceof TRPCError) {
+        throw error;
+      }
+
+      throw new TRPCError({
+        code: "INTERNAL_SERVER_ERROR",
+        message: "An unexpected error occurred during session validation",
+      });
+    }
+  }),
+});

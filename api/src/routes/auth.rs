@@ -10,7 +10,7 @@ use crate::{
         config::ConfigExtractor, database_connection::DatabaseConnection,
         redis_connection::RedisConnection,
     },
-    session::{create_session, generate_session_token},
+    session::{Session, create_session, generate_session_token, validate_session_token},
 };
 
 #[derive(Debug, Deserialize)]
@@ -20,6 +20,7 @@ pub struct LoginRequest {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct LoginResponse {
     pub token: String,
     pub expires_at: OffsetDateTime,
@@ -81,4 +82,29 @@ pub async fn login(
         token,
         expires_at: session.expires_at,
     }))
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ValidateSessionRequest {
+    pub token: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ValidateSessionResponse {
+    pub session: Session,
+}
+
+pub async fn validate_session(
+    RedisConnection(redis): RedisConnection,
+    ConfigExtractor(config): ConfigExtractor,
+    Json(ValidateSessionRequest { token }): Json<ValidateSessionRequest>,
+) -> Result<Json<ValidateSessionResponse>, AuthError> {
+    let session: Option<Session> =
+        validate_session_token(redis.clone(), &token, config.session_duration_minutes).await?;
+
+    let Some(session) = session else {
+        return Err(AuthError::InvalidSession);
+    };
+
+    Ok(Json(ValidateSessionResponse { session }))
 }

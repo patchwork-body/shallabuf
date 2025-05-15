@@ -12,6 +12,7 @@
 
 import { Route as rootRoute } from './routes/__root'
 import { Route as LoginIndexImport } from './routes/login/index'
+import { Route as ProtectedIndexImport } from './routes/_protected/index'
 
 // Create/Update Routes
 
@@ -21,10 +22,23 @@ const LoginIndexRoute = LoginIndexImport.update({
   getParentRoute: () => rootRoute,
 } as any)
 
+const ProtectedIndexRoute = ProtectedIndexImport.update({
+  id: '/_protected/',
+  path: '/',
+  getParentRoute: () => rootRoute,
+} as any)
+
 // Populate the FileRoutesByPath interface
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/_protected/': {
+      id: '/_protected/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof ProtectedIndexImport
+      parentRoute: typeof rootRoute
+    }
     '/login/': {
       id: '/login/'
       path: '/login'
@@ -38,32 +52,37 @@ declare module '@tanstack/react-router' {
 // Create and export the route tree
 
 export interface FileRoutesByFullPath {
+  '/': typeof ProtectedIndexRoute
   '/login': typeof LoginIndexRoute
 }
 
 export interface FileRoutesByTo {
+  '/': typeof ProtectedIndexRoute
   '/login': typeof LoginIndexRoute
 }
 
 export interface FileRoutesById {
   __root__: typeof rootRoute
+  '/_protected/': typeof ProtectedIndexRoute
   '/login/': typeof LoginIndexRoute
 }
 
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/login'
+  fullPaths: '/' | '/login'
   fileRoutesByTo: FileRoutesByTo
-  to: '/login'
-  id: '__root__' | '/login/'
+  to: '/' | '/login'
+  id: '__root__' | '/_protected/' | '/login/'
   fileRoutesById: FileRoutesById
 }
 
 export interface RootRouteChildren {
+  ProtectedIndexRoute: typeof ProtectedIndexRoute
   LoginIndexRoute: typeof LoginIndexRoute
 }
 
 const rootRouteChildren: RootRouteChildren = {
+  ProtectedIndexRoute: ProtectedIndexRoute,
   LoginIndexRoute: LoginIndexRoute,
 }
 
@@ -77,8 +96,12 @@ export const routeTree = rootRoute
     "__root__": {
       "filePath": "__root.tsx",
       "children": [
+        "/_protected/",
         "/login/"
       ]
+    },
+    "/_protected/": {
+      "filePath": "_protected/index.tsx"
     },
     "/login/": {
       "filePath": "login/index.tsx"

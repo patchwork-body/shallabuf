@@ -8,7 +8,7 @@ use uuid::Uuid;
 
 use crate::error::AuthError;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Session {
     pub id: String,

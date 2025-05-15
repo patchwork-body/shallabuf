@@ -11,11 +11,12 @@ import { NotFound } from "~/components/NotFound";
 import appCss from "~/styles/app.css?url";
 import { seo } from "~/utils/seo";
 import { ReactNode } from "react";
-import { TRPCProvider } from "~/trpc/client";
 import { trpc } from "~/trpc/client";
+import { QueryClient } from "@tanstack/react-query";
 
 export const Route = createRootRouteWithContext<{
   trpc: typeof trpc;
+  queryClient: QueryClient;
   theme?: "light" | "dark";
 }>()({
   head: () => ({
@@ -79,13 +80,9 @@ function RootComponent() {
   );
 }
 
-function RootDocument({
-  children,
-}: {
-  children: ReactNode;
-}) {
+function RootDocument({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" data-theme='dark'>
+    <html lang="en" data-theme="dark">
       <head>
         <HeadContent />
       </head>
@@ -95,10 +92,8 @@ function RootDocument({
             Shallabuf
           </span>
         </header>
-        <TRPCProvider>
-          {children}
-          <ReactQueryDevtools buttonPosition="bottom-left" />
-        </TRPCProvider>
+        {children}
+        <ReactQueryDevtools buttonPosition="bottom-left" />
         <TanStackRouterDevtools position="bottom-right" />
         <Scripts />
       </body>

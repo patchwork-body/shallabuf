@@ -3,6 +3,8 @@ import { routeTree } from './routeTree.gen'
 import { DefaultCatchBoundary } from './components/DefaultCatchBoundary'
 import { NotFound } from './components/NotFound'
 import { trpc } from './trpc/client'
+import { getQueryClient } from './lib/query-client'
+import { QueryClientProvider } from '@tanstack/react-query'
 
 export function createRouter() {
   const router = createTanStackRouter({
@@ -13,7 +15,13 @@ export function createRouter() {
     scrollRestoration: true,
     context: {
       trpc,
+      queryClient: getQueryClient(),
     },
+    Wrap: ({ children }) => {
+      return <QueryClientProvider client={getQueryClient()}>
+        {children}
+      </QueryClientProvider>
+    }
   })
 
   return router

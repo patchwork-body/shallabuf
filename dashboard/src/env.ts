@@ -3,7 +3,7 @@ import { z } from 'zod'
 
 
 const envSchema = z.object({
-  VITE_API_URL: z.string().url(),
+  API_URL: z.string().url(),
 })
 
 let env: z.infer<typeof envSchema>;

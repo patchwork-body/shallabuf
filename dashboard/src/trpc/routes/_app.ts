@@ -1,15 +1,8 @@
-import { createTRPCRouter, publicProcedure } from "../index";
-import { z } from "zod";
+import { createTRPCRouter } from "../index";
+import { authRouter } from "./auth";
 
 export const appRouter = createTRPCRouter({
-  login: publicProcedure.input(z.object({
-    email: z.string(),
-    password: z.string(),
-  })).mutation(async ({ input }) => {
-    return {
-      success: true,
-    };
-  }),
+  auth: authRouter,
 });
 
 export type AppRouter = typeof appRouter;

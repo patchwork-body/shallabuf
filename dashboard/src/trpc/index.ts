@@ -1,12 +1,14 @@
-import { initTRPC } from "@trpc/server";
+import { initTRPC, TRPCError } from "@trpc/server";
 import { cache } from "react";
+import { getSessionToken } from "~/lib/session";
 
-export const createTRPCContext = cache(async () => {
+export const createTRPCContext = cache(async ({ req, resHeaders }: { req?: Request; resHeaders: Headers }) => {
   /**
    * @see: https://trpc.io/docs/server/context
    */
+  const sessionToken = req ? getSessionToken(req) : undefined;
 
-  return {};
+  return { req, resHeaders, sessionToken };
 });
 
 // Type for the TRPC context value
@@ -19,8 +21,14 @@ export type TRPCContext = Awaited<ReturnType<typeof createTRPCContext>>;
 const t = initTRPC.context<TRPCContext>().create({});
 
 const isAuthenticated = t.middleware(async ({ ctx, next }) => {
+  if (!ctx.sessionToken) {
+    throw new TRPCError({ code: "UNAUTHORIZED" });
+  }
+
   return next({
-    ctx: {},
+    ctx: {
+      sessionToken: ctx.sessionToken,
+    },
   });
 });
 

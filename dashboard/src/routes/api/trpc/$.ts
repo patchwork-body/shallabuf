@@ -2,6 +2,7 @@ import { createAPIFileRoute } from '@tanstack/react-start/api'
 import { fetchRequestHandler } from '@trpc/server/adapters/fetch';
 import { createTRPCContext } from '~/trpc';
 import { appRouter } from '~/trpc/routes/_app';
+import { getWebRequest } from '@tanstack/react-start/server';
 
 const handler = (req: Request) =>
   fetchRequestHandler({
@@ -13,9 +14,10 @@ const handler = (req: Request) =>
 
 export const APIRoute = createAPIFileRoute('/api/trpc/$')({
   GET: async ({ request }) => {
-    return handler(request)
+    console.log(getWebRequest());
+    return handler(getWebRequest() ?? request);
   },
   POST: async ({ request }) => {
-    return handler(request)
+    return handler(getWebRequest() ?? request);
   },
-})
+});

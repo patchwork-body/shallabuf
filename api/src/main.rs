@@ -43,7 +43,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/issue", post(routes::jwt::issue))
         .route("/refresh", post(routes::jwt::refresh));
 
-    let auth_router = Router::new().route("/login", post(routes::auth::login));
+    let auth_router = Router::new()
+        .route("/login", post(routes::auth::login))
+        .route("/validate-session", post(routes::auth::validate_session));
+
     let apps_router = Router::new().route("/", post(routes::apps::create));
 
     let api_v0 = Router::new()
