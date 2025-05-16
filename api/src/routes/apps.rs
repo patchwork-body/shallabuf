@@ -2,26 +2,29 @@ use argon2::{
     Argon2,
     password_hash::{PasswordHasher, SaltString, rand_core::OsRng},
 };
-use axum::Json;
+use axum::{Json, extract::Query};
 use base64::{Engine as _, engine::general_purpose::URL_SAFE};
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
+use time::OffsetDateTime;
 
 use crate::extractors::{database_connection::DatabaseConnection, session::Session};
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CreateAppRequest {
     pub name: String,
     pub description: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CreateAppResponse {
     pub app_id: String,
     pub app_secret: String,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 struct AppCredentials {
     app_id: String,
     app_secret: String,
@@ -91,4 +94,83 @@ pub async fn create(
         app_id: credentials.app_id,
         app_secret: credentials.app_secret,
     }))
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ListAppsRequest {
+    pub cursor: Option<String>,
+    pub limit: Option<i64>,
+}
+
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct AppInfo {
+    pub app_id: String,
+    pub name: String,
+    pub description: Option<String>,
+    #[serde(with = "time::serde::iso8601")]
+    pub created_at: OffsetDateTime,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ListAppsResponse {
+    pub apps: Vec<AppInfo>,
+    pub next_cursor: Option<String>,
+}
+
+pub async fn list(
+    Session(_session): Session,
+    DatabaseConnection(mut conn): DatabaseConnection,
+    Query(payload): Query<ListAppsRequest>,
+) -> Result<Json<ListAppsResponse>, (axum::http::StatusCode, String)> {
+    let limit = payload.limit.unwrap_or(50).min(100);
+
+    let apps = if let Some(cursor) = payload.cursor {
+        sqlx::query_as!(
+            AppInfo,
+            r#"
+            SELECT app_id, name, description, created_at
+            FROM apps
+            WHERE created_at < (
+                SELECT created_at FROM apps WHERE app_id = $1
+            )
+            ORDER BY created_at DESC
+            LIMIT $2
+            "#,
+            cursor,
+            limit + 1,
+        )
+        .fetch_all(&mut *conn)
+        .await
+    } else {
+        sqlx::query_as!(
+            AppInfo,
+            r#"
+            SELECT app_id, name, description, created_at
+            FROM apps
+            ORDER BY created_at DESC
+            LIMIT $1
+            "#,
+            limit + 1,
+        )
+        .fetch_all(&mut *conn)
+        .await
+    }
+    .map_err(|e| {
+        (
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to fetch apps: {e}"),
+        )
+    })?;
+
+    let (apps, next_cursor) = if apps.len() > limit as usize {
+        let next_cursor = Some(apps[apps.len() - 2].app_id.clone());
+        (apps[..apps.len() - 1].to_vec(), next_cursor)
+    } else {
+        (apps, None)
+    };
+
+    Ok(Json(ListAppsResponse { apps, next_cursor }))
 }

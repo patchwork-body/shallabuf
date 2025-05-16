@@ -14,10 +14,9 @@ const handler = (req: Request) =>
 
 export const APIRoute = createAPIFileRoute('/api/trpc/$')({
   GET: async ({ request }) => {
-    console.log(getWebRequest());
-    return handler(getWebRequest() ?? request);
+    return handler(request);
   },
   POST: async ({ request }) => {
-    return handler(getWebRequest() ?? request);
+    return handler(request);
   },
 });

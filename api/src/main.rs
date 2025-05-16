@@ -1,4 +1,7 @@
-use axum::{Router, routing::post};
+use axum::{
+    Router,
+    routing::{get, post},
+};
 use config::Config;
 use dotenvy::dotenv;
 use sqlx::postgres::PgPoolOptions;
@@ -47,7 +50,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/login", post(routes::auth::login))
         .route("/validate-session", post(routes::auth::validate_session));
 
-    let apps_router = Router::new().route("/", post(routes::apps::create));
+    let apps_router = Router::new()
+        .route("/", post(routes::apps::create))
+        .route("/list", get(routes::apps::list));
 
     let api_v0 = Router::new()
         .nest("/jwt", jwt_router)

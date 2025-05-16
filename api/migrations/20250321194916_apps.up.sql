@@ -1,8 +1,3 @@
--- Add up migration script here
-
--- Create extension for UUID generation if not exists
-CREATE EXTENSION IF NOT EXISTS "pgcrypto";
-
 -- Create apps table
 CREATE TABLE apps (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

@@ -2,6 +2,8 @@ import { createTRPCClient, httpBatchLink } from "@trpc/client";
 import { getQueryClient } from "~/lib/query-client";
 import type { AppRouter } from "./routes/_app";
 import { createTRPCOptionsProxy } from "@trpc/tanstack-react-query";
+import { getWebRequest } from "@tanstack/react-start/server";
+import { getSessionToken } from "~/lib/session";
 
 function getUrl() {
   const base = (() => {
@@ -28,6 +30,29 @@ export function createTrpcClient() {
                 body = new Blob([ab]);
               } else {
                 body = new Blob([new Uint8Array(body)]);
+              }
+            }
+
+            if (typeof window === "undefined") {
+              const request = getWebRequest();
+
+              if (request) {
+                const sessionToken = getSessionToken(request);
+
+                if (sessionToken) {
+                  const headers = new Headers(options?.headers);
+                  headers.set("Cookie", `session=${sessionToken}`);
+
+                  const headerObj: Record<string, string> = {};
+                  headers.forEach((value, key) => {
+                    headerObj[key] = value;
+                  });
+
+                  options = {
+                    ...options,
+                    headers: headerObj,
+                  };
+                }
               }
             }
 

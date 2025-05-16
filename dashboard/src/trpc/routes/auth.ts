@@ -48,14 +48,14 @@ export const authRouter = createTRPCRouter({
     }
   }),
 
-  validateSession: publicProcedure.input(z.object({ token: z.string() })).query(async ({ input }) => {
+  validateSession: protectedProcedure.query(async ({ ctx }) => {
     try {
       const response = await fetch(`${env.API_URL}/auth/validate-session`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ token: input.token }),
+        body: JSON.stringify({ token: ctx.sessionToken }),
       });
 
       if (!response.ok) {

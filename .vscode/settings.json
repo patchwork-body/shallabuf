@@ -4,6 +4,7 @@
     "dotenv",
     "jsonwebtoken",
     "oklch",
+    "pgcrypto",
     "shallabuf",
     "sonicus",
     "sqlx",
