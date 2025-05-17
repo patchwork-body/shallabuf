@@ -14,6 +14,12 @@ pub trait DocumentStorage: Send + Sync {
         channel_id: &str,
         update: &[u8],
     ) -> Result<(), Box<dyn std::error::Error>>;
+
+    async fn delete_document(
+        &self,
+        app_id: &str,
+        channel_id: &str,
+    ) -> Result<(), Box<dyn std::error::Error>>;
 }
 
 pub mod redis;

@@ -8,6 +8,7 @@ use futures_util::SinkExt;
 use serde_json::json;
 use std::{collections::HashSet, hash::RandomState, sync::Arc};
 use tokio::sync::Mutex;
+use tracing::error;
 
 use crate::{
     messaging::bus::MessagePublisher,
@@ -133,7 +134,8 @@ impl WsMessageHandler for MessageHandler {
                     .await?;
             }
             IncomingMessage::Unknown => {
-                // Handle unknown message types
+                error!("Unknown message type");
+                return Err("Unknown message type".into());
             }
         }
 
@@ -165,6 +167,11 @@ impl WsMessageHandler for MessageHandler {
             crdt.remove_member(&user_id).await;
             let patch = crdt.to_update(&prev_state_vector).await;
             let members = crdt.get_members().await;
+
+            if members.is_empty() {
+                self.storage.delete_document(&app_id, &channel_id).await?;
+                continue;
+            }
 
             self.publisher
                 .publish(BroadcastMessage::Patch {

@@ -49,4 +49,20 @@ impl DocumentStorage for RedisDocumentStorage {
 
         Ok(())
     }
+
+    async fn delete_document(
+        &self,
+        app_id: &str,
+        channel_id: &str,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let key = Self::get_key(app_id, channel_id);
+        let mut conn = (*self.redis).clone();
+
+        redis::cmd("DEL")
+            .arg(&key)
+            .query_async::<()>(&mut conn)
+            .await?;
+
+        Ok(())
+    }
 }
