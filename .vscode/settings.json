@@ -1,6 +1,7 @@
 {
   "cSpell.words": [
     "cpus",
+    "Crdt",
     "dotenv",
     "jsonwebtoken",
     "oklch",
@@ -8,6 +9,7 @@
     "shallabuf",
     "sonicus",
     "sqlx",
+    "tungstenite",
     "vinxi"
   ]
 }

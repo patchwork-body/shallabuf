@@ -9,7 +9,7 @@ use tokio::{
 };
 use tokio_tungstenite::tungstenite::handshake::server::{Request, Response};
 use tokio_tungstenite::{WebSocketStream, tungstenite::Message};
-use tracing::{debug, error, info};
+use tracing::{error, info};
 
 use super::dto::incoming_message::{IncomingMessage, parse_binary_message};
 
@@ -20,6 +20,7 @@ pub struct ConnectionState {
     pub app_id: String,
     pub user_id: String,
     pub broadcast_task: Option<JoinHandle<()>>,
+    pub channel_ids: std::collections::HashSet<String>,
 }
 
 #[derive(Builder, Clone)]
@@ -79,8 +80,6 @@ impl WsConnection {
 
         // Handle messages after middleware processing
         while let Some(msg) = read.next().await {
-            debug!("Received message: {msg:?}");
-
             match msg {
                 Ok(msg) => match msg {
                     Message::Text(text) => {
@@ -99,21 +98,16 @@ impl WsConnection {
                             }
                         }
                     }
-                    Message::Binary(binary) => {
-                        debug!("Received binary message length: {}", binary.len());
-                        debug!("Binary message content: {:?}", binary);
-
-                        match parse_binary_message(&binary) {
-                            Ok(message) => {
-                                self.message_handler
-                                    .handle(&write, message, state.clone())
-                                    .await?
-                            }
-                            Err(e) => {
-                                error!("Error parsing binary message: {e}");
-                            }
+                    Message::Binary(binary) => match parse_binary_message(&binary) {
+                        Ok(message) => {
+                            self.message_handler
+                                .handle(&write, message, state.clone())
+                                .await?
                         }
-                    }
+                        Err(e) => {
+                            error!("Error parsing binary message: {e}");
+                        }
+                    },
                     _ => continue,
                 },
                 Err(e) => {
@@ -126,6 +120,9 @@ impl WsConnection {
         // Abort the broadcast task when the connection is closed
         if let Some(task) = state.lock().await.broadcast_task.take() {
             task.abort();
+
+            let mut state = state.lock().await;
+            self.message_handler.on_close(&mut state).await?;
         }
 
         Ok(())
@@ -197,4 +194,6 @@ pub trait MessageHandler: Send + Sync {
         message: IncomingMessage,
         state: Arc<Mutex<ConnectionState>>,
     ) -> Result<(), Box<dyn std::error::Error>>;
+    async fn on_close(&self, state: &mut ConnectionState)
+    -> Result<(), Box<dyn std::error::Error>>;
 }

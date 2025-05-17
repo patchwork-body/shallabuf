@@ -40,15 +40,22 @@ impl WsMessageHandler for MessageHandler {
                 channel_id,
                 init_state,
             } => {
-                let state = state.lock().await;
-                let app_id = &state.app_id;
-                let existing_update = self.storage.get_document(app_id, &channel_id).await?;
+                let app_id: String;
+                let user_id: String;
+
+                {
+                    let mut state = state.lock().await;
+                    app_id = state.app_id.clone();
+                    user_id = state.user_id.clone();
+                    state.channel_ids.insert(channel_id.clone());
+                }
+
+                let existing_update = self.storage.get_document(&app_id, &channel_id).await?;
 
                 let state_update = if let Some(existing_update) = existing_update {
                     let mut crdt = CrdtDocument::from_update(&existing_update).await;
 
                     let prev_state_vector = crdt.state_vector().await;
-                    let user_id = state.user_id.clone();
                     let recipients = crdt.get_members().await;
 
                     crdt.insert_value(&["members", &user_id], json!({})).await;
@@ -58,8 +65,8 @@ impl WsMessageHandler for MessageHandler {
 
                     self.publisher
                         .publish(BroadcastMessage::Patch {
-                            app_id: state.app_id.clone(),
-                            sender: state.user_id.clone(),
+                            app_id: app_id.clone(),
+                            sender: user_id.clone(),
                             channel_id: channel_id.clone(),
                             payload: member_update,
                             recipients,
@@ -77,14 +84,12 @@ impl WsMessageHandler for MessageHandler {
 
                     let mut crdt = CrdtDocument::new().await;
                     crdt.insert_value(&["state"], init_state.clone()).await;
-
-                    let user_id = state.user_id.clone();
                     crdt.insert_value(&["members", &user_id], json!({})).await;
 
                     let state_update = crdt.get_state_as_update().await;
 
                     self.storage
-                        .save_document(app_id, &channel_id, &state_update)
+                        .save_document(&app_id, &channel_id, &state_update)
                         .await?;
 
                     state_update
@@ -131,6 +136,43 @@ impl WsMessageHandler for MessageHandler {
                 // Handle unknown message types
             }
         }
+
+        Ok(())
+    }
+
+    async fn on_close(
+        &self,
+        state: &mut ConnectionState,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let channel_ids = state.channel_ids.clone();
+
+        for channel_id in channel_ids {
+            let Some(update) = self
+                .storage
+                .get_document(&state.app_id, &channel_id)
+                .await?
+            else {
+                continue;
+            };
+
+            let mut crdt = CrdtDocument::from_update(&update).await;
+            let prev_state_vector = crdt.state_vector().await;
+            crdt.remove_member(&state.user_id).await;
+            let patch = crdt.to_update(&prev_state_vector).await;
+            let members = crdt.get_members().await;
+
+            self.publisher
+                .publish(BroadcastMessage::Patch {
+                    app_id: state.app_id.clone(),
+                    sender: state.user_id.clone(),
+                    channel_id: channel_id.clone(),
+                    payload: patch,
+                    recipients: members,
+                })
+                .await?;
+        }
+
+        state.channel_ids.clear();
 
         Ok(())
     }

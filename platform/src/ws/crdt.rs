@@ -15,6 +15,7 @@ pub trait Crdt: Send + Sync {
     async fn apply_delta(&mut self, delta: &[u8]) -> Result<(), Box<dyn std::error::Error>>;
     async fn insert_value(&mut self, path: &[&str], value: JsonValue);
     async fn get_members(&self) -> Vec<String>;
+    async fn remove_member(&mut self, member: &str);
 }
 
 pub struct CrdtDocument {
@@ -164,5 +165,19 @@ impl Crdt for CrdtDocument {
 
             _ => vec![],
         }
+    }
+
+    async fn remove_member(&mut self, member_id: &str) {
+        let mut txn = self.doc.transact_mut().await;
+        let Some(map) = txn.get_map("root") else {
+            return;
+        };
+
+        let Some(Out::YMap(members)) = map.get(&txn, "members") else {
+            return;
+        };
+
+        members.remove(&mut txn, member_id);
+        txn.commit();
     }
 }
