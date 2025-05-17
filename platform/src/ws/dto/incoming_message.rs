@@ -1,6 +1,5 @@
 use base64::Engine as _;
 use serde::Deserialize;
-use tracing;
 
 #[derive(Debug, Deserialize)]
 #[serde(tag = "type", rename_all = "camelCase")]
@@ -30,6 +29,7 @@ where
     match value {
         serde_json::Value::Object(map) => {
             let mut vec = vec![0; map.len()];
+
             for (key, value) in map {
                 if let Ok(index) = key.parse::<usize>() {
                     if let Some(num) = value.as_u64() {
@@ -39,6 +39,7 @@ where
                     }
                 }
             }
+
             Ok(vec)
         }
         serde_json::Value::String(s) => base64::engine::general_purpose::STANDARD
@@ -50,42 +51,27 @@ where
 
 // Helper function to parse binary message
 pub fn parse_binary_message(data: &[u8]) -> Result<IncomingMessage, String> {
-    tracing::debug!("Parsing binary message of length: {}", data.len());
-    tracing::debug!("Binary message content: {:?}", data);
-
     if data.len() < 5 {
-        tracing::error!("Message too short: {}", data.len());
         return Err("Invalid message format: message too short".into());
     }
 
     // First byte is message type
     let message_type = data[0];
-    tracing::debug!("Message type: {}", message_type);
 
     // Next 4 bytes are channelId length (little endian)
     let channel_id_len = u32::from_le_bytes([data[1], data[2], data[3], data[4]]) as usize;
-    tracing::debug!("Channel ID length: {}", channel_id_len);
 
     if channel_id_len > 1024 {
-        tracing::error!("Channel ID length too large: {}", channel_id_len);
-        return Err(format!("Channel ID length too large: {}", channel_id_len));
+        return Err(format!("Channel ID length too large: {channel_id_len}"));
     }
 
     if data.len() < 5 + channel_id_len {
-        tracing::error!(
-            "Channel ID length exceeds message length: {} > {}",
-            channel_id_len,
-            data.len() - 5
-        );
         return Err("Invalid message format: channel ID length exceeds message length".into());
     }
 
     // Extract channel ID
-    let channel_id = String::from_utf8(data[5..5 + channel_id_len].to_vec()).map_err(|e| {
-        tracing::error!("Invalid channel ID UTF-8: {}", e);
-        format!("Invalid channel ID: {}", e)
-    })?;
-    tracing::debug!("Channel ID: {}", channel_id);
+    let channel_id = String::from_utf8(data[5..5 + channel_id_len].to_vec())
+        .map_err(|e| format!("Invalid channel ID: {e}"))?;
 
     // The rest is the message data
     let message_data = if data.len() > 5 + channel_id_len {
@@ -93,31 +79,20 @@ pub fn parse_binary_message(data: &[u8]) -> Result<IncomingMessage, String> {
     } else {
         Vec::new()
     };
-    tracing::debug!("Message data length: {}", message_data.len());
-    tracing::debug!("Message data: {:?}", message_data);
 
     match message_type {
-        0 => {
-            tracing::debug!("Parsed as Patch message");
-            Ok(IncomingMessage::Patch {
-                channel_id,
-                delta: message_data,
-            })
-        }
-        1 => {
-            tracing::debug!("Parsed as Init message");
-            Ok(IncomingMessage::Init {
-                channel_id,
-                init_state: if message_data.is_empty() {
-                    None
-                } else {
-                    Some(message_data)
-                },
-            })
-        }
-        _ => {
-            tracing::error!("Unsupported message type: {}", message_type);
-            Err(format!("Unsupported message type: {}", message_type))
-        }
+        0 => Ok(IncomingMessage::Patch {
+            channel_id,
+            delta: message_data,
+        }),
+        1 => Ok(IncomingMessage::Init {
+            channel_id,
+            init_state: if message_data.is_empty() {
+                None
+            } else {
+                Some(message_data)
+            },
+        }),
+        _ => Err(format!("Unsupported message type: {}", message_type)),
     }
 }

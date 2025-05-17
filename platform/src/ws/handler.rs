@@ -6,7 +6,7 @@ use crate::{storage::DocumentStorage, ws::connection::WsWrite};
 use async_trait::async_trait;
 use futures_util::SinkExt;
 use serde_json::json;
-use std::sync::Arc;
+use std::{collections::HashSet, hash::RandomState, sync::Arc};
 use tokio::sync::Mutex;
 
 use crate::{
@@ -142,29 +142,34 @@ impl WsMessageHandler for MessageHandler {
 
     async fn on_close(
         &self,
-        state: &mut ConnectionState,
+        state: Arc<Mutex<ConnectionState>>,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let channel_ids = state.channel_ids.clone();
+        let app_id: String;
+        let user_id: String;
+        let channel_ids: HashSet<String, RandomState>;
+
+        {
+            let state = state.lock().await;
+            app_id = state.app_id.clone();
+            user_id = state.user_id.clone();
+            channel_ids = state.channel_ids.clone();
+        }
 
         for channel_id in channel_ids {
-            let Some(update) = self
-                .storage
-                .get_document(&state.app_id, &channel_id)
-                .await?
-            else {
+            let Some(update) = self.storage.get_document(&app_id, &channel_id).await? else {
                 continue;
             };
 
             let mut crdt = CrdtDocument::from_update(&update).await;
             let prev_state_vector = crdt.state_vector().await;
-            crdt.remove_member(&state.user_id).await;
+            crdt.remove_member(&user_id).await;
             let patch = crdt.to_update(&prev_state_vector).await;
             let members = crdt.get_members().await;
 
             self.publisher
                 .publish(BroadcastMessage::Patch {
-                    app_id: state.app_id.clone(),
-                    sender: state.user_id.clone(),
+                    app_id: app_id.clone(),
+                    sender: user_id.clone(),
                     channel_id: channel_id.clone(),
                     payload: patch,
                     recipients: members,
@@ -172,7 +177,10 @@ impl WsMessageHandler for MessageHandler {
                 .await?;
         }
 
-        state.channel_ids.clear();
+        {
+            let mut state = state.lock().await;
+            state.channel_ids.clear();
+        }
 
         Ok(())
     }

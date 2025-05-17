@@ -9,7 +9,7 @@ use tokio::{
 };
 use tokio_tungstenite::tungstenite::handshake::server::{Request, Response};
 use tokio_tungstenite::{WebSocketStream, tungstenite::Message};
-use tracing::{error, info};
+use tracing::{debug, error, info};
 
 use super::dto::incoming_message::{IncomingMessage, parse_binary_message};
 
@@ -119,11 +119,11 @@ impl WsConnection {
 
         // Abort the broadcast task when the connection is closed
         if let Some(task) = state.lock().await.broadcast_task.take() {
+            debug!("Aborting broadcast task");
             task.abort();
-
-            let mut state = state.lock().await;
-            self.message_handler.on_close(&mut state).await?;
         }
+
+        self.message_handler.on_close(state.clone()).await?;
 
         Ok(())
     }
@@ -194,6 +194,8 @@ pub trait MessageHandler: Send + Sync {
         message: IncomingMessage,
         state: Arc<Mutex<ConnectionState>>,
     ) -> Result<(), Box<dyn std::error::Error>>;
-    async fn on_close(&self, state: &mut ConnectionState)
-    -> Result<(), Box<dyn std::error::Error>>;
+    async fn on_close(
+        &self,
+        state: Arc<Mutex<ConnectionState>>,
+    ) -> Result<(), Box<dyn std::error::Error>>;
 }
