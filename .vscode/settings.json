@@ -6,9 +6,13 @@
     "jsonwebtoken",
     "oklch",
     "pgcrypto",
+    "SADD",
+    "SCARD",
     "shallabuf",
+    "SISMEMBER",
     "sonicus",
     "sqlx",
+    "SREM",
     "tungstenite",
     "vinxi"
   ]

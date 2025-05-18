@@ -10,6 +10,7 @@ use tokio::{
 use tokio_tungstenite::tungstenite::handshake::server::{Request, Response};
 use tokio_tungstenite::{WebSocketStream, tungstenite::Message};
 use tracing::{debug, error, info};
+use uuid::Uuid;
 
 use super::dto::incoming_message::{IncomingMessage, parse_binary_message};
 
@@ -33,6 +34,8 @@ pub struct WsConnection {
     middlewares: Vec<Arc<dyn Middleware>>,
     #[builder(setter(custom))]
     message_handler: Arc<dyn MessageHandler>,
+    #[builder(setter(custom))]
+    session_handler: Arc<dyn SessionHandler>,
 }
 
 impl WsConnection {
@@ -68,10 +71,27 @@ impl WsConnection {
             Ok(response)
         };
 
+        // Generate a unique connection ID using UUID
+        let connection_id = Uuid::new_v4().to_string();
+        info!("New connection ID: {connection_id} from {peer_addr}");
+
+        let app_id: String;
+        let user_id: String;
+
+        {
+            let state = state.lock().await;
+            app_id = state.app_id.clone();
+            user_id = state.user_id.clone();
+        }
+
+        self.session_handler
+            .add(&app_id, &user_id, &connection_id)
+            .await?;
+
         // Accept the connection with the callback
         let ws_stream = tokio_tungstenite::accept_hdr_async(stream, callback).await?;
         let (write, mut read) = ws_stream.split();
-        let write: WsWrite = Arc::new(Mutex::new((peer_addr, write)));
+        let write: WsWrite = Arc::new(Mutex::new((connection_id.clone(), write)));
 
         // Run all middlewares in sequence
         for middleware in &self.middlewares {
@@ -123,7 +143,13 @@ impl WsConnection {
             task.abort();
         }
 
-        self.message_handler.on_close(state.clone()).await?;
+        self.session_handler
+            .remove(&app_id, &user_id, &connection_id)
+            .await?;
+
+        if self.session_handler.count(&app_id, &user_id).await? == 0 {
+            self.message_handler.on_close(state.clone()).await?;
+        }
 
         Ok(())
     }
@@ -174,6 +200,11 @@ impl WsConnectionBuilder {
         self.message_handler = Some(message_handler);
         self
     }
+
+    pub fn session_handler(&mut self, session_handler: Arc<dyn SessionHandler>) -> &mut Self {
+        self.session_handler = Some(session_handler);
+        self
+    }
 }
 
 #[async_trait]
@@ -198,4 +229,22 @@ pub trait MessageHandler: Send + Sync {
         &self,
         state: Arc<Mutex<ConnectionState>>,
     ) -> Result<(), Box<dyn std::error::Error>>;
+}
+
+#[async_trait]
+pub trait SessionHandler: Send + Sync {
+    async fn add(
+        &self,
+        app_id: &str,
+        user_id: &str,
+        connection_id: &str,
+    ) -> Result<(), Box<dyn std::error::Error>>;
+    async fn remove(
+        &self,
+        app_id: &str,
+        user_id: &str,
+        connection_id: &str,
+    ) -> Result<(), Box<dyn std::error::Error>>;
+    async fn count(&self, app_id: &str, user_id: &str)
+    -> Result<usize, Box<dyn std::error::Error>>;
 }

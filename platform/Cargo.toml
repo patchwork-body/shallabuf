@@ -26,3 +26,4 @@ anyhow = "^1.0"
 derive_builder = "^0.20"
 yrs = { version = "^0.23", features = ["sync"] }
 base64 = "0.21.7"
+uuid = { version = "^1.7", features = ["v4"] }

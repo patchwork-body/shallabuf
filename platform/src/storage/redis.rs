@@ -1,14 +1,13 @@
 use super::DocumentStorage;
 use async_trait::async_trait;
 use redis::aio::ConnectionManager;
-use std::sync::Arc;
 
 pub struct RedisDocumentStorage {
-    redis: Arc<ConnectionManager>,
+    redis: ConnectionManager,
 }
 
 impl RedisDocumentStorage {
-    pub fn new(redis: Arc<ConnectionManager>) -> Self {
+    pub fn new(redis: ConnectionManager) -> Self {
         Self { redis }
     }
 
@@ -25,7 +24,7 @@ impl DocumentStorage for RedisDocumentStorage {
         channel_id: &str,
     ) -> Result<Option<Vec<u8>>, Box<dyn std::error::Error>> {
         let key = Self::get_key(app_id, channel_id);
-        let mut conn = (*self.redis).clone();
+        let mut conn = self.redis.clone();
 
         let data: Option<Vec<u8>> = redis::cmd("GET").arg(&key).query_async(&mut conn).await?;
 
@@ -39,7 +38,7 @@ impl DocumentStorage for RedisDocumentStorage {
         update: &[u8],
     ) -> Result<(), Box<dyn std::error::Error>> {
         let key = Self::get_key(app_id, channel_id);
-        let mut conn = (*self.redis).clone();
+        let mut conn = self.redis.clone();
 
         redis::cmd("SET")
             .arg(&key)
@@ -56,7 +55,7 @@ impl DocumentStorage for RedisDocumentStorage {
         channel_id: &str,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let key = Self::get_key(app_id, channel_id);
-        let mut conn = (*self.redis).clone();
+        let mut conn = self.redis.clone();
 
         redis::cmd("DEL")
             .arg(&key)

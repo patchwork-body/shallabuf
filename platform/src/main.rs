@@ -5,7 +5,7 @@ use platform::{
         bus::{MessageHandler as BusMessageHandler, MessageProcessor, MessageTransport},
         transports::nats::NatsTransportBuilder,
     },
-    ws::AuthMiddleware,
+    ws::{AuthMiddleware, Session},
 };
 use platform::{
     storage::RedisDocumentStorage,
@@ -35,11 +35,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let nats_client = utils::setup_nats(&config.nats_url).await?;
 
     let redis_client = redis::Client::open(config.redis_url.clone())?;
-    let redis = Arc::new(
-        redis::aio::ConnectionManager::new(redis_client)
-            .await
-            .expect("Failed to create Redis connection manager"),
-    );
+    let redis = redis::aio::ConnectionManager::new(redis_client)
+        .await
+        .expect("Failed to create Redis connection manager");
 
     let tx = Arc::new(broadcast::channel(CHANNEL_CAPACITY).0);
 
@@ -79,6 +77,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             Arc::new(bus_proxy),
             document_storage,
         )))
+        .session_handler(Arc::new(Session::new(redis.clone())))
         .build()?;
 
     if let Err(e) = ws_connection.start().await {
