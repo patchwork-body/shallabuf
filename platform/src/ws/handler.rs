@@ -165,6 +165,7 @@ impl WsMessageHandler for MessageHandler {
             let mut crdt = CrdtDocument::from_update(&update).await;
             let prev_state_vector = crdt.state_vector().await;
             crdt.remove_member(&user_id).await;
+
             let patch = crdt.to_update(&prev_state_vector).await;
             let members = crdt.get_members().await;
 
@@ -182,11 +183,6 @@ impl WsMessageHandler for MessageHandler {
                     recipients: members,
                 })
                 .await?;
-        }
-
-        {
-            let mut state = state.lock().await;
-            state.channel_ids.clear();
         }
 
         Ok(())
