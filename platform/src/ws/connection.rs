@@ -75,6 +75,16 @@ impl WsConnection {
         let connection_id = Uuid::new_v4().to_string();
         info!("New connection ID: {connection_id} from {peer_addr}");
 
+        // Accept the connection with the callback
+        let ws_stream = tokio_tungstenite::accept_hdr_async(stream, callback).await?;
+        let (write, mut read) = ws_stream.split();
+        let write: WsWrite = Arc::new(Mutex::new((connection_id.clone(), write)));
+
+        // Run all middlewares in sequence
+        for middleware in &self.middlewares {
+            middleware.run(&write, &url, state.clone()).await?;
+        }
+
         let app_id: String;
         let user_id: String;
 
@@ -87,16 +97,6 @@ impl WsConnection {
         self.session_handler
             .add(&app_id, &user_id, &connection_id)
             .await?;
-
-        // Accept the connection with the callback
-        let ws_stream = tokio_tungstenite::accept_hdr_async(stream, callback).await?;
-        let (write, mut read) = ws_stream.split();
-        let write: WsWrite = Arc::new(Mutex::new((connection_id.clone(), write)));
-
-        // Run all middlewares in sequence
-        for middleware in &self.middlewares {
-            middleware.run(&write, &url, state.clone()).await?;
-        }
 
         // Handle messages after middleware processing
         while let Some(msg) = read.next().await {
