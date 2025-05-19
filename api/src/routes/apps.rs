@@ -2,7 +2,10 @@ use argon2::{
     Argon2,
     password_hash::{PasswordHasher, SaltString, rand_core::OsRng},
 };
-use axum::{Json, extract::Query};
+use axum::{
+    Json,
+    extract::{Path, Query},
+};
 use base64::{Engine as _, engine::general_purpose::URL_SAFE};
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
@@ -173,4 +176,31 @@ pub async fn list(
     };
 
     Ok(Json(ListAppsResponse { apps, next_cursor }))
+}
+
+pub async fn delete(
+    Session(_session): Session,
+    DatabaseConnection(mut conn): DatabaseConnection,
+    Path(app_id): Path<String>,
+) -> Result<axum::http::StatusCode, (axum::http::StatusCode, String)> {
+    let result = sqlx::query!(
+        r#"
+        DELETE FROM apps WHERE app_id = $1
+        "#,
+        app_id,
+    )
+    .execute(&mut *conn)
+    .await;
+
+    match result {
+        Ok(res) if res.rows_affected() > 0 => Ok(axum::http::StatusCode::NO_CONTENT),
+        Ok(_) => Err((
+            axum::http::StatusCode::NOT_FOUND,
+            "App not found".to_string(),
+        )),
+        Err(e) => Err((
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to delete app: {e}"),
+        )),
+    }
 }

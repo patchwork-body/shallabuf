@@ -1,11 +1,14 @@
 {
   "cSpell.words": [
+    "autodocs",
+    "circlehollow",
     "cpus",
     "Crdt",
     "dotenv",
     "jsonwebtoken",
     "oklch",
     "pgcrypto",
+    "Playfair",
     "SADD",
     "SCARD",
     "shallabuf",

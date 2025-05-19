@@ -13,6 +13,7 @@ import { seo } from "~/utils/seo";
 import { ReactNode } from "react";
 import { trpc } from "~/trpc/client";
 import { QueryClient } from "@tanstack/react-query";
+import { Header } from "~/components/Header";
 
 export const Route = createRootRouteWithContext<{
   trpc: typeof trpc;
@@ -55,6 +56,7 @@ export const Route = createRootRouteWithContext<{
       },
       { rel: "manifest", href: "/site.webmanifest", color: "#fffff" },
       { rel: "icon", href: "/favicon.ico" },
+      { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500" },
     ],
   }),
   // SSR: read theme from cookie and pass as context
@@ -87,12 +89,10 @@ function RootDocument({ children }: { children: ReactNode }) {
         <HeadContent />
       </head>
       <body>
-        <header className="sticky top-0 z-30 w-full bg-white/90 dark:bg-gray-900/90 border-b border-gray-200 dark:border-gray-800 shadow-sm px-6 py-4 flex items-center justify-between backdrop-blur">
-          <span className="text-lg font-bold text-gray-800 dark:text-gray-100">
-            Shallabuf
-          </span>
-        </header>
-        {children}
+        <main className="min-h-dvh grid grid-rows-[auto_1fr] bg-gradient-to-br from-blue-100 via-white to-pink-100 dark:bg-gradient-to-br dark:from-gray-900 dark:via-gray-950 dark:to-gray-800">
+          <Header />
+          {children}
+        </main>
         <ReactQueryDevtools buttonPosition="bottom-left" />
         <TanStackRouterDevtools position="bottom-right" />
         <Scripts />

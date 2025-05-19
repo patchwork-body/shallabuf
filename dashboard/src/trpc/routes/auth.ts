@@ -78,4 +78,39 @@ export const authRouter = createTRPCRouter({
       });
     }
   }),
+
+  logout: protectedProcedure.mutation(async ({ ctx }) => {
+    try {
+      const response = await fetch(`${env.API_URL}/auth/logout`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to logout",
+        });
+      }
+
+      ctx.resHeaders.append(
+        "Set-Cookie",
+        "session=; HttpOnly; Path=/; SameSite=Lax; Secure=true; Expires=Thu, 01 Jan 1970 00:00:00 GMT"
+      );
+
+      return { success: true };
+    } catch (error) {
+      if (error instanceof TRPCError) {
+        throw error;
+      }
+
+      throw new TRPCError({
+        code: "INTERNAL_SERVER_ERROR",
+        message: "An unexpected error occurred during logout",
+      });
+    }
+  }),
 });
+

@@ -52,7 +52,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let apps_router = Router::new()
         .route("/", post(routes::apps::create))
-        .route("/list", get(routes::apps::list));
+        .route("/list", get(routes::apps::list))
+        .route("/{app_id}", axum::routing::delete(routes::apps::delete));
 
     let api_v0 = Router::new()
         .nest("/jwt", jwt_router)

@@ -81,4 +81,25 @@ export const appsRouter = createTRPCRouter({
         });
       }
     }),
+
+  delete: protectedProcedure
+    .input(z.object({ appId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const response = await fetch(`${env.API_URL}/apps/${input.appId}`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${ctx.sessionToken}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to delete app",
+        });
+      }
+
+      return { success: true };
+    }),
 });
