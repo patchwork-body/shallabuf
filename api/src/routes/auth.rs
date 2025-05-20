@@ -1,16 +1,20 @@
+use crate::extractors::{
+    database_connection::DatabaseConnection, redis_connection::RedisConnection,
+};
 use argon2::{Argon2, PasswordHash, PasswordVerifier};
 use axum::Json;
 use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
+use tracing::error;
 
 use crate::{
     dto::key_provider_type::KeyProviderType,
     error::AuthError,
-    extractors::{
-        config::ConfigExtractor, database_connection::DatabaseConnection,
-        redis_connection::RedisConnection,
+    extractors::{config::ConfigExtractor, session::Session},
+    session::{
+        Session as SessionValue, create_session, generate_session_token, invalidate_session,
+        validate_session_token,
     },
-    session::{Session, create_session, generate_session_token, validate_session_token},
 };
 
 #[derive(Debug, Deserialize)]
@@ -91,7 +95,7 @@ pub struct ValidateSessionRequest {
 
 #[derive(Debug, Serialize)]
 pub struct ValidateSessionResponse {
-    pub session: Session,
+    pub session: SessionValue,
 }
 
 pub async fn validate_session(
@@ -99,7 +103,7 @@ pub async fn validate_session(
     ConfigExtractor(config): ConfigExtractor,
     Json(ValidateSessionRequest { token }): Json<ValidateSessionRequest>,
 ) -> Result<Json<ValidateSessionResponse>, AuthError> {
-    let session: Option<Session> =
+    let session: Option<SessionValue> =
         validate_session_token(redis.clone(), &token, config.session_duration_minutes).await?;
 
     let Some(session) = session else {
@@ -107,4 +111,26 @@ pub async fn validate_session(
     };
 
     Ok(Json(ValidateSessionResponse { session }))
+}
+
+#[derive(Debug, Serialize)]
+pub struct LogoutResponse {
+    pub success: bool,
+}
+
+pub async fn logout(
+    Session(session): Session,
+    RedisConnection(redis): RedisConnection,
+) -> Result<Json<LogoutResponse>, AuthError> {
+    match invalidate_session(redis, &session.id).await {
+        Ok(_) => Ok(Json(LogoutResponse { success: true })),
+        Err(AuthError::Redis(e)) => {
+            error!("Redis error during logout: {e:?}");
+            Err(AuthError::Redis(e))
+        }
+        Err(e) => {
+            error!("Unexpected error during logout: {e:?}");
+            Err(e)
+        }
+    }
 }
