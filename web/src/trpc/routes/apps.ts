@@ -5,6 +5,8 @@ import { z } from "zod";
 import {
   createAppResponseSchema,
   createAppSchema,
+  editAppResponseSchema,
+  editAppSchema,
   listAppsResponseSchema,
 } from "~/lib/schemas";
 
@@ -77,6 +79,29 @@ export const appsRouter = createTRPCRouter({
           message: "Failed to list apps",
         });
       }
+    }),
+
+  edit: protectedProcedure
+    .input(editAppSchema)
+    .output(editAppResponseSchema)
+    .mutation(async ({ ctx, input }) => {
+      const response = await fetch(`${env.API_URL}/apps/${input.appId}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${ctx.sessionToken}`,
+        },
+        body: JSON.stringify(input),
+      });
+
+      if (!response.ok) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to edit app",
+        });
+      }
+
+      return await response.json();
     }),
 
   delete: protectedProcedure

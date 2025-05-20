@@ -1,6 +1,6 @@
 use axum::{
     Router,
-    routing::{get, post},
+    routing::{delete, get, post},
 };
 use config::Config;
 use dotenvy::dotenv;
@@ -56,7 +56,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let apps_router = Router::new()
         .route("/", post(routes::apps::create))
         .route("/list", get(routes::apps::list))
-        .route("/{app_id}", axum::routing::delete(routes::apps::delete));
+        .route("/{app_id}", post(routes::apps::edit))
+        .route("/{app_id}", delete(routes::apps::delete));
 
     let api_v0 = Router::new()
         .nest("/jwt", jwt_router)

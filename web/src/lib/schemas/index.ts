@@ -49,3 +49,19 @@ export const createAppResponseSchema = z.object({
 });
 
 export type CreateAppResponse = z.infer<typeof createAppResponseSchema>;
+
+export const editAppSchema = z.object({
+  appId: z.string(),
+  name: z.string().optional(),
+  description: z.string().optional(),
+});
+
+export type EditApp = z.infer<typeof editAppSchema>;
+
+export const editAppResponseSchema = z.object({
+  appId: z.string(),
+  name: z.string(),
+  description: z.string().nullable(),
+});
+
+export type EditAppResponse = z.infer<typeof editAppResponseSchema>;

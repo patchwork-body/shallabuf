@@ -221,6 +221,52 @@ pub async fn list(
     Ok(Json(ListAppsResponse { apps, next_cursor }))
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EditAppRequest {
+    pub name: Option<String>,
+    pub description: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EditAppResponse {
+    pub app_id: String,
+    pub name: String,
+    pub description: Option<String>,
+}
+
+pub async fn edit(
+    Session(_session): Session,
+    DatabaseConnection(mut conn): DatabaseConnection,
+    Path(app_id): Path<String>,
+    Json(payload): Json<EditAppRequest>,
+) -> Result<Json<EditAppResponse>, (axum::http::StatusCode, String)> {
+    let result = sqlx::query!(
+        r#"
+        UPDATE apps SET name = $1, description = $2 WHERE app_id = $3
+        RETURNING name, description
+        "#,
+        payload.name,
+        payload.description,
+        app_id,
+    )
+    .fetch_one(&mut *conn)
+    .await
+    .map_err(|e| {
+        (
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to edit app: {e}"),
+        )
+    })?;
+
+    Ok(Json(EditAppResponse {
+        app_id,
+        name: result.name,
+        description: result.description,
+    }))
+}
+
 pub async fn delete(
     Session(_session): Session,
     DatabaseConnection(mut conn): DatabaseConnection,
