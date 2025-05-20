@@ -3,7 +3,9 @@ use crate::extractors::{
 };
 use argon2::{Argon2, PasswordHash, PasswordVerifier};
 use axum::Json;
+use reqwest::Client;
 use serde::{Deserialize, Serialize};
+use sqlx::Acquire;
 use time::OffsetDateTime;
 use tracing::error;
 
@@ -133,4 +135,365 @@ pub async fn logout(
             Err(e)
         }
     }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GithubLoginRequest {
+    pub access_token: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct GithubUser {
+    id: i64,
+    login: String,
+    email: Option<String>,
+    name: Option<String>,
+}
+
+pub async fn github_login(
+    DatabaseConnection(mut conn): DatabaseConnection,
+    RedisConnection(redis): RedisConnection,
+    ConfigExtractor(config): ConfigExtractor,
+    Json(GithubLoginRequest { access_token }): Json<GithubLoginRequest>,
+) -> Result<Json<LoginResponse>, AuthError> {
+    // Fetch user data from GitHub
+    let client = Client::new();
+    let github_user: GithubUser = client
+        .get("https://api.github.com/user")
+        .header("Authorization", format!("Bearer {}", access_token))
+        .header("User-Agent", "shallabuf")
+        .send()
+        .await
+        .map_err(|e| AuthError::Internal(format!("GitHub API request failed: {e}")))?
+        .json()
+        .await
+        .map_err(|e| AuthError::Internal(format!("Failed to parse GitHub response: {e}")))?;
+
+    let user_email = github_user
+        .email
+        .clone()
+        .unwrap_or_else(|| format!("{}@github.user", github_user.id));
+
+    // First try to find user by GitHub provider key
+    let existing_user = sqlx::query!(
+        r#"
+        SELECT
+            users.id, users.name
+        FROM
+            users
+        JOIN
+            keys ON keys.user_id = users.id
+        WHERE
+            keys.provider = $1
+        AND
+            keys.provider_key = $2
+        "#,
+        KeyProviderType::Github as KeyProviderType,
+        github_user.id.to_string(),
+    )
+    .fetch_optional(&mut *conn)
+    .await
+    .map_err(AuthError::Database)?;
+
+    // If no user found by GitHub key, try to find by email
+    let user_id = if let Some(user) = existing_user {
+        user.id
+    } else {
+        let existing_user_by_email = sqlx::query!(
+            r#"
+            SELECT id, name
+            FROM users
+            WHERE email = $1
+            "#,
+            user_email
+        )
+        .fetch_optional(&mut *conn)
+        .await
+        .map_err(AuthError::Database)?;
+
+        if let Some(user) = existing_user_by_email {
+            // User exists with this email, just add GitHub key
+            sqlx::query!(
+                r#"
+                INSERT INTO keys (user_id, provider, provider_key)
+                VALUES ($1, $2, $3)
+                "#,
+                user.id,
+                KeyProviderType::Github as KeyProviderType,
+                github_user.id.to_string(),
+            )
+            .execute(&mut *conn)
+            .await
+            .map_err(AuthError::Database)?;
+
+            user.id
+        } else {
+            // Create new user if not found
+            let user_name = github_user
+                .name
+                .clone()
+                .unwrap_or(github_user.login.clone());
+
+            let mut transaction = conn.begin().await.map_err(AuthError::Database)?;
+
+            let organization = sqlx::query!(
+                r#"
+                INSERT INTO organizations (name)
+                VALUES ($1)
+                RETURNING id
+                "#,
+                format!("{user_name}'s Organization"),
+            )
+            .fetch_one(&mut *transaction)
+            .await
+            .map_err(AuthError::Database)?;
+
+            let new_user = sqlx::query!(
+                r#"
+                INSERT INTO users (name, email, email_verified)
+                VALUES ($1, $2, $3)
+                RETURNING id
+                "#,
+                user_name,
+                user_email,
+                true, // Since GitHub verified this email
+            )
+            .fetch_one(&mut *transaction)
+            .await
+            .map_err(AuthError::Database)?;
+
+            sqlx::query!(
+                r#"
+                INSERT INTO keys (user_id, provider, provider_key)
+                VALUES ($1, $2, $3)
+                "#,
+                new_user.id,
+                KeyProviderType::Github as KeyProviderType,
+                github_user.id.to_string(),
+            )
+            .execute(&mut *transaction)
+            .await
+            .map_err(AuthError::Database)?;
+
+            sqlx::query!(
+                r#"
+                INSERT INTO user_organizations (user_id, organization_id)
+                VALUES ($1, $2)
+                "#,
+                new_user.id,
+                organization.id,
+            )
+            .execute(&mut *transaction)
+            .await
+            .map_err(AuthError::Database)?;
+
+            transaction.commit().await.map_err(AuthError::Database)?;
+
+            new_user.id
+        }
+    };
+
+    // Create session
+    let token = generate_session_token();
+    let user_name = github_user.name.unwrap_or(github_user.login);
+
+    let session = create_session(
+        redis,
+        &token,
+        user_id,
+        &user_name,
+        config.session_duration_minutes,
+    )
+    .await?;
+
+    Ok(Json(LoginResponse {
+        token,
+        expires_at: session.expires_at,
+    }))
+}
+
+#[derive(Debug, Deserialize)]
+pub struct GoogleLoginRequest {
+    pub claims: GoogleClaims,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct GoogleClaims {
+    pub sub: String,
+    pub email: String,
+    pub email_verified: bool,
+    pub name: Option<String>,
+    pub given_name: Option<String>,
+    pub family_name: Option<String>,
+}
+
+pub async fn google_login(
+    DatabaseConnection(mut conn): DatabaseConnection,
+    RedisConnection(redis): RedisConnection,
+    ConfigExtractor(config): ConfigExtractor,
+    Json(GoogleLoginRequest { claims }): Json<GoogleLoginRequest>,
+) -> Result<Json<LoginResponse>, AuthError> {
+    // First try to find user by Google provider key
+    let existing_user = sqlx::query!(
+        r#"
+        SELECT
+            users.id, users.name
+        FROM
+            users
+        JOIN
+            keys ON keys.user_id = users.id
+        WHERE
+            keys.provider = $1
+        AND
+            keys.provider_key = $2
+        "#,
+        KeyProviderType::Google as KeyProviderType,
+        claims.sub,
+    )
+    .fetch_optional(&mut *conn)
+    .await
+    .map_err(AuthError::Database)?;
+
+    // If no user found by Google key, try to find by email
+    let user_id = if let Some(user) = existing_user {
+        user.id
+    } else {
+        let existing_user_by_email = sqlx::query!(
+            r#"
+            SELECT id, name
+            FROM users
+            WHERE email = $1
+            "#,
+            claims.email
+        )
+        .fetch_optional(&mut *conn)
+        .await
+        .map_err(AuthError::Database)?;
+
+        if let Some(user) = existing_user_by_email {
+            // User exists with this email, just add Google key
+            sqlx::query!(
+                r#"
+                INSERT INTO keys (user_id, provider, provider_key)
+                VALUES ($1, $2, $3)
+                "#,
+                user.id,
+                KeyProviderType::Google as KeyProviderType,
+                claims.sub,
+            )
+            .execute(&mut *conn)
+            .await
+            .map_err(AuthError::Database)?;
+
+            user.id
+        } else {
+            // Create new user if not found
+            let user_name = claims
+                .name
+                .clone()
+                .or_else(|| {
+                    Some(format!(
+                        "{} {}",
+                        claims.given_name.unwrap_or_default(),
+                        claims.family_name.unwrap_or_default()
+                    ))
+                })
+                .filter(|s| !s.trim().is_empty())
+                .unwrap_or_else(|| {
+                    claims
+                        .email
+                        .split('@')
+                        .next()
+                        .unwrap_or(&claims.email)
+                        .to_string()
+                });
+
+            let mut transaction = conn.begin().await.map_err(AuthError::Database)?;
+
+            let organization = sqlx::query!(
+                r#"
+                INSERT INTO organizations (name)
+                VALUES ($1)
+                RETURNING id
+                "#,
+                format!("{user_name}'s Organization"),
+            )
+            .fetch_one(&mut *transaction)
+            .await
+            .map_err(AuthError::Database)?;
+
+            let new_user = sqlx::query!(
+                r#"
+                INSERT INTO users (name, email, email_verified)
+                VALUES ($1, $2, $3)
+                RETURNING id
+                "#,
+                user_name,
+                claims.email,
+                claims.email_verified,
+            )
+            .fetch_one(&mut *transaction)
+            .await
+            .map_err(AuthError::Database)?;
+
+            sqlx::query!(
+                r#"
+                INSERT INTO keys (user_id, provider, provider_key)
+                VALUES ($1, $2, $3)
+                "#,
+                new_user.id,
+                KeyProviderType::Google as KeyProviderType,
+                claims.sub,
+            )
+            .execute(&mut *transaction)
+            .await
+            .map_err(AuthError::Database)?;
+
+            sqlx::query!(
+                r#"
+                INSERT INTO user_organizations (user_id, organization_id)
+                VALUES ($1, $2)
+                "#,
+                new_user.id,
+                organization.id,
+            )
+            .execute(&mut *transaction)
+            .await
+            .map_err(AuthError::Database)?;
+
+            transaction.commit().await.map_err(AuthError::Database)?;
+
+            new_user.id
+        }
+    };
+
+    // Create session
+    let token = generate_session_token();
+    let name = claims.name.clone();
+
+    let display_name = if let Some(name) = name {
+        name
+    } else {
+        claims
+            .email
+            .split('@')
+            .next()
+            .unwrap_or(&claims.email)
+            .to_string()
+    };
+
+    let session = create_session(
+        redis,
+        &token,
+        user_id,
+        &display_name,
+        config.session_duration_minutes,
+    )
+    .await?;
+
+    Ok(Json(LoginResponse {
+        token,
+        expires_at: session.expires_at,
+    }))
 }

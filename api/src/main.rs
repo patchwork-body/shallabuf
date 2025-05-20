@@ -49,7 +49,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let auth_router = Router::new()
         .route("/login", post(routes::auth::login))
         .route("/validate-session", post(routes::auth::validate_session))
-        .route("/logout", post(routes::auth::logout));
+        .route("/logout", post(routes::auth::logout))
+        .route("/github/login", post(routes::auth::github_login))
+        .route("/google/login", post(routes::auth::google_login));
 
     let apps_router = Router::new()
         .route("/", post(routes::apps::create))

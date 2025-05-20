@@ -1,14 +1,18 @@
 {
   "cSpell.words": [
+    "alexpass",
     "autodocs",
     "circlehollow",
     "cpus",
     "Crdt",
     "dotenv",
+    "Entra",
     "jsonwebtoken",
     "oklch",
     "pgcrypto",
     "Playfair",
+    "plpgsql",
+    "reqwest",
     "SADD",
     "SCARD",
     "shallabuf",

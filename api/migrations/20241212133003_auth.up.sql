@@ -6,10 +6,12 @@ CREATE TABLE IF NOT EXISTS organizations (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE INDEX idx_organizations_name ON organizations(name);
+
 -- Create 'users' table
 CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name VARCHAR UNIQUE NOT NULL,
+    name VARCHAR NOT NULL,
     email VARCHAR UNIQUE NOT NULL,
     password_hash VARCHAR,
     email_verified BOOLEAN NOT NULL DEFAULT FALSE,
@@ -22,8 +24,8 @@ CREATE INDEX idx_users_email ON users(email);
 
 -- Create 'user_organizations' table
 CREATE TABLE IF NOT EXISTS user_organizations (
-    user_id UUID NOT NULL REFERENCES users(id),
-    organization_id UUID NOT NULL REFERENCES organizations(id),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
     PRIMARY KEY (user_id, organization_id),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
@@ -35,7 +37,7 @@ CREATE TYPE key_provider_type AS ENUM ('password', 'github', 'google', 'facebook
 -- Create 'keys' table
 CREATE TABLE IF NOT EXISTS keys (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES users(id),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     provider key_provider_type NOT NULL,
     provider_key VARCHAR NOT NULL UNIQUE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,

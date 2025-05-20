@@ -63,7 +63,7 @@ impl AppCredentials {
 }
 
 pub async fn create(
-    Session(_session): Session,
+    Session(session): Session,
     DatabaseConnection(mut conn): DatabaseConnection,
     Json(payload): Json<CreateAppRequest>,
 ) -> Result<Json<CreateAppResponse>, (axum::http::StatusCode, String)> {
@@ -74,15 +74,44 @@ pub async fn create(
         )
     })?;
 
+    // Get the user's organization
+    let org = sqlx::query!(
+        r#"
+        SELECT organization_id
+        FROM user_organizations
+        WHERE user_id = $1
+        LIMIT 1
+        "#,
+        session.user_id,
+    )
+    .fetch_optional(&mut *conn)
+    .await
+    .map_err(|e| {
+        (
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to fetch user organization: {e}"),
+        )
+    })?;
+
+    let organization_id = org
+        .ok_or_else(|| {
+            (
+                axum::http::StatusCode::FORBIDDEN,
+                "User does not belong to any organization".to_string(),
+            )
+        })?
+        .organization_id;
+
     sqlx::query!(
         r#"
-        INSERT INTO apps (app_id, app_secret_hash, name, description)
-        VALUES ($1, $2, $3, $4)
+        INSERT INTO apps (app_id, app_secret_hash, name, description, organization_id)
+        VALUES ($1, $2, $3, $4, $5)
         "#,
         credentials.app_id,
         credentials.secret_hash,
         payload.name,
         payload.description,
+        organization_id,
     )
     .execute(&mut *conn)
     .await
@@ -124,7 +153,7 @@ pub struct ListAppsResponse {
 }
 
 pub async fn list(
-    Session(_session): Session,
+    Session(session): Session,
     DatabaseConnection(mut conn): DatabaseConnection,
     Query(payload): Query<ListAppsRequest>,
 ) -> Result<Json<ListAppsResponse>, (axum::http::StatusCode, String)> {
@@ -134,14 +163,21 @@ pub async fn list(
         sqlx::query_as!(
             AppInfo,
             r#"
-            SELECT app_id, name, description, created_at
-            FROM apps
-            WHERE created_at < (
-                SELECT created_at FROM apps WHERE app_id = $1
+            WITH user_orgs AS (
+                SELECT organization_id
+                FROM user_organizations
+                WHERE user_id = $1
             )
-            ORDER BY created_at DESC
-            LIMIT $2
+            SELECT a.app_id, a.name, a.description, a.created_at
+            FROM apps a
+            INNER JOIN user_orgs uo ON uo.organization_id = a.organization_id
+            WHERE a.created_at < (
+                SELECT created_at FROM apps WHERE app_id = $2
+            )
+            ORDER BY a.created_at DESC
+            LIMIT $3
             "#,
+            session.user_id,
             cursor,
             limit + 1,
         )
@@ -151,11 +187,18 @@ pub async fn list(
         sqlx::query_as!(
             AppInfo,
             r#"
-            SELECT app_id, name, description, created_at
-            FROM apps
-            ORDER BY created_at DESC
-            LIMIT $1
+            WITH user_orgs AS (
+                SELECT organization_id
+                FROM user_organizations
+                WHERE user_id = $1
+            )
+            SELECT a.app_id, a.name, a.description, a.created_at
+            FROM apps a
+            INNER JOIN user_orgs uo ON uo.organization_id = a.organization_id
+            ORDER BY a.created_at DESC
+            LIMIT $2
             "#,
+            session.user_id,
             limit + 1,
         )
         .fetch_all(&mut *conn)

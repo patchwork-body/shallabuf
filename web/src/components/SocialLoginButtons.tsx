@@ -1,7 +1,12 @@
 import { Button } from "./ui/button";
-import { useNavigate } from "@tanstack/react-router";
+import { redirect } from "@tanstack/react-router";
 import { useMutation } from "@tanstack/react-query";
-import { trpc } from "~/trpc/client";
+import { createServerFn, useServerFn } from "@tanstack/react-start";
+import { github, google } from "~/lib/oauth";
+import { generateCodeVerifier, generateState } from "arctic";
+import { setHeader } from "@tanstack/react-start/server";
+import { cn } from "~/lib/utils";
+import { Loader2 } from "lucide-react";
 
 // Icons for social login buttons
 const GoogleIcon = () => (
@@ -25,24 +30,6 @@ const GoogleIcon = () => (
   </svg>
 );
 
-const MicrosoftIcon = () => (
-  <svg className="size-5" viewBox="0 0 23 23">
-    <path fill="#f35325" d="M1 1h10v10H1z" />
-    <path fill="#81bc06" d="M12 1h10v10H12z" />
-    <path fill="#05a6f0" d="M1 12h10v10H1z" />
-    <path fill="#ffba08" d="M12 12h10v10H12z" />
-  </svg>
-);
-
-const AppleIcon = () => (
-  <svg className="size-5" viewBox="0 0 24 24">
-    <path
-      fill="currentColor"
-      d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.78 1.18-.19 2.31-.89 3.51-.84 1.54.07 2.7.6 3.44 1.51-3.03 1.81-2.52 5.87.22 7.22-.65 1.67-1.46 3.3-2.25 4.3M12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.32 2.32-1.66 4.23-3.74 4.25"
-    />
-  </svg>
-);
-
 const GithubIcon = () => (
   <svg className="size-5" viewBox="0 0 24 24">
     <path
@@ -52,61 +39,134 @@ const GithubIcon = () => (
   </svg>
 );
 
-interface SocialLoginButtonProps {
-  provider: "google" | "microsoft" | "apple" | "github";
-  className?: string;
+interface SocialLoginButtonProps extends React.ComponentProps<"button"> {
+  provider: "google" | "github";
+  loading?: boolean;
 }
+
+const icons = {
+  google: GoogleIcon,
+  github: GithubIcon,
+};
 
 const SocialLoginButton = ({
   provider,
-  className = "",
+  className,
+  loading,
+  ...props
 }: SocialLoginButtonProps) => {
-  const navigate = useNavigate();
-  const loginMutation = useMutation({
-    ...trpc.auth.socialLogin.mutationOptions(),
-    onSuccess: () => {
-      navigate({ to: "/" });
-    },
-  });
-
-  const icons = {
-    google: GoogleIcon,
-    microsoft: MicrosoftIcon,
-    apple: AppleIcon,
-    github: GithubIcon,
-  };
-
-  const labels = {
-    google: "Continue with Google",
-    microsoft: "Continue with Microsoft",
-    apple: "Continue with Apple",
-    github: "Continue with GitHub",
-  };
-
   const Icon = icons[provider];
 
   return (
     <Button
       variant="outline"
-      className={`w-full flex items-center justify-center gap-2 ${className}`}
-      onClick={() => loginMutation.mutate({ provider })}
-      disabled={loginMutation.isPending}
+      className={cn("w-full flex items-center justify-center gap-2", className)}
+      {...props}
     >
       <Icon />
       <span>
-        {loginMutation.isPending ? "Connecting..." : labels[provider]}
+        {loading ? (
+          <>
+            <Loader2 className="size-4 animate-spin" />
+            Connecting...
+          </>
+        ) : (
+          <>
+            Continue with <span className="capitalize">{provider}</span>
+          </>
+        )}
       </span>
     </Button>
   );
 };
 
+const githubAuth = createServerFn({ method: "GET" }).handler(async () => {
+  const state = generateState();
+  const url = github.createAuthorizationURL(state, ["user:email", "read:user"]);
+
+  setHeader(
+    "Set-Cookie",
+    `github_oauth_state=${state}; Path=/; HttpOnly; Max-Age=600; SameSite=Lax${
+      process.env.NODE_ENV === "production" ? "; Secure" : ""
+    }`
+  );
+
+  throw redirect({ href: url.toString() });
+});
+
+function GithubLoginButton({
+  className,
+}: Omit<SocialLoginButtonProps, "provider">) {
+  const loginWithGithub = useServerFn(githubAuth);
+
+  const loginWithGithubQuery = useMutation({
+    mutationFn: loginWithGithub,
+  });
+
+  return (
+    <SocialLoginButton
+      className={className}
+      provider="github"
+      disabled={loginWithGithubQuery.isPending}
+      onClick={async () => loginWithGithubQuery.mutateAsync({})}
+    />
+  );
+}
+
+const googleAuth = createServerFn({ method: "GET" }).handler(async () => {
+  const state = generateState();
+  const codeVerifier = generateCodeVerifier();
+  const url = google.createAuthorizationURL(state, codeVerifier, [
+    "openid",
+    "profile",
+    "email",
+  ]);
+
+  // Set secure cookie attributes
+  const cookieOptions = [
+    'Path=/',
+    'HttpOnly',
+    'Max-Age=600',
+    'SameSite=Lax',
+    process.env.NODE_ENV === "production" ? 'Secure' : '',
+  ].filter(Boolean).join('; ');
+
+  // Set both cookies with consistent attributes
+  setHeader(
+    "Set-Cookie",
+    [
+      `google_oauth_state=${state}; ${cookieOptions}`,
+      `google_code_verifier=${codeVerifier}; ${cookieOptions}`,
+    ]
+  );
+
+  throw redirect({ href: url.toString() });
+});
+
+function GoogleLoginButton({
+  className,
+}: Omit<SocialLoginButtonProps, "provider">) {
+  const loginWithGoogle = useServerFn(googleAuth);
+
+  const loginWithGoogleQuery = useMutation({
+    mutationFn: loginWithGoogle,
+  });
+
+  return (
+    <SocialLoginButton
+      className={className}
+      provider="google"
+      disabled={loginWithGoogleQuery.isPending}
+      onClick={async () => loginWithGoogleQuery.mutateAsync({})}
+    />
+  );
+}
+
 export function SocialLoginButtons() {
   return (
     <div className="flex flex-col gap-3">
-      <SocialLoginButton provider="github" />
-      <SocialLoginButton provider="google" />
-      <SocialLoginButton provider="apple" />
-      <SocialLoginButton provider="microsoft" />
+      <GithubLoginButton />
+      <GoogleLoginButton />
     </div>
   );
 }
