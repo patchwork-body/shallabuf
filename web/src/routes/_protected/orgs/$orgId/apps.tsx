@@ -5,7 +5,7 @@ import { ListAppsResponse } from "~/lib/schemas";
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import { TRPCClientError } from "@trpc/client";
 
-export const Route = createFileRoute("/_protected/orgs/$orgId/")({
+export const Route = createFileRoute("/_protected/orgs/$orgId/apps")({
   beforeLoad: async ({ context, params }) => {
     try {
       await context.queryClient.ensureInfiniteQueryData({

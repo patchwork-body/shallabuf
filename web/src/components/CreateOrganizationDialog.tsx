@@ -37,7 +37,7 @@ export function CreateOrganizationDialog({
       await queryClient.invalidateQueries(trpc.orgs.list.queryOptions({}));
       setOpen(false);
       onSuccess?.();
-      navigate({ to: "/orgs/$orgId", params: { orgId: id } });
+      navigate({ to: "/orgs/$orgId/apps", params: { orgId: id } });
     },
   });
 

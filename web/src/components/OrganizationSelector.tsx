@@ -34,7 +34,7 @@ export const OrganizationSelector = () => {
 
   const handleOrgSelect = useCallback(
     (org: Organization) => {
-      navigate({ to: "/orgs/$orgId", params: { orgId: org.id } });
+      navigate({ to: "/orgs/$orgId/apps", params: { orgId: org.id } });
       setOpen(false);
     },
     [navigate, setOpen]
