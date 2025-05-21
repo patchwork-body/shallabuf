@@ -237,18 +237,6 @@ pub async fn github_login(
 
             let mut transaction = conn.begin().await.map_err(AuthError::Database)?;
 
-            let organization = sqlx::query!(
-                r#"
-                INSERT INTO organizations (name)
-                VALUES ($1)
-                RETURNING id
-                "#,
-                format!("{user_name}'s Organization"),
-            )
-            .fetch_one(&mut *transaction)
-            .await
-            .map_err(AuthError::Database)?;
-
             let new_user = sqlx::query!(
                 r#"
                 INSERT INTO users (name, email, email_verified)
@@ -271,18 +259,6 @@ pub async fn github_login(
                 new_user.id,
                 KeyProviderType::Github as KeyProviderType,
                 github_user.id.to_string(),
-            )
-            .execute(&mut *transaction)
-            .await
-            .map_err(AuthError::Database)?;
-
-            sqlx::query!(
-                r#"
-                INSERT INTO user_organizations (user_id, organization_id)
-                VALUES ($1, $2)
-                "#,
-                new_user.id,
-                organization.id,
             )
             .execute(&mut *transaction)
             .await
@@ -411,18 +387,6 @@ pub async fn google_login(
 
             let mut transaction = conn.begin().await.map_err(AuthError::Database)?;
 
-            let organization = sqlx::query!(
-                r#"
-                INSERT INTO organizations (name)
-                VALUES ($1)
-                RETURNING id
-                "#,
-                format!("{user_name}'s Organization"),
-            )
-            .fetch_one(&mut *transaction)
-            .await
-            .map_err(AuthError::Database)?;
-
             let new_user = sqlx::query!(
                 r#"
                 INSERT INTO users (name, email, email_verified)
@@ -445,18 +409,6 @@ pub async fn google_login(
                 new_user.id,
                 KeyProviderType::Google as KeyProviderType,
                 claims.sub,
-            )
-            .execute(&mut *transaction)
-            .await
-            .map_err(AuthError::Database)?;
-
-            sqlx::query!(
-                r#"
-                INSERT INTO user_organizations (user_id, organization_id)
-                VALUES ($1, $2)
-                "#,
-                new_user.id,
-                organization.id,
             )
             .execute(&mut *transaction)
             .await

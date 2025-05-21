@@ -18,6 +18,7 @@ use crate::extractors::{database_connection::DatabaseConnection, session::Sessio
 #[derive(Debug, Serialize, Deserialize, Validate)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateAppRequest {
+    pub organization_id: Uuid,
     #[validate(length(min = 1, max = 255))]
     pub name: String,
     #[validate(length(min = 1, max = 255))]
@@ -67,7 +68,7 @@ impl AppCredentials {
 }
 
 pub async fn create(
-    Session(session): Session,
+    Session(_session): Session,
     DatabaseConnection(mut conn): DatabaseConnection,
     Json(payload): Json<CreateAppRequest>,
 ) -> Result<Json<CreateAppResponse>, (axum::http::StatusCode, String)> {
@@ -78,34 +79,6 @@ pub async fn create(
         )
     })?;
 
-    // Get the user's organization
-    let org = sqlx::query!(
-        r#"
-        SELECT organization_id
-        FROM user_organizations
-        WHERE user_id = $1
-        LIMIT 1
-        "#,
-        session.user_id,
-    )
-    .fetch_optional(&mut *conn)
-    .await
-    .map_err(|e| {
-        (
-            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Failed to fetch user organization: {e}"),
-        )
-    })?;
-
-    let organization_id = org
-        .ok_or_else(|| {
-            (
-                axum::http::StatusCode::FORBIDDEN,
-                "User does not belong to any organization".to_string(),
-            )
-        })?
-        .organization_id;
-
     sqlx::query!(
         r#"
         INSERT INTO apps (app_id, app_secret_hash, name, description, organization_id)
@@ -115,7 +88,7 @@ pub async fn create(
         credentials.secret_hash,
         payload.name,
         payload.description,
-        organization_id,
+        payload.organization_id,
     )
     .execute(&mut *conn)
     .await

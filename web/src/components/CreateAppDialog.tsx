@@ -17,19 +17,23 @@ import {
 import { PlusIcon } from "lucide-react";
 import { CreateAppResponse, createAppSchema } from "~/lib/schemas";
 import { safeParse } from "valibot";
+import { useParams } from "@tanstack/react-router";
 
 interface CreateAppDialogProps {
   onSuccess: (data: CreateAppResponse) => void;
 }
 
 export function CreateAppDialog({ onSuccess }: CreateAppDialogProps) {
+  const { orgId } = useParams({ strict: false });
   const [open, setOpen] = useState(false);
   const queryClient = useQueryClient();
+
   const createAppMutation = useMutation({
     ...trpc.apps.create.mutationOptions(),
     onSuccess: async (data) => {
       await queryClient.invalidateQueries(
         trpc.apps.list.infiniteQueryOptions({
+          organizationId: orgId ?? "",
           cursor: undefined,
           limit: 10,
         })
@@ -42,6 +46,7 @@ export function CreateAppDialog({ onSuccess }: CreateAppDialogProps) {
 
   const form = useForm({
     defaultValues: {
+      organizationId: orgId ?? "",
       name: "",
       description: "",
     },
@@ -91,6 +96,12 @@ export function CreateAppDialog({ onSuccess }: CreateAppDialogProps) {
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="space-y-6">
+          <form.Field name="organizationId">
+            {(field) => (
+              <Input type="hidden" value={field.state.value} />
+            )}
+          </form.Field>
+
           <form.Field name="name">
             {(field) => (
               <div className="space-y-1">

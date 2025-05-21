@@ -17,12 +17,14 @@ import {
 import { editAppSchema, type AppInfo } from "~/lib/schemas";
 import { PencilIcon } from "lucide-react";
 import { safeParse } from "valibot";
+import { useParams } from "@tanstack/react-router";
 
 interface EditAppDialogProps {
   app: AppInfo;
 }
 
 export function EditAppDialog({ app }: EditAppDialogProps) {
+  const { orgId } = useParams({ strict: false });
   const [open, setOpen] = useState(false);
   const queryClient = useQueryClient();
 
@@ -31,6 +33,7 @@ export function EditAppDialog({ app }: EditAppDialogProps) {
     onSuccess: async () => {
       await queryClient.invalidateQueries(
         trpc.apps.list.infiniteQueryOptions({
+          organizationId: orgId ?? "",
           cursor: undefined,
           limit: 10,
         })

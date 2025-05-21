@@ -16,6 +16,7 @@ import {
 } from "./ui/dialog";
 import { createOrganizationSchema } from "~/lib/schemas";
 import { safeParse } from "valibot";
+import { useNavigate } from "@tanstack/react-router";
 
 interface CreateOrganizationDialogProps {
   onSuccess?: () => void;
@@ -28,12 +29,15 @@ export function CreateOrganizationDialog({
 }: CreateOrganizationDialogProps) {
   const [open, setOpen] = useState(false);
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
+
   const createOrgMutation = useMutation({
     ...trpc.orgs.create.mutationOptions(),
-    onSuccess: async () => {
+    onSuccess: async ({ id }) => {
       await queryClient.invalidateQueries(trpc.orgs.list.queryOptions({}));
       setOpen(false);
       onSuccess?.();
+      navigate({ to: "/orgs/$orgId", params: { orgId: id } });
     },
   });
 

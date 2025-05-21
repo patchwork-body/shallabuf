@@ -9,6 +9,7 @@ import {
   optional,
   type InferOutput,
   pipe,
+  uuid,
 } from "valibot";
 
 export const loginSchema = object({
@@ -42,6 +43,7 @@ export const listAppsResponseSchema = object({
 export type ListAppsResponse = InferOutput<typeof listAppsResponseSchema>;
 
 export const createAppSchema = object({
+  organizationId: pipe(string(), uuid()),
   name: pipe(
     string(),
     minLength(1, "Name is required"),

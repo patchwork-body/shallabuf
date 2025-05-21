@@ -44,6 +44,10 @@ export const OrganizationSelector = () => {
     setOpen(false);
   }, [setOpen]);
 
+  if (organizations.length === 0) {
+    return null;
+  }
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
