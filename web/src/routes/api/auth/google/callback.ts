@@ -98,7 +98,7 @@ export const APIRoute = createAPIFileRoute("/api/auth/google/callback")({
         ).toUTCString()}`
       );
 
-      headers.append("Location", "/dashboard");
+      headers.append("Location", "/orgs");
 
       return new Response(null, {
         status: 302,

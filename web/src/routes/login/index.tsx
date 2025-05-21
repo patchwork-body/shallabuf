@@ -31,7 +31,7 @@ function Login() {
       try {
         await loginMutation.mutateAsync(value);
         await router.invalidate()
-        router.navigate({ to: "/dashboard" });
+        router.navigate({ to: "/orgs" });
       } catch (err) {
         console.error(err);
       }

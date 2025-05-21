@@ -5,7 +5,7 @@ import { ListAppsResponse } from "~/lib/schemas";
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import { TRPCClientError } from "@trpc/client";
 
-export const Route = createFileRoute("/_protected/dashboard")({
+export const Route = createFileRoute("/_protected/orgs/$orgId")({
   beforeLoad: async ({ context, location }) => {
     if (!context.session) {
       throw redirect({
@@ -25,9 +25,7 @@ export const Route = createFileRoute("/_protected/dashboard")({
         getNextPageParam: (lastPage: ListAppsResponse) => lastPage.nextCursor,
       });
 
-      const dehydratedState = dehydrate(context.queryClient);
-
-      return { dehydratedState };
+      await context.queryClient.ensureQueryData(trpc.orgs.list.queryOptions({}));
     } catch (error) {
       if (error instanceof TRPCClientError) {
         if (error.data.code === "UNAUTHORIZED") {
@@ -37,6 +35,10 @@ export const Route = createFileRoute("/_protected/dashboard")({
 
       throw error;
     }
+
+    const dehydratedState = dehydrate(context.queryClient);
+
+    return { dehydratedState };
   },
   component: RouteComponent,
 });

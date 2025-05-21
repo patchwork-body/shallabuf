@@ -4,8 +4,7 @@ use axum::{
     response::Response,
 };
 
-use crate::app_state::AppState;
-use crate::config::Config;
+use crate::{app_state::AppState, config::Config};
 
 pub struct ConfigExtractor(pub Config);
 

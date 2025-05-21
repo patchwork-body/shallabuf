@@ -16,6 +16,7 @@ import {
 } from "./ui/dialog";
 import { editAppSchema, type AppInfo } from "~/lib/schemas";
 import { PencilIcon } from "lucide-react";
+import { safeParse } from "valibot";
 
 interface EditAppDialogProps {
   app: AppInfo;
@@ -24,6 +25,7 @@ interface EditAppDialogProps {
 export function EditAppDialog({ app }: EditAppDialogProps) {
   const [open, setOpen] = useState(false);
   const queryClient = useQueryClient();
+
   const editAppMutation = useMutation({
     ...trpc.apps.edit.mutationOptions(),
     onSuccess: async () => {
@@ -44,15 +46,17 @@ export function EditAppDialog({ app }: EditAppDialogProps) {
     },
     onSubmit: async ({ value }) => {
       try {
-        const result = editAppSchema.safeParse({
+        const result = safeParse(editAppSchema, {
           appId: app.appId,
           ...value,
         });
+
         if (!result.success) {
-          console.error(result.error);
+          console.error(result.issues);
           return;
         }
-        await editAppMutation.mutateAsync(result.data);
+
+        await editAppMutation.mutateAsync(result.output);
         form.reset();
       } catch (err) {
         console.error(err);
@@ -101,7 +105,7 @@ export function EditAppDialog({ app }: EditAppDialogProps) {
                   value={field.state.value}
                   onChange={(e) => field.handleChange(e.target.value)}
                   required
-                  disabled={editAppMutation.isPending}
+                  // disabled={editAppMutation.isPending}
                 />
                 {!field.state.meta.isValid && (
                   <div className="text-xs text-destructive">
@@ -126,7 +130,7 @@ export function EditAppDialog({ app }: EditAppDialogProps) {
                   placeholder="A brief description of your app"
                   value={field.state.value}
                   onChange={(e) => field.handleChange(e.target.value)}
-                  disabled={editAppMutation.isPending}
+                  // disabled={editAppMutation.isPending}
                 />
                 {!field.state.meta.isValid && (
                   <div className="text-xs text-destructive">

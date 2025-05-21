@@ -1,14 +1,16 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import {
   AlertDialog,
   AlertDialogAction,
+  AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
+  AlertDialogProps,
   AlertDialogTitle,
 } from "./ui/alert-dialog";
 import { CopyIcon, CheckIcon, EyeIcon, EyeOffIcon } from "lucide-react";
@@ -40,17 +42,25 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
+export interface AppCredentialsDialogProps extends AlertDialogProps {
+  credentials: AppCredentials | null;
+  onClose: () => void;
+}
+
 export function AppCredentialsDialog({
   credentials,
   onClose,
-}: {
-  credentials: AppCredentials;
-  onClose: () => void;
-}) {
+  ...props
+}: AppCredentialsDialogProps) {
+  const [open, setOpen] = useState(false);
   const [showSecret, setShowSecret] = useState(false);
 
+  useEffect(() => {
+    setOpen(!!credentials);
+  }, [credentials]);
+
   return (
-    <AlertDialog open={true} onOpenChange={onClose}>
+    <AlertDialog open={open} onOpenChange={setOpen} {...props}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>App Created Successfully</AlertDialogTitle>
@@ -63,8 +73,8 @@ export function AppCredentialsDialog({
           <div className="space-y-2">
             <Label>App ID</Label>
             <div className="flex items-center gap-2">
-              <Input value={credentials.appId} readOnly />
-              <CopyButton text={credentials.appId} />
+              <Input value={credentials?.appId ?? ""} readOnly />
+              <CopyButton text={credentials?.appId ?? ""} />
             </div>
           </div>
           <div className="space-y-2">
@@ -73,7 +83,7 @@ export function AppCredentialsDialog({
               <div className="relative flex-1">
                 <Input
                   className="pr-12"
-                  value={credentials.appSecret}
+                  value={credentials?.appSecret ?? ""}
                   readOnly
                   type={showSecret ? "text" : "password"}
                 />
@@ -93,14 +103,14 @@ export function AppCredentialsDialog({
                   </span>
                 </Button>
               </div>
-              <CopyButton text={credentials.appSecret} />
+              <CopyButton text={credentials?.appSecret ?? ""} />
             </div>
           </div>
         </div>
         <AlertDialogFooter>
-          <AlertDialogAction onClick={onClose}>Close</AlertDialogAction>
+          <AlertDialogCancel onClick={onClose}>Close</AlertDialogCancel>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
   );
-} 
+}

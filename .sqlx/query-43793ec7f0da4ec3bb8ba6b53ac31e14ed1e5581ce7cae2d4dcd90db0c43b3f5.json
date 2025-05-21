@@ -1,0 +1,42 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            WITH user_orgs AS (\n                SELECT organization_id\n                FROM user_organizations\n                WHERE user_id = $1\n            )\n            SELECT a.app_id, a.name, a.description, a.created_at\n            FROM apps a\n            INNER JOIN user_orgs uo ON uo.organization_id = a.organization_id\n            WHERE a.created_at < (\n                SELECT created_at FROM apps WHERE app_id = $2\n            )\n            ORDER BY a.created_at DESC\n            LIMIT $3\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "app_id",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 1,
+        "name": "name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "description",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "43793ec7f0da4ec3bb8ba6b53ac31e14ed1e5581ce7cae2d4dcd90db0c43b3f5"
+}

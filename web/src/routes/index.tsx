@@ -47,7 +47,7 @@ function Index() {
         </p>
         <div className="flex flex-col sm:flex-row gap-4 justify-center mb-10">
           <a
-            href={session ? "/dashboard" : "/login"}
+            href={session ? "/orgs" : "/login"}
             className="px-8 py-3 bg-primary text-white rounded-full font-bold text-lg shadow hover:bg-primary/80 transition"
           >
             Start Free
@@ -187,7 +187,7 @@ function Index() {
             desc="Sync player state, lobbies, and game sessions live."
           />
           <BenefitCard
-            title="Live Dashboards"
+            title="Live Dashboard"
             desc="Broadcast analytics, metrics, and IoT data to all viewers."
           />
         </div>

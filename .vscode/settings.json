@@ -2,10 +2,12 @@
   "cSpell.words": [
     "alexpass",
     "autodocs",
+    "chrono",
     "circlehollow",
     "cpus",
     "Crdt",
     "dotenv",
+    "dotenvy",
     "Entra",
     "jsonwebtoken",
     "oklch",
@@ -15,12 +17,15 @@
     "reqwest",
     "SADD",
     "SCARD",
+    "serde",
     "shallabuf",
     "SISMEMBER",
     "sonicus",
     "sqlx",
     "SREM",
+    "thiserror",
     "tungstenite",
+    "valibot",
     "vinxi"
   ]
 }

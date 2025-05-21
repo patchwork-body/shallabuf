@@ -55,14 +55,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let apps_router = Router::new()
         .route("/", post(routes::apps::create))
-        .route("/list", get(routes::apps::list))
+        .route("/", get(routes::apps::list))
         .route("/{app_id}", post(routes::apps::edit))
         .route("/{app_id}", delete(routes::apps::delete));
+
+    let orgs_router = Router::new()
+        .route("/", post(routes::orgs::create))
+        .route("/", get(routes::orgs::list))
+        .route("/{org_id}", get(routes::orgs::retrieve))
+        .route("/{org_id}", post(routes::orgs::edit))
+        .route("/{org_id}", delete(routes::orgs::delete));
 
     let api_v0 = Router::new()
         .nest("/jwt", jwt_router)
         .nest("/auth", auth_router)
-        .nest("/apps", apps_router);
+        .nest("/apps", apps_router)
+        .nest("/orgs", orgs_router);
 
     let app = Router::new()
         .nest("/api/v0", api_v0)

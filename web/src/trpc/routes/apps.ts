@@ -55,7 +55,7 @@ export const appsRouter = createTRPCRouter({
 
       try {
         const response = await fetch(
-          `${env.API_URL}/apps/list?${searchParams.toString()}`,
+          `${env.API_URL}/apps?${searchParams.toString()}`,
           {
             method: "GET",
             headers: {

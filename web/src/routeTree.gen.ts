@@ -13,7 +13,8 @@
 import { Route as rootRoute } from './routes/__root'
 import { Route as IndexImport } from './routes/index'
 import { Route as LoginIndexImport } from './routes/login/index'
-import { Route as ProtectedDashboardImport } from './routes/_protected/dashboard'
+import { Route as ProtectedOrgsIndexImport } from './routes/_protected/orgs/index'
+import { Route as ProtectedOrgsOrgIdImport } from './routes/_protected/orgs/$orgId'
 
 // Create/Update Routes
 
@@ -29,9 +30,15 @@ const LoginIndexRoute = LoginIndexImport.update({
   getParentRoute: () => rootRoute,
 } as any)
 
-const ProtectedDashboardRoute = ProtectedDashboardImport.update({
-  id: '/_protected/dashboard',
-  path: '/dashboard',
+const ProtectedOrgsIndexRoute = ProtectedOrgsIndexImport.update({
+  id: '/_protected/orgs/',
+  path: '/orgs/',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const ProtectedOrgsOrgIdRoute = ProtectedOrgsOrgIdImport.update({
+  id: '/_protected/orgs/$orgId',
+  path: '/orgs/$orgId',
   getParentRoute: () => rootRoute,
 } as any)
 
@@ -46,18 +53,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexImport
       parentRoute: typeof rootRoute
     }
-    '/_protected/dashboard': {
-      id: '/_protected/dashboard'
-      path: '/dashboard'
-      fullPath: '/dashboard'
-      preLoaderRoute: typeof ProtectedDashboardImport
-      parentRoute: typeof rootRoute
-    }
     '/login/': {
       id: '/login/'
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginIndexImport
+      parentRoute: typeof rootRoute
+    }
+    '/_protected/orgs/$orgId': {
+      id: '/_protected/orgs/$orgId'
+      path: '/orgs/$orgId'
+      fullPath: '/orgs/$orgId'
+      preLoaderRoute: typeof ProtectedOrgsOrgIdImport
+      parentRoute: typeof rootRoute
+    }
+    '/_protected/orgs/': {
+      id: '/_protected/orgs/'
+      path: '/orgs'
+      fullPath: '/orgs'
+      preLoaderRoute: typeof ProtectedOrgsIndexImport
       parentRoute: typeof rootRoute
     }
   }
@@ -67,42 +81,52 @@ declare module '@tanstack/react-router' {
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/dashboard': typeof ProtectedDashboardRoute
   '/login': typeof LoginIndexRoute
+  '/orgs/$orgId': typeof ProtectedOrgsOrgIdRoute
+  '/orgs': typeof ProtectedOrgsIndexRoute
 }
 
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/dashboard': typeof ProtectedDashboardRoute
   '/login': typeof LoginIndexRoute
+  '/orgs/$orgId': typeof ProtectedOrgsOrgIdRoute
+  '/orgs': typeof ProtectedOrgsIndexRoute
 }
 
 export interface FileRoutesById {
   __root__: typeof rootRoute
   '/': typeof IndexRoute
-  '/_protected/dashboard': typeof ProtectedDashboardRoute
   '/login/': typeof LoginIndexRoute
+  '/_protected/orgs/$orgId': typeof ProtectedOrgsOrgIdRoute
+  '/_protected/orgs/': typeof ProtectedOrgsIndexRoute
 }
 
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/dashboard' | '/login'
+  fullPaths: '/' | '/login' | '/orgs/$orgId' | '/orgs'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/dashboard' | '/login'
-  id: '__root__' | '/' | '/_protected/dashboard' | '/login/'
+  to: '/' | '/login' | '/orgs/$orgId' | '/orgs'
+  id:
+    | '__root__'
+    | '/'
+    | '/login/'
+    | '/_protected/orgs/$orgId'
+    | '/_protected/orgs/'
   fileRoutesById: FileRoutesById
 }
 
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  ProtectedDashboardRoute: typeof ProtectedDashboardRoute
   LoginIndexRoute: typeof LoginIndexRoute
+  ProtectedOrgsOrgIdRoute: typeof ProtectedOrgsOrgIdRoute
+  ProtectedOrgsIndexRoute: typeof ProtectedOrgsIndexRoute
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  ProtectedDashboardRoute: ProtectedDashboardRoute,
   LoginIndexRoute: LoginIndexRoute,
+  ProtectedOrgsOrgIdRoute: ProtectedOrgsOrgIdRoute,
+  ProtectedOrgsIndexRoute: ProtectedOrgsIndexRoute,
 }
 
 export const routeTree = rootRoute
@@ -116,18 +140,22 @@ export const routeTree = rootRoute
       "filePath": "__root.tsx",
       "children": [
         "/",
-        "/_protected/dashboard",
-        "/login/"
+        "/login/",
+        "/_protected/orgs/$orgId",
+        "/_protected/orgs/"
       ]
     },
     "/": {
       "filePath": "index.tsx"
     },
-    "/_protected/dashboard": {
-      "filePath": "_protected/dashboard.tsx"
-    },
     "/login/": {
       "filePath": "login/index.tsx"
+    },
+    "/_protected/orgs/$orgId": {
+      "filePath": "_protected/orgs/$orgId.tsx"
+    },
+    "/_protected/orgs/": {
+      "filePath": "_protected/orgs/index.tsx"
     }
   }
 }

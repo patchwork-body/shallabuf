@@ -10,13 +10,16 @@ use base64::{Engine as _, engine::general_purpose::URL_SAFE};
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
+use validator::Validate;
 
 use crate::extractors::{database_connection::DatabaseConnection, session::Session};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Validate)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateAppRequest {
+    #[validate(length(min = 1, max = 255))]
     pub name: String,
+    #[validate(length(min = 1, max = 255))]
     pub description: Option<String>,
 }
 
@@ -141,7 +144,7 @@ pub struct AppInfo {
     pub app_id: String,
     pub name: String,
     pub description: Option<String>,
-    #[serde(with = "time::serde::iso8601")]
+    #[serde(with = "time::serde::rfc3339")]
     pub created_at: OffsetDateTime,
 }
 
@@ -221,10 +224,12 @@ pub async fn list(
     Ok(Json(ListAppsResponse { apps, next_cursor }))
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Validate)]
 #[serde(rename_all = "camelCase")]
 pub struct EditAppRequest {
+    #[validate(length(min = 1, max = 255))]
     pub name: Option<String>,
+    #[validate(length(min = 1, max = 255))]
     pub description: Option<String>,
 }
 

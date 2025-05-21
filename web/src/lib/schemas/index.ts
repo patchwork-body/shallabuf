@@ -1,67 +1,102 @@
-import { z } from "zod";
+import {
+  object,
+  string,
+  array,
+  minLength,
+  maxLength,
+  email,
+  nullable,
+  optional,
+  type InferOutput,
+  pipe,
+} from "valibot";
 
-export const loginSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(8),
+export const loginSchema = object({
+  email: pipe(string(), email()),
+  password: pipe(string(), minLength(8)),
 });
 
-export type Login = z.infer<typeof loginSchema>;
+export type Login = InferOutput<typeof loginSchema>;
 
-export const sessionSchema = z.object({
-  id: z.string(),
-  expiresAt: z.string(),
+export const sessionSchema = object({
+  id: string(),
+  expiresAt: string(),
 });
 
-export type Session = z.infer<typeof sessionSchema>;
+export type Session = InferOutput<typeof sessionSchema>;
 
-export const appInfoSchema = z.object({
-  appId: z.string(),
-  name: z.string(),
-  description: z.string().nullable(),
-  createdAt: z.string(), // OffsetDateTime will be serialized as ISO string
+export const appInfoSchema = object({
+  appId: string(),
+  name: string(),
+  description: nullable(string()),
+  createdAt: string(),
 });
 
-export type AppInfo = z.infer<typeof appInfoSchema>;
+export type AppInfo = InferOutput<typeof appInfoSchema>;
 
-export const listAppsResponseSchema = z.object({
-  apps: z.array(appInfoSchema),
-  nextCursor: z.string().nullable(),
+export const listAppsResponseSchema = object({
+  apps: array(appInfoSchema),
+  nextCursor: nullable(string()),
 });
 
-export type ListAppsResponse = z.infer<typeof listAppsResponseSchema>;
+export type ListAppsResponse = InferOutput<typeof listAppsResponseSchema>;
 
-export const createAppSchema = z.object({
-  name: z
-    .string()
-    .min(1, "Name is required")
-    .max(50, "Name must be less than 50 characters"),
-  description: z
-    .string()
-    .max(200, "Description must be less than 200 characters")
-    .optional(),
+export const createAppSchema = object({
+  name: pipe(
+    string(),
+    minLength(1, "Name is required"),
+    maxLength(50, "Name must be less than 50 characters")
+  ),
+  description: optional(
+    pipe(
+      string(),
+      maxLength(200, "Description must be less than 200 characters")
+    )
+  ),
 });
 
-export type CreateApp = z.infer<typeof createAppSchema>;
+export type CreateApp = InferOutput<typeof createAppSchema>;
 
-export const createAppResponseSchema = z.object({
-  appId: z.string(),
-  appSecret: z.string(),
+export const createAppResponseSchema = object({
+  appId: string(),
+  appSecret: string(),
 });
 
-export type CreateAppResponse = z.infer<typeof createAppResponseSchema>;
+export type CreateAppResponse = InferOutput<typeof createAppResponseSchema>;
 
-export const editAppSchema = z.object({
-  appId: z.string(),
-  name: z.string().optional(),
-  description: z.string().optional(),
+export const editAppSchema = object({
+  appId: string(),
+  name: optional(string()),
+  description: optional(string()),
 });
 
-export type EditApp = z.infer<typeof editAppSchema>;
+export type EditApp = InferOutput<typeof editAppSchema>;
 
-export const editAppResponseSchema = z.object({
-  appId: z.string(),
-  name: z.string(),
-  description: z.string().nullable(),
+export const editAppResponseSchema = object({
+  appId: string(),
+  name: string(),
+  description: nullable(string()),
 });
 
-export type EditAppResponse = z.infer<typeof editAppResponseSchema>;
+export type EditAppResponse = InferOutput<typeof editAppResponseSchema>;
+
+export const organizationSchema = object({
+  id: string(),
+  name: string(),
+  createdAt: string(),
+  updatedAt: string(),
+});
+
+export type Organization = InferOutput<typeof organizationSchema>;
+
+export const createOrganizationSchema = object({
+  name: pipe(string(), minLength(1), maxLength(255)),
+});
+
+export type CreateOrganization = InferOutput<typeof createOrganizationSchema>;
+
+export const updateOrganizationSchema = object({
+  name: pipe(string(), minLength(1), maxLength(255)),
+});
+
+export type UpdateOrganization = InferOutput<typeof updateOrganizationSchema>;

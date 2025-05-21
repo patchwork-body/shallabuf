@@ -6,8 +6,8 @@ CREATE TABLE apps (
     name VARCHAR(255) NOT NULL,
     description TEXT,
     organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT timezone('UTC', CURRENT_TIMESTAMP),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT timezone('UTC', CURRENT_TIMESTAMP)
 );
 
 -- Create indexes on app_id and organization_id for faster lookups

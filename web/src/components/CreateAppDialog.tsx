@@ -15,12 +15,15 @@ import {
   DialogTrigger,
 } from "./ui/dialog";
 import { PlusIcon } from "lucide-react";
-import { createAppSchema } from "~/lib/schemas";
-import { AppCredentials, AppCredentialsDialog } from "./AppCredentialsDialog";
+import { CreateAppResponse, createAppSchema } from "~/lib/schemas";
+import { safeParse } from "valibot";
 
-export function CreateAppDialog() {
+interface CreateAppDialogProps {
+  onSuccess: (data: CreateAppResponse) => void;
+}
+
+export function CreateAppDialog({ onSuccess }: CreateAppDialogProps) {
   const [open, setOpen] = useState(false);
-  const [credentials, setCredentials] = useState<AppCredentials | null>(null);
   const queryClient = useQueryClient();
   const createAppMutation = useMutation({
     ...trpc.apps.create.mutationOptions(),
@@ -32,8 +35,8 @@ export function CreateAppDialog() {
         })
       );
 
-      setCredentials(data);
       setOpen(false);
+      onSuccess(data);
     },
   });
 
@@ -42,14 +45,20 @@ export function CreateAppDialog() {
       name: "",
       description: "",
     },
+    validators: {
+      onSubmit: ({ value }) => {
+        const result = safeParse(createAppSchema, value);
+
+        if (!result.success) {
+          return result.issues.map((issue) => issue.message);
+        }
+
+        return null;
+      },
+    },
     onSubmit: async ({ value }) => {
       try {
-        const result = createAppSchema.safeParse(value);
-        if (!result.success) {
-          console.error(result.error);
-          return;
-        }
-        await createAppMutation.mutateAsync(result.data);
+        await createAppMutation.mutateAsync(value);
         form.reset();
       } catch (err) {
         console.error(err);
@@ -67,93 +76,84 @@ export function CreateAppDialog() {
   );
 
   return (
-    <>
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogTrigger asChild>
-          <Button className="w-full">
-            <PlusIcon className="w-4 h-4" />
-            Create New App
-          </Button>
-        </DialogTrigger>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Create New App</DialogTitle>
-            <DialogDescription>
-              Create a new app to get started with Shallabuf.
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={submit} className="space-y-6">
-            <form.Field name="name">
-              {(field) => (
-                <div className="space-y-1">
-                  <Label
-                    htmlFor={field.name}
-                    className="block text-sm font-medium dark:text-white/90"
-                  >
-                    Name
-                  </Label>
-                  <Input
-                    id={field.name}
-                    type="text"
-                    placeholder="My Awesome App"
-                    value={field.state.value}
-                    onChange={(e) => field.handleChange(e.target.value)}
-                    required
-                    disabled={createAppMutation.isPending}
-                  />
-                  {!field.state.meta.isValid && (
-                    <div className="text-xs text-destructive">
-                      {field.state.meta.errors.join(", ")}
-                    </div>
-                  )}
-                </div>
-              )}
-            </form.Field>
-            <form.Field name="description">
-              {(field) => (
-                <div className="space-y-1">
-                  <Label
-                    htmlFor={field.name}
-                    className="block text-sm font-medium dark:text-white/90"
-                  >
-                    Description
-                  </Label>
-                  <Input
-                    id={field.name}
-                    type="text"
-                    placeholder="A brief description of your app"
-                    value={field.state.value}
-                    onChange={(e) => field.handleChange(e.target.value)}
-                    disabled={createAppMutation.isPending}
-                  />
-                  {!field.state.meta.isValid && (
-                    <div className="text-xs text-destructive">
-                      {field.state.meta.errors.join(", ")}
-                    </div>
-                  )}
-                </div>
-              )}
-            </form.Field>
-            {createAppMutation.error && (
-              <div className="text-sm text-destructive dark:text-destructive/90 text-center">
-                {createAppMutation.error.message}
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button className="w-full">
+          <PlusIcon className="w-4 h-4" />
+          Create New App
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Create New App</DialogTitle>
+          <DialogDescription>
+            Create a new app to get started with Shallabuf.
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={submit} className="space-y-6">
+          <form.Field name="name">
+            {(field) => (
+              <div className="space-y-1">
+                <Label
+                  htmlFor={field.name}
+                  className="block text-sm font-medium dark:text-white/90"
+                >
+                  Name
+                </Label>
+                <Input
+                  id={field.name}
+                  type="text"
+                  placeholder="My Awesome App"
+                  value={field.state.value}
+                  onChange={(e) => field.handleChange(e.target.value)}
+                  required
+                  disabled={createAppMutation.isPending}
+                />
+                {!field.state.meta.isValid && (
+                  <div className="text-xs text-destructive">
+                    {field.state.meta.errors.join(", ")}
+                  </div>
+                )}
               </div>
             )}
-            <DialogFooter>
-              <Button type="submit" disabled={createAppMutation.isPending}>
-                {createAppMutation.isPending ? "Creating..." : "Create App"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      {credentials && (
-        <AppCredentialsDialog
-          credentials={credentials}
-          onClose={() => setCredentials(null)}
-        />
-      )}
-    </>
+          </form.Field>
+          <form.Field name="description">
+            {(field) => (
+              <div className="space-y-1">
+                <Label
+                  htmlFor={field.name}
+                  className="block text-sm font-medium dark:text-white/90"
+                >
+                  Description
+                </Label>
+                <Input
+                  id={field.name}
+                  type="text"
+                  placeholder="A brief description of your app"
+                  value={field.state.value}
+                  onChange={(e) => field.handleChange(e.target.value)}
+                  disabled={createAppMutation.isPending}
+                />
+                {!field.state.meta.isValid && (
+                  <div className="text-xs text-destructive">
+                    {field.state.meta.errors.join(", ")}
+                  </div>
+                )}
+              </div>
+            )}
+          </form.Field>
+          {createAppMutation.error && (
+            <div className="text-sm text-destructive dark:text-destructive/90 text-center">
+              {createAppMutation.error.message}
+            </div>
+          )}
+          <DialogFooter>
+            <Button type="submit" disabled={createAppMutation.isPending}>
+              {createAppMutation.isPending ? "Creating..." : "Create App"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }

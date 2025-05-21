@@ -1,17 +1,18 @@
-import { useState } from "react";
 import { AppInfo } from "~/lib/schemas";
-import { Button } from "./ui/button";
+import { Button, buttonVariants } from "./ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogClose,
-} from "./ui/dialog";
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from "./ui/alert-dialog";
 import { TrashIcon } from "lucide-react";
+import { cn } from "~/lib/utils";
 
 interface RemoveAppDialogProps {
   app: AppInfo;
@@ -19,45 +20,39 @@ interface RemoveAppDialogProps {
   isDeleting: boolean;
 }
 
-export function RemoveAppDialog({ app, onDelete, isDeleting }: RemoveAppDialogProps) {
-  const [open, setOpen] = useState(false);
-
+export function RemoveAppDialog({
+  app,
+  onDelete,
+  isDeleting,
+}: RemoveAppDialogProps) {
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button
-          variant="destructive"
-          size="sm"
-          onClick={() => setOpen(true)}
-        >
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <Button variant="destructive" size="sm">
           <TrashIcon className="size-4" />
           Remove
         </Button>
-      </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Remove App</DialogTitle>
-          <DialogDescription>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Remove App</AlertDialogTitle>
+          <AlertDialogDescription>
             Are you sure you want to remove{" "}
             <span className="font-semibold">{app.name}</span>? This action
             cannot be undone.
-          </DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
-          <DialogClose asChild>
-            <Button variant="outline" disabled={isDeleting}>
-              Cancel
-            </Button>
-          </DialogClose>
-          <Button
-            variant="destructive"
-            onClick={onDelete}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+          <AlertDialogAction
             disabled={isDeleting}
+            onClick={onDelete}
+            className={cn(buttonVariants({ variant: "destructive" }))}
           >
             {isDeleting ? "Removing..." : "Remove"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
-} 
+}
