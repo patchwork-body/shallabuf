@@ -3,12 +3,15 @@ import { trpc } from "~/trpc/client";
 import { Skeleton } from "~/components/ui/skeleton";
 
 export interface OrgsAppsMiniListProps {
-  orgId: string;
+  organizationId: string;
 }
 
-export const OrgsAppsMiniList = ({ orgId }: OrgsAppsMiniListProps) => {
+export const OrgsAppsMiniList = ({
+  organizationId,
+}: OrgsAppsMiniListProps) => {
   const appsQuery = useQuery({
     ...trpc.apps.list.queryOptions({
+      organizationId,
       limit: 5,
     }),
     staleTime: 0,

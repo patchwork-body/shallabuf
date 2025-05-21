@@ -50,6 +50,7 @@ pub struct ListOrganizationsResponse {
 }
 
 pub async fn create(
+    Session(session): Session,
     DatabaseConnection(mut conn): DatabaseConnection,
     Json(payload): Json<CreateOrganization>,
 ) -> Result<Json<Organization>, (StatusCode, String)> {
@@ -71,6 +72,18 @@ pub async fn create(
         payload.name
     )
     .fetch_one(&mut *conn)
+    .await
+    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    sqlx::query!(
+        r#"
+        INSERT INTO user_organizations (user_id, organization_id)
+        VALUES ($1, $2)
+        "#,
+        session.user_id,
+        org.id
+    )
+    .execute(&mut *conn)
     .await
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 

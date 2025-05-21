@@ -11,11 +11,16 @@ import { AppCard } from "./AppCard";
 import { AppCredentials, AppCredentialsDialog } from "./AppCredentialsDialog";
 import { useCallback, useState } from "react";
 
-export function AppList() {
+export interface AppListProps {
+  organizationId: string;
+}
+
+export function AppList({ organizationId }: AppListProps) {
   const [credentials, setCredentials] = useState<AppCredentials | null>(null);
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage } =
     useInfiniteQuery({
       ...trpc.apps.list.infiniteQueryOptions({
+        organizationId,
         cursor: undefined,
         limit: 10,
       }),
@@ -27,7 +32,11 @@ export function AppList() {
     ...trpc.apps.delete.mutationOptions(),
     onSuccess: async () => {
       await queryClient.invalidateQueries(
-        trpc.apps.list.infiniteQueryOptions({ cursor: undefined, limit: 10 })
+        trpc.apps.list.infiniteQueryOptions({
+          organizationId,
+          cursor: undefined,
+          limit: 10,
+        })
       );
     },
   });

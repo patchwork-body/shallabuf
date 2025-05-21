@@ -4,7 +4,6 @@ import { object, string, array, nullable, uuid, number, minValue, maxValue, opti
 import {
   createOrganizationSchema,
   organizationSchema,
-  updateOrganizationSchema,
 } from "~/lib/schemas";
 
 export const orgsRouter = createTRPCRouter({

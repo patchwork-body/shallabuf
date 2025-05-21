@@ -1,4 +1,4 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute, redirect, useParams } from "@tanstack/react-router";
 import { trpc } from "~/trpc/client";
 import { AppList } from "~/components/AppList";
 import { ListAppsResponse } from "~/lib/schemas";
@@ -6,7 +6,7 @@ import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import { TRPCClientError } from "@trpc/client";
 
 export const Route = createFileRoute("/_protected/orgs/$orgId")({
-  beforeLoad: async ({ context, location }) => {
+  beforeLoad: async ({ context, params, location }) => {
     if (!context.session) {
       throw redirect({
         to: "/login",
@@ -19,6 +19,7 @@ export const Route = createFileRoute("/_protected/orgs/$orgId")({
     try {
       await context.queryClient.ensureInfiniteQueryData({
         ...trpc.apps.list.infiniteQueryOptions({
+          organizationId: params.orgId,
           cursor: undefined,
           limit: 10,
         }),
@@ -44,6 +45,7 @@ export const Route = createFileRoute("/_protected/orgs/$orgId")({
 });
 
 function RouteComponent() {
+  const { orgId } = useParams({ strict: false });
   const { dehydratedState } = Route.useRouteContext();
 
   return (
@@ -52,7 +54,7 @@ function RouteComponent() {
         <h1 className="text-3xl font-bold mb-8 text-gray-800 dark:text-gray-100">
           Your Apps
         </h1>
-        <AppList />
+        {orgId && <AppList organizationId={orgId} />}
       </div>
     </HydrationBoundary>
   );

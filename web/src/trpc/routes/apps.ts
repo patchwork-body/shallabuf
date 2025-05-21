@@ -37,6 +37,7 @@ export const appsRouter = createTRPCRouter({
   list: protectedProcedure
     .input(
       z.object({
+        organizationId: z.string(),
         cursor: z.string().optional(),
         limit: z.number().optional(),
       })
@@ -44,6 +45,7 @@ export const appsRouter = createTRPCRouter({
     .output(listAppsResponseSchema)
     .query(async ({ ctx, input }) => {
       const searchParams = new URLSearchParams();
+      searchParams.set("organizationId", input.organizationId);
 
       if (input.cursor) {
         searchParams.set("cursor", input.cursor);

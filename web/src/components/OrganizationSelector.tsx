@@ -16,13 +16,16 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { trpc } from "~/trpc/client";
 import { OrgsAppsMiniList } from "./OrgsAppsMiniList";
 import { Separator } from "./ui/separator";
+import { CreateOrganizationDialog } from "./CreateOrganizationDialog";
 
 export const OrganizationSelector = () => {
   const { orgId } = useParams({ strict: false });
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [hoveredOrg, setHoveredOrg] = useState<string | null>(null);
-  const orgsQuery = useSuspenseQuery(trpc.orgs.list.queryOptions({}));
+  const orgsQuery = useSuspenseQuery(
+    trpc.orgs.list.queryOptions({})
+  );
 
   const organizations = orgsQuery.data?.organizations ?? [];
   const selectedOrg = organizations.find(
@@ -37,7 +40,7 @@ export const OrganizationSelector = () => {
     [navigate, setOpen]
   );
 
-  const handleCreateOrg = useCallback(() => {
+  const handleCreateOrgSuccess = useCallback(() => {
     setOpen(false);
   }, [setOpen]);
 
@@ -81,19 +84,20 @@ export const OrganizationSelector = () => {
 
               <Separator className="my-2" />
 
-              <CommandItem
-                className="cursor-pointer"
-                onSelect={() => handleCreateOrg()}
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                Create Organization
+              <CommandItem className="cursor-pointer" asChild>
+                <CreateOrganizationDialog onSuccess={handleCreateOrgSuccess}>
+                  <Button className="w-full">
+                    <Plus className="mr-2 h-4 w-4" />
+                    Create Organization
+                  </Button>
+                </CreateOrganizationDialog>
               </CommandItem>
             </CommandGroup>
 
             <div className="hidden sm:block w-[200px] p-2">
               {hoveredOrg && (
                 <div className="space-y-2">
-                  <OrgsAppsMiniList orgId={hoveredOrg} />
+                  <OrgsAppsMiniList organizationId={hoveredOrg} />
                 </div>
               )}
             </div>

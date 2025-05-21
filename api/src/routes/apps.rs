@@ -10,6 +10,7 @@ use base64::{Engine as _, engine::general_purpose::URL_SAFE};
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
+use uuid::Uuid;
 use validator::Validate;
 
 use crate::extractors::{database_connection::DatabaseConnection, session::Session};
@@ -136,6 +137,7 @@ pub async fn create(
 pub struct ListAppsRequest {
     pub cursor: Option<String>,
     pub limit: Option<i64>,
+    pub organization_id: Uuid,
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -177,11 +179,13 @@ pub async fn list(
             WHERE a.created_at < (
                 SELECT created_at FROM apps WHERE app_id = $2
             )
+            AND a.organization_id = $3::uuid
             ORDER BY a.created_at DESC
-            LIMIT $3
+            LIMIT $4
             "#,
             session.user_id,
             cursor,
+            payload.organization_id,
             limit + 1,
         )
         .fetch_all(&mut *conn)
@@ -198,11 +202,13 @@ pub async fn list(
             SELECT a.app_id, a.name, a.description, a.created_at
             FROM apps a
             INNER JOIN user_orgs uo ON uo.organization_id = a.organization_id
+            WHERE a.organization_id = $3::uuid
             ORDER BY a.created_at DESC
             LIMIT $2
             "#,
             session.user_id,
             limit + 1,
+            payload.organization_id,
         )
         .fetch_all(&mut *conn)
         .await
