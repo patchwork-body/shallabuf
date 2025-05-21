@@ -1,7 +1,12 @@
 import { Button } from "./ui/button";
 import { trpc } from "~/trpc/client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useNavigate, useParams, Link, useMatchRoute } from "@tanstack/react-router";
+import {
+  useNavigate,
+  useParams,
+  Link,
+  useMatchRoute,
+} from "@tanstack/react-router";
 import { Logo } from "./Logo";
 import { Route } from "~/routes/__root";
 import { OrganizationSelector } from "./OrganizationSelector";
@@ -25,19 +30,17 @@ const NavLink = ({ to, params, children }: NavLinkProps) => {
   const isActive = matchRoute({ to, params });
 
   return (
-    <Link
-      to={to}
-      params={params}
+    <NavigationMenuLink
+      asChild
+      className={cn(
+        navigationMenuTriggerStyle(),
+        isActive && "bg-accent text-accent-foreground"
+      )}
     >
-      <NavigationMenuLink
-        className={cn(
-          navigationMenuTriggerStyle(),
-          isActive && "bg-accent text-accent-foreground"
-        )}
-      >
+      <Link to={to} params={params}>
         {children}
-      </NavigationMenuLink>
-    </Link>
+      </Link>
+    </NavigationMenuLink>
   );
 };
 

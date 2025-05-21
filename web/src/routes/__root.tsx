@@ -15,8 +15,7 @@ import { trpc } from "~/trpc/client";
 import { QueryClient } from "@tanstack/react-query";
 import { Header } from "~/components/Header";
 import { Session } from "~/lib/schemas";
-import { SessionProvider, useSession } from "~/contexts/session";
-import { router } from "~/client";
+import { SessionProvider } from "~/contexts/session";
 
 export const Route = createRootRouteWithContext<{
   trpc: typeof trpc;

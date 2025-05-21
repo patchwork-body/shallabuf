@@ -25,6 +25,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "~/components/ui/alert-dialog";
+import { Elements, PaymentElement } from "@stripe/react-stripe-js";
+import { getStripe, stripeOptions } from "~/lib/stripe";
 
 export const Route = createFileRoute("/_protected/orgs/$orgId/settings")({
   component: Settings,
@@ -137,12 +139,12 @@ function Settings() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {/* TODO: Implement billing options */}
-            <p className="text-sm text-muted-foreground">
-              Billing features coming soon
-            </p>
-          </div>
+          <Elements stripe={getStripe()} options={stripeOptions}>
+            <form>
+              {/* <PaymentElement /> */}
+              <button>Submit</button>
+            </form>
+          </Elements>
         </CardContent>
         <CardFooter>
           <Button variant="secondary" disabled>
