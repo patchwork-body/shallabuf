@@ -14,7 +14,8 @@ import { Route as rootRoute } from './routes/__root'
 import { Route as IndexImport } from './routes/index'
 import { Route as LoginIndexImport } from './routes/login/index'
 import { Route as ProtectedOrgsIndexImport } from './routes/_protected/orgs/index'
-import { Route as ProtectedOrgsOrgIdImport } from './routes/_protected/orgs/$orgId'
+import { Route as ProtectedOrgsOrgIdIndexImport } from './routes/_protected/orgs/$orgId/index'
+import { Route as ProtectedOrgsOrgIdSettingsImport } from './routes/_protected/orgs/$orgId/settings'
 
 // Create/Update Routes
 
@@ -36,11 +37,19 @@ const ProtectedOrgsIndexRoute = ProtectedOrgsIndexImport.update({
   getParentRoute: () => rootRoute,
 } as any)
 
-const ProtectedOrgsOrgIdRoute = ProtectedOrgsOrgIdImport.update({
-  id: '/_protected/orgs/$orgId',
-  path: '/orgs/$orgId',
+const ProtectedOrgsOrgIdIndexRoute = ProtectedOrgsOrgIdIndexImport.update({
+  id: '/_protected/orgs/$orgId/',
+  path: '/orgs/$orgId/',
   getParentRoute: () => rootRoute,
 } as any)
+
+const ProtectedOrgsOrgIdSettingsRoute = ProtectedOrgsOrgIdSettingsImport.update(
+  {
+    id: '/_protected/orgs/$orgId/settings',
+    path: '/orgs/$orgId/settings',
+    getParentRoute: () => rootRoute,
+  } as any,
+)
 
 // Populate the FileRoutesByPath interface
 
@@ -60,18 +69,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginIndexImport
       parentRoute: typeof rootRoute
     }
-    '/_protected/orgs/$orgId': {
-      id: '/_protected/orgs/$orgId'
-      path: '/orgs/$orgId'
-      fullPath: '/orgs/$orgId'
-      preLoaderRoute: typeof ProtectedOrgsOrgIdImport
-      parentRoute: typeof rootRoute
-    }
     '/_protected/orgs/': {
       id: '/_protected/orgs/'
       path: '/orgs'
       fullPath: '/orgs'
       preLoaderRoute: typeof ProtectedOrgsIndexImport
+      parentRoute: typeof rootRoute
+    }
+    '/_protected/orgs/$orgId/settings': {
+      id: '/_protected/orgs/$orgId/settings'
+      path: '/orgs/$orgId/settings'
+      fullPath: '/orgs/$orgId/settings'
+      preLoaderRoute: typeof ProtectedOrgsOrgIdSettingsImport
+      parentRoute: typeof rootRoute
+    }
+    '/_protected/orgs/$orgId/': {
+      id: '/_protected/orgs/$orgId/'
+      path: '/orgs/$orgId'
+      fullPath: '/orgs/$orgId'
+      preLoaderRoute: typeof ProtectedOrgsOrgIdIndexImport
       parentRoute: typeof rootRoute
     }
   }
@@ -82,51 +98,57 @@ declare module '@tanstack/react-router' {
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginIndexRoute
-  '/orgs/$orgId': typeof ProtectedOrgsOrgIdRoute
   '/orgs': typeof ProtectedOrgsIndexRoute
+  '/orgs/$orgId/settings': typeof ProtectedOrgsOrgIdSettingsRoute
+  '/orgs/$orgId': typeof ProtectedOrgsOrgIdIndexRoute
 }
 
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginIndexRoute
-  '/orgs/$orgId': typeof ProtectedOrgsOrgIdRoute
   '/orgs': typeof ProtectedOrgsIndexRoute
+  '/orgs/$orgId/settings': typeof ProtectedOrgsOrgIdSettingsRoute
+  '/orgs/$orgId': typeof ProtectedOrgsOrgIdIndexRoute
 }
 
 export interface FileRoutesById {
   __root__: typeof rootRoute
   '/': typeof IndexRoute
   '/login/': typeof LoginIndexRoute
-  '/_protected/orgs/$orgId': typeof ProtectedOrgsOrgIdRoute
   '/_protected/orgs/': typeof ProtectedOrgsIndexRoute
+  '/_protected/orgs/$orgId/settings': typeof ProtectedOrgsOrgIdSettingsRoute
+  '/_protected/orgs/$orgId/': typeof ProtectedOrgsOrgIdIndexRoute
 }
 
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login' | '/orgs/$orgId' | '/orgs'
+  fullPaths: '/' | '/login' | '/orgs' | '/orgs/$orgId/settings' | '/orgs/$orgId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/login' | '/orgs/$orgId' | '/orgs'
+  to: '/' | '/login' | '/orgs' | '/orgs/$orgId/settings' | '/orgs/$orgId'
   id:
     | '__root__'
     | '/'
     | '/login/'
-    | '/_protected/orgs/$orgId'
     | '/_protected/orgs/'
+    | '/_protected/orgs/$orgId/settings'
+    | '/_protected/orgs/$orgId/'
   fileRoutesById: FileRoutesById
 }
 
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   LoginIndexRoute: typeof LoginIndexRoute
-  ProtectedOrgsOrgIdRoute: typeof ProtectedOrgsOrgIdRoute
   ProtectedOrgsIndexRoute: typeof ProtectedOrgsIndexRoute
+  ProtectedOrgsOrgIdSettingsRoute: typeof ProtectedOrgsOrgIdSettingsRoute
+  ProtectedOrgsOrgIdIndexRoute: typeof ProtectedOrgsOrgIdIndexRoute
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   LoginIndexRoute: LoginIndexRoute,
-  ProtectedOrgsOrgIdRoute: ProtectedOrgsOrgIdRoute,
   ProtectedOrgsIndexRoute: ProtectedOrgsIndexRoute,
+  ProtectedOrgsOrgIdSettingsRoute: ProtectedOrgsOrgIdSettingsRoute,
+  ProtectedOrgsOrgIdIndexRoute: ProtectedOrgsOrgIdIndexRoute,
 }
 
 export const routeTree = rootRoute
@@ -141,8 +163,9 @@ export const routeTree = rootRoute
       "children": [
         "/",
         "/login/",
-        "/_protected/orgs/$orgId",
-        "/_protected/orgs/"
+        "/_protected/orgs/",
+        "/_protected/orgs/$orgId/settings",
+        "/_protected/orgs/$orgId/"
       ]
     },
     "/": {
@@ -151,11 +174,14 @@ export const routeTree = rootRoute
     "/login/": {
       "filePath": "login/index.tsx"
     },
-    "/_protected/orgs/$orgId": {
-      "filePath": "_protected/orgs/$orgId.tsx"
-    },
     "/_protected/orgs/": {
       "filePath": "_protected/orgs/index.tsx"
+    },
+    "/_protected/orgs/$orgId/settings": {
+      "filePath": "_protected/orgs/$orgId/settings.tsx"
+    },
+    "/_protected/orgs/$orgId/": {
+      "filePath": "_protected/orgs/$orgId/index.tsx"
     }
   }
 }

@@ -115,7 +115,7 @@ function RootDocument({ children }: { children: ReactNode }) {
         <HeadContent />
       </head>
       <body>
-        <main className="min-h-dvh grid grid-rows-[auto_1fr] bg-gradient-to-br from-blue-100 via-white to-pink-100 dark:bg-gradient-to-br dark:from-gray-900 dark:via-gray-950 dark:to-gray-800">
+        <main className="min-h-dvh grid grid-rows-[auto_1fr] bg-background">
           <Header />
           {children}
         </main>

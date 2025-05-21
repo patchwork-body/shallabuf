@@ -5,17 +5,8 @@ import { ListAppsResponse } from "~/lib/schemas";
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import { TRPCClientError } from "@trpc/client";
 
-export const Route = createFileRoute("/_protected/orgs/$orgId")({
-  beforeLoad: async ({ context, params, location }) => {
-    if (!context.session) {
-      throw redirect({
-        to: "/login",
-        search: {
-          redirect: location.href,
-        },
-      });
-    }
-
+export const Route = createFileRoute("/_protected/orgs/$orgId/")({
+  beforeLoad: async ({ context, params }) => {
     try {
       await context.queryClient.ensureInfiniteQueryData({
         ...trpc.apps.list.infiniteQueryOptions({

@@ -96,7 +96,7 @@ export const orgsRouter = createTRPCRouter({
     .mutation(async ({ input, ctx }) => {
       const { id, ...data } = input;
       const response = await fetch(`${env.API_URL}/orgs/${id}`, {
-        method: "PUT",
+        method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${ctx.sessionToken}`,

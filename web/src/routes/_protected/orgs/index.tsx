@@ -5,6 +5,15 @@ import { Button } from "~/components/ui/button";
 
 export const Route = createFileRoute("/_protected/orgs/")({
   beforeLoad: async ({ context }) => {
+    if (!context.session) {
+      throw redirect({
+        to: "/login",
+        search: {
+          redirect: location.href,
+        },
+      });
+    }
+
     const result = await context.queryClient.fetchQuery(
       trpc.orgs.list.queryOptions({ limit: 1 })
     );
