@@ -40,7 +40,6 @@ function SettingsPage() {
 
   return (
     <div className="container mx-auto py-8 max-w-4xl">
-      {/* Header */}
       <div className="mb-8">
         <div className="flex items-center space-x-3 mb-2">
           <Settings className="h-8 w-8 text-blue-600" />
@@ -48,24 +47,17 @@ function SettingsPage() {
             Organization Settings
           </h1>
         </div>
+
         <p className="text-muted-foreground">
           Manage your organization's settings, billing, and preferences.
         </p>
       </div>
 
       <div className="space-y-8">
-        {/* Organization Details Section */}
         <OrganizationDetailsCard orgId={organization.id} />
-
-        {/* Team Management Section */}
         <TeamManagementCard />
-
-        {/* Billing Section */}
         <BillingCard orgId={organization.id} />
-
         <Separator className="my-8" />
-
-        {/* Danger Zone */}
         <DangerZoneCard orgId={organization.id} orgName={organization.name} />
       </div>
     </div>
