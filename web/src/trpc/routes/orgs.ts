@@ -3,6 +3,7 @@ import { createTRPCRouter, protectedProcedure } from "../index";
 import { object, string, array, nullable, uuid, number, minValue, maxValue, optional, pipe, minLength, maxLength } from "valibot";
 import {
   createOrganizationSchema,
+  listOrganizationsResponseSchema,
   organizationSchema,
 } from "~/lib/schemas";
 
@@ -35,10 +36,7 @@ export const orgsRouter = createTRPCRouter({
       })
     )
     .output(
-      object({
-        organizations: array(organizationSchema),
-        nextCursor: nullable(string()),
-      })
+      listOrganizationsResponseSchema
     )
     .query(async ({ input, ctx }) => {
       const params = new URLSearchParams();

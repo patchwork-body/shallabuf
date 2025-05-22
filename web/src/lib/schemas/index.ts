@@ -11,6 +11,9 @@ import {
   pipe,
   uuid,
   boolean,
+  maxValue,
+  minValue,
+  number,
 } from "valibot";
 
 export const loginSchema = object({
@@ -105,6 +108,15 @@ export const updateOrganizationSchema = object({
 
 export type UpdateOrganization = InferOutput<typeof updateOrganizationSchema>;
 
+export const listOrganizationsResponseSchema = object({
+  organizations: array(organizationSchema),
+  nextCursor: nullable(string()),
+});
+
+export type ListOrganizationsResponse = InferOutput<
+  typeof listOrganizationsResponseSchema
+>;
+
 export const createPaymentIntentSchema = object({
   organizationId: pipe(string(), uuid()),
 });
@@ -131,7 +143,9 @@ export const paymentIntentInfoSchema = object({
   clientSecret: string(),
 });
 
-export type GetPaymentIntentResponse = InferOutput<typeof paymentIntentInfoSchema>;
+export type GetPaymentIntentResponse = InferOutput<
+  typeof paymentIntentInfoSchema
+>;
 
 export const updatePaymentIntentSchema = object({
   organizationId: pipe(string(), uuid()),

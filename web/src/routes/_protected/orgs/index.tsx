@@ -20,7 +20,7 @@ export const Route = createFileRoute("/_protected/orgs/")({
         });
       } else {
         throw redirect({
-          to: "/orgs/$orgId/settings/billing",
+          to: "/orgs/$orgId/settings",
           params: { orgId: result.organizations[0].id },
         });
       }
@@ -33,7 +33,7 @@ function SetupOrganization() {
   const navigate = useNavigate();
 
   const onOrganizationCreated = useCallback((orgId: string) => {
-    navigate({ to: "/orgs/$orgId/settings/billing", params: { orgId } });
+    navigate({ to: "/orgs/$orgId/settings", params: { orgId } });
   }, [navigate]);
 
   return (

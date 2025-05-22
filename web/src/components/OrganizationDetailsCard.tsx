@@ -22,6 +22,7 @@ import {
 } from "~/components/ui/card";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
+import { ListOrganizationsResponse, Organization } from "~/lib/schemas";
 import { trpc } from "~/trpc/client";
 
 const orgUpdateSchema = object({
@@ -54,6 +55,21 @@ export function OrganizationDetailsCard({
           id: orgId,
         }),
       });
+
+      queryClient.setQueriesData({
+        queryKey: trpc.orgs.list.queryKey(),
+      }, (old: ListOrganizationsResponse) => {
+        return { ...old, organizations: old.organizations.map((org: Organization) => {
+          if (org.id === orgId) {
+            return {
+              ...org,
+              name: data.name,
+            }
+          }
+
+          return org;
+        })}
+      })
 
       form.reset({
         name: data.name,
@@ -145,7 +161,7 @@ export function OrganizationDetailsCard({
             )}
           </form.Field>
         </CardContent>
-        <CardFooter className="bg-muted/50">
+        <CardFooter>
           <div className="flex items-center justify-between w-full">
             <div className="flex items-center space-x-2 text-sm text-muted-foreground">
               {hasUnsavedChanges && (

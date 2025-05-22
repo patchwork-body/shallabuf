@@ -31,7 +31,6 @@ export const Route = createFileRoute("/_protected/orgs/$orgId/settings/")({
     }
   },
   component: SettingsPage,
-  pendingComponent: SettingsPageSkeleton,
   errorComponent: SettingsErrorComponent,
 });
 
@@ -66,32 +65,4 @@ function SettingsPage() {
 
 function SettingsErrorComponent() {
   return <ErrorComponent error={new Error("Failed to load organization settings")} />;
-}
-
-function SettingsPageSkeleton() {
-  return (
-    <div className="container mx-auto py-8 max-w-4xl">
-      <div className="mb-8">
-        <Skeleton className="h-8 w-80 mb-2" />
-        <Skeleton className="h-4 w-96" />
-      </div>
-
-      <div className="space-y-8">
-        {[1, 2, 3, 4].map((i) => (
-          <Card key={i}>
-            <CardHeader>
-              <Skeleton className="h-6 w-48" />
-              <Skeleton className="h-4 w-72" />
-            </CardHeader>
-            <CardContent>
-              <Skeleton className="h-20 w-full" />
-            </CardContent>
-            <CardFooter>
-              <Skeleton className="h-10 w-32" />
-            </CardFooter>
-          </Card>
-        ))}
-      </div>
-    </div>
-  );
 }
