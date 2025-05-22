@@ -135,7 +135,6 @@ export function OrganizationDetailsCard({
                   This is your organization's display name. It can be changed at
                   any time.
                 </p>
-                {field.state.meta.errors.length}
                 {!field.state.meta.isValid &&
                   field.state.meta.errors.length > 0 && (
                     <div className="text-xs text-red-500">
@@ -145,24 +144,8 @@ export function OrganizationDetailsCard({
               </div>
             )}
           </form.Field>
-
-          {/* Organization ID Display */}
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">Organization ID</Label>
-            <div className="flex items-center space-x-2">
-              <code className="px-2 py-1 bg-muted rounded text-sm font-mono">
-                {orgId}
-              </code>
-              <span className="inline-flex items-center rounded-md bg-gray-50 px-2 py-1 text-xs font-medium text-gray-600 ring-1 ring-inset ring-gray-500/10">
-                Read-only
-              </span>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              This is your organization's unique identifier.
-            </p>
-          </div>
         </CardContent>
-        <CardFooter className="border-t bg-muted/50">
+        <CardFooter className="bg-muted/50">
           <div className="flex items-center justify-between w-full">
             <div className="flex items-center space-x-2 text-sm text-muted-foreground">
               {hasUnsavedChanges && (
