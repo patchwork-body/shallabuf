@@ -3,6 +3,7 @@ use argon2::{
     Argon2,
     password_hash::{SaltString, rand_core::OsRng},
 };
+use dotenvy::dotenv;
 use sqlx::PgPool;
 use sqlx::types::Uuid;
 use tracing::info;
@@ -51,6 +52,7 @@ pub async fn run_migrations(pool: &PgPool) -> anyhow::Result<()> {
 /// or if a json config serialization fails.
 #[allow(clippy::too_many_lines)]
 pub async fn seed_database(db: &PgPool) -> anyhow::Result<()> {
+    dotenv().ok();
     info!("Starting database seeding...");
 
     let organization_id = Uuid::parse_str("123e4567-e89b-12d3-a456-426614174000").unwrap();

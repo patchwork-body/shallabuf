@@ -10,6 +10,7 @@ import {
   type InferOutput,
   pipe,
   uuid,
+  boolean,
 } from "valibot";
 
 export const loginSchema = object({
@@ -85,6 +86,7 @@ export type EditAppResponse = InferOutput<typeof editAppResponseSchema>;
 export const organizationSchema = object({
   id: string(),
   name: string(),
+  billingConnected: boolean(),
   createdAt: string(),
   updatedAt: string(),
 });
@@ -102,3 +104,38 @@ export const updateOrganizationSchema = object({
 });
 
 export type UpdateOrganization = InferOutput<typeof updateOrganizationSchema>;
+
+export const createPaymentIntentSchema = object({
+  organizationId: pipe(string(), uuid()),
+});
+
+export type CreatePaymentIntent = InferOutput<typeof createPaymentIntentSchema>;
+
+export const createPaymentIntentResponseSchema = object({
+  clientSecret: string(),
+});
+
+export type CreatePaymentIntentResponse = InferOutput<
+  typeof createPaymentIntentResponseSchema
+>;
+
+export const getPaymentIntentSchema = object({
+  organizationId: pipe(string(), uuid()),
+});
+
+export type GetPaymentIntent = InferOutput<typeof getPaymentIntentSchema>;
+
+export const paymentIntentInfoSchema = object({
+  paymentIntentId: string(),
+  paymentMethodId: string(),
+  clientSecret: string(),
+});
+
+export type GetPaymentIntentResponse = InferOutput<typeof paymentIntentInfoSchema>;
+
+export const updatePaymentIntentSchema = object({
+  organizationId: pipe(string(), uuid()),
+  paymentMethodId: pipe(string(), minLength(1)),
+});
+
+export type UpdatePaymentIntent = InferOutput<typeof updatePaymentIntentSchema>;

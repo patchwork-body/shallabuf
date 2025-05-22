@@ -15,8 +15,10 @@ import { Route as ProtectedImport } from './routes/_protected'
 import { Route as IndexImport } from './routes/index'
 import { Route as LoginIndexImport } from './routes/login/index'
 import { Route as ProtectedOrgsIndexImport } from './routes/_protected/orgs/index'
-import { Route as ProtectedOrgsOrgIdSettingsImport } from './routes/_protected/orgs/$orgId/settings'
 import { Route as ProtectedOrgsOrgIdAppsImport } from './routes/_protected/orgs/$orgId/apps'
+import { Route as ProtectedOrgsOrgIdSettingsIndexImport } from './routes/_protected/orgs/$orgId/settings/index'
+import { Route as ProtectedOrgsOrgIdSettingsBillingIndexImport } from './routes/_protected/orgs/$orgId/settings/billing/index'
+import { Route as ProtectedOrgsOrgIdSettingsBillingPaymentConfirmationImport } from './routes/_protected/orgs/$orgId/settings/billing/payment-confirmation'
 
 // Create/Update Routes
 
@@ -43,19 +45,32 @@ const ProtectedOrgsIndexRoute = ProtectedOrgsIndexImport.update({
   getParentRoute: () => ProtectedRoute,
 } as any)
 
-const ProtectedOrgsOrgIdSettingsRoute = ProtectedOrgsOrgIdSettingsImport.update(
-  {
-    id: '/orgs/$orgId/settings',
-    path: '/orgs/$orgId/settings',
-    getParentRoute: () => ProtectedRoute,
-  } as any,
-)
-
 const ProtectedOrgsOrgIdAppsRoute = ProtectedOrgsOrgIdAppsImport.update({
   id: '/orgs/$orgId/apps',
   path: '/orgs/$orgId/apps',
   getParentRoute: () => ProtectedRoute,
 } as any)
+
+const ProtectedOrgsOrgIdSettingsIndexRoute =
+  ProtectedOrgsOrgIdSettingsIndexImport.update({
+    id: '/orgs/$orgId/settings/',
+    path: '/orgs/$orgId/settings/',
+    getParentRoute: () => ProtectedRoute,
+  } as any)
+
+const ProtectedOrgsOrgIdSettingsBillingIndexRoute =
+  ProtectedOrgsOrgIdSettingsBillingIndexImport.update({
+    id: '/orgs/$orgId/settings/billing/',
+    path: '/orgs/$orgId/settings/billing/',
+    getParentRoute: () => ProtectedRoute,
+  } as any)
+
+const ProtectedOrgsOrgIdSettingsBillingPaymentConfirmationRoute =
+  ProtectedOrgsOrgIdSettingsBillingPaymentConfirmationImport.update({
+    id: '/orgs/$orgId/settings/billing/payment-confirmation',
+    path: '/orgs/$orgId/settings/billing/payment-confirmation',
+    getParentRoute: () => ProtectedRoute,
+  } as any)
 
 // Populate the FileRoutesByPath interface
 
@@ -96,11 +111,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProtectedOrgsOrgIdAppsImport
       parentRoute: typeof ProtectedImport
     }
-    '/_protected/orgs/$orgId/settings': {
-      id: '/_protected/orgs/$orgId/settings'
+    '/_protected/orgs/$orgId/settings/': {
+      id: '/_protected/orgs/$orgId/settings/'
       path: '/orgs/$orgId/settings'
       fullPath: '/orgs/$orgId/settings'
-      preLoaderRoute: typeof ProtectedOrgsOrgIdSettingsImport
+      preLoaderRoute: typeof ProtectedOrgsOrgIdSettingsIndexImport
+      parentRoute: typeof ProtectedImport
+    }
+    '/_protected/orgs/$orgId/settings/billing/payment-confirmation': {
+      id: '/_protected/orgs/$orgId/settings/billing/payment-confirmation'
+      path: '/orgs/$orgId/settings/billing/payment-confirmation'
+      fullPath: '/orgs/$orgId/settings/billing/payment-confirmation'
+      preLoaderRoute: typeof ProtectedOrgsOrgIdSettingsBillingPaymentConfirmationImport
+      parentRoute: typeof ProtectedImport
+    }
+    '/_protected/orgs/$orgId/settings/billing/': {
+      id: '/_protected/orgs/$orgId/settings/billing/'
+      path: '/orgs/$orgId/settings/billing'
+      fullPath: '/orgs/$orgId/settings/billing'
+      preLoaderRoute: typeof ProtectedOrgsOrgIdSettingsBillingIndexImport
       parentRoute: typeof ProtectedImport
     }
   }
@@ -111,13 +140,19 @@ declare module '@tanstack/react-router' {
 interface ProtectedRouteChildren {
   ProtectedOrgsIndexRoute: typeof ProtectedOrgsIndexRoute
   ProtectedOrgsOrgIdAppsRoute: typeof ProtectedOrgsOrgIdAppsRoute
-  ProtectedOrgsOrgIdSettingsRoute: typeof ProtectedOrgsOrgIdSettingsRoute
+  ProtectedOrgsOrgIdSettingsIndexRoute: typeof ProtectedOrgsOrgIdSettingsIndexRoute
+  ProtectedOrgsOrgIdSettingsBillingPaymentConfirmationRoute: typeof ProtectedOrgsOrgIdSettingsBillingPaymentConfirmationRoute
+  ProtectedOrgsOrgIdSettingsBillingIndexRoute: typeof ProtectedOrgsOrgIdSettingsBillingIndexRoute
 }
 
 const ProtectedRouteChildren: ProtectedRouteChildren = {
   ProtectedOrgsIndexRoute: ProtectedOrgsIndexRoute,
   ProtectedOrgsOrgIdAppsRoute: ProtectedOrgsOrgIdAppsRoute,
-  ProtectedOrgsOrgIdSettingsRoute: ProtectedOrgsOrgIdSettingsRoute,
+  ProtectedOrgsOrgIdSettingsIndexRoute: ProtectedOrgsOrgIdSettingsIndexRoute,
+  ProtectedOrgsOrgIdSettingsBillingPaymentConfirmationRoute:
+    ProtectedOrgsOrgIdSettingsBillingPaymentConfirmationRoute,
+  ProtectedOrgsOrgIdSettingsBillingIndexRoute:
+    ProtectedOrgsOrgIdSettingsBillingIndexRoute,
 }
 
 const ProtectedRouteWithChildren = ProtectedRoute._addFileChildren(
@@ -130,7 +165,9 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginIndexRoute
   '/orgs': typeof ProtectedOrgsIndexRoute
   '/orgs/$orgId/apps': typeof ProtectedOrgsOrgIdAppsRoute
-  '/orgs/$orgId/settings': typeof ProtectedOrgsOrgIdSettingsRoute
+  '/orgs/$orgId/settings': typeof ProtectedOrgsOrgIdSettingsIndexRoute
+  '/orgs/$orgId/settings/billing/payment-confirmation': typeof ProtectedOrgsOrgIdSettingsBillingPaymentConfirmationRoute
+  '/orgs/$orgId/settings/billing': typeof ProtectedOrgsOrgIdSettingsBillingIndexRoute
 }
 
 export interface FileRoutesByTo {
@@ -139,7 +176,9 @@ export interface FileRoutesByTo {
   '/login': typeof LoginIndexRoute
   '/orgs': typeof ProtectedOrgsIndexRoute
   '/orgs/$orgId/apps': typeof ProtectedOrgsOrgIdAppsRoute
-  '/orgs/$orgId/settings': typeof ProtectedOrgsOrgIdSettingsRoute
+  '/orgs/$orgId/settings': typeof ProtectedOrgsOrgIdSettingsIndexRoute
+  '/orgs/$orgId/settings/billing/payment-confirmation': typeof ProtectedOrgsOrgIdSettingsBillingPaymentConfirmationRoute
+  '/orgs/$orgId/settings/billing': typeof ProtectedOrgsOrgIdSettingsBillingIndexRoute
 }
 
 export interface FileRoutesById {
@@ -149,7 +188,9 @@ export interface FileRoutesById {
   '/login/': typeof LoginIndexRoute
   '/_protected/orgs/': typeof ProtectedOrgsIndexRoute
   '/_protected/orgs/$orgId/apps': typeof ProtectedOrgsOrgIdAppsRoute
-  '/_protected/orgs/$orgId/settings': typeof ProtectedOrgsOrgIdSettingsRoute
+  '/_protected/orgs/$orgId/settings/': typeof ProtectedOrgsOrgIdSettingsIndexRoute
+  '/_protected/orgs/$orgId/settings/billing/payment-confirmation': typeof ProtectedOrgsOrgIdSettingsBillingPaymentConfirmationRoute
+  '/_protected/orgs/$orgId/settings/billing/': typeof ProtectedOrgsOrgIdSettingsBillingIndexRoute
 }
 
 export interface FileRouteTypes {
@@ -161,6 +202,8 @@ export interface FileRouteTypes {
     | '/orgs'
     | '/orgs/$orgId/apps'
     | '/orgs/$orgId/settings'
+    | '/orgs/$orgId/settings/billing/payment-confirmation'
+    | '/orgs/$orgId/settings/billing'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -169,6 +212,8 @@ export interface FileRouteTypes {
     | '/orgs'
     | '/orgs/$orgId/apps'
     | '/orgs/$orgId/settings'
+    | '/orgs/$orgId/settings/billing/payment-confirmation'
+    | '/orgs/$orgId/settings/billing'
   id:
     | '__root__'
     | '/'
@@ -176,7 +221,9 @@ export interface FileRouteTypes {
     | '/login/'
     | '/_protected/orgs/'
     | '/_protected/orgs/$orgId/apps'
-    | '/_protected/orgs/$orgId/settings'
+    | '/_protected/orgs/$orgId/settings/'
+    | '/_protected/orgs/$orgId/settings/billing/payment-confirmation'
+    | '/_protected/orgs/$orgId/settings/billing/'
   fileRoutesById: FileRoutesById
 }
 
@@ -215,7 +262,9 @@ export const routeTree = rootRoute
       "children": [
         "/_protected/orgs/",
         "/_protected/orgs/$orgId/apps",
-        "/_protected/orgs/$orgId/settings"
+        "/_protected/orgs/$orgId/settings/",
+        "/_protected/orgs/$orgId/settings/billing/payment-confirmation",
+        "/_protected/orgs/$orgId/settings/billing/"
       ]
     },
     "/login/": {
@@ -229,8 +278,16 @@ export const routeTree = rootRoute
       "filePath": "_protected/orgs/$orgId/apps.tsx",
       "parent": "/_protected"
     },
-    "/_protected/orgs/$orgId/settings": {
-      "filePath": "_protected/orgs/$orgId/settings.tsx",
+    "/_protected/orgs/$orgId/settings/": {
+      "filePath": "_protected/orgs/$orgId/settings/index.tsx",
+      "parent": "/_protected"
+    },
+    "/_protected/orgs/$orgId/settings/billing/payment-confirmation": {
+      "filePath": "_protected/orgs/$orgId/settings/billing/payment-confirmation.tsx",
+      "parent": "/_protected"
+    },
+    "/_protected/orgs/$orgId/settings/billing/": {
+      "filePath": "_protected/orgs/$orgId/settings/billing/index.tsx",
       "parent": "/_protected"
     }
   }

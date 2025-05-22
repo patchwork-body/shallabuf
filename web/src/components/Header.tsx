@@ -49,6 +49,7 @@ export const Header = () => {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const { orgId } = useParams({ strict: false });
+
   const logoutMutation = useMutation({
     ...trpc.auth.logout.mutationOptions(),
     onSuccess: () => {

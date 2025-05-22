@@ -1,10 +1,11 @@
 use axum::{
     Router,
-    routing::{delete, get, post},
+    routing::{delete, get, post, put},
 };
 use config::Config;
 use dotenvy::dotenv;
 use sqlx::postgres::PgPoolOptions;
+use std::sync::Arc;
 use tokio::io;
 use tower_http::cors::CorsLayer;
 use tracing::{error, info};
@@ -16,6 +17,7 @@ mod dto;
 mod error;
 mod extractors;
 mod routes;
+mod services;
 mod session;
 
 #[tokio::main]
@@ -42,6 +44,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .await
         .expect("Failed to create Redis connection manager");
 
+    let stripe = Arc::new(services::stripe::StripeService::new()?);
+
     let jwt_router = Router::new()
         .route("/issue", post(routes::jwt::issue))
         .route("/refresh", post(routes::jwt::refresh));
@@ -66,11 +70,26 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/{org_id}", post(routes::orgs::edit))
         .route("/{org_id}", delete(routes::orgs::delete));
 
+    let stripe_router = Router::new()
+        .route(
+            "/payment-intents",
+            post(routes::stripe::create_payment_intent),
+        )
+        .route(
+            "/payment-intents/{organization_id}",
+            get(routes::stripe::get_payment_intent),
+        )
+        .route(
+            "/payment-intents/{organization_id}",
+            put(routes::stripe::update_payment_intent),
+        );
+
     let api_v0 = Router::new()
         .nest("/jwt", jwt_router)
         .nest("/auth", auth_router)
         .nest("/apps", apps_router)
-        .nest("/orgs", orgs_router);
+        .nest("/orgs", orgs_router)
+        .nest("/stripe", stripe_router);
 
     let app = Router::new()
         .nest("/api/v0", api_v0)
@@ -79,6 +98,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             db,
             redis,
             config: config.clone(),
+            stripe,
         });
 
     let listener = tokio::net::TcpListener::bind(&config.listen_addr).await?;

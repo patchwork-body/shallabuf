@@ -15,6 +15,7 @@ use crate::extractors::{database_connection::DatabaseConnection, session::Sessio
 pub struct Organization {
     id: Uuid,
     name: String,
+    billing_connected: bool,
     #[serde(with = "time::serde::rfc3339")]
     created_at: OffsetDateTime,
     #[serde(with = "time::serde::rfc3339")]
@@ -66,6 +67,7 @@ pub async fn create(
         RETURNING
             id,
             name,
+            billing_connected,
             created_at,
             updated_at
         "#,
@@ -107,6 +109,7 @@ pub async fn list(
             SELECT DISTINCT
                 o.id,
                 o.name,
+                o.billing_connected,
                 o.created_at,
                 o.updated_at
             FROM organizations o
@@ -131,6 +134,7 @@ pub async fn list(
             SELECT DISTINCT
                 o.id,
                 o.name,
+                o.billing_connected,
                 o.created_at,
                 o.updated_at
             FROM organizations o
@@ -170,6 +174,7 @@ pub async fn retrieve(
         SELECT
             id,
             name,
+            billing_connected,
             created_at,
             updated_at
         FROM organizations
@@ -203,6 +208,7 @@ pub async fn edit(
         RETURNING
             id,
             name,
+            billing_connected,
             created_at,
             updated_at
         "#,

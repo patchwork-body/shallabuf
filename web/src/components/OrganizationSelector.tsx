@@ -23,6 +23,7 @@ export const OrganizationSelector = () => {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [hoveredOrg, setHoveredOrg] = useState<string | null>(null);
+
   const orgsQuery = useSuspenseQuery(
     trpc.orgs.list.queryOptions({})
   );
@@ -40,9 +41,13 @@ export const OrganizationSelector = () => {
     [navigate, setOpen]
   );
 
-  const handleCreateOrgSuccess = useCallback(() => {
-    setOpen(false);
-  }, [setOpen]);
+  const handleCreateOrgSuccess = useCallback(
+    (orgId: string) => {
+      navigate({ to: "/orgs/$orgId/apps", params: { orgId } });
+      setOpen(false);
+    },
+    [navigate, setOpen]
+  );
 
   if (organizations.length === 0) {
     return null;
