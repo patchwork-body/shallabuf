@@ -82,6 +82,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route(
             "/payment-intents/{organization_id}",
             put(routes::stripe::update_payment_intent),
+        )
+        .route(
+            "/portal-sessions",
+            post(routes::stripe::create_portal_session),
         );
 
     let api_v0 = Router::new()

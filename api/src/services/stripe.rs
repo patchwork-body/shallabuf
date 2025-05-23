@@ -20,12 +20,21 @@ pub struct StripeSetupIntent {
     pub client_secret: String,
 }
 
+#[derive(Debug)]
+pub struct StripePortalSession {
+    pub url: String,
+}
+
 impl StripeService {
     pub fn new() -> anyhow::Result<Self> {
         let secret_key = std::env::var("STRIPE_SECRET_KEY")
             .context("STRIPE_SECRET_KEY environment variable not set")?;
+
+        // Default to official Stripe API URL if not set
         let api_url = std::env::var("STRIPE_API_URL")
-            .context("STRIPE_API_URL environment variable not set")?;
+            .unwrap_or_else(|_| "https://api.stripe.com/v1".to_string());
+
+        println!("Using Stripe API URL: {}", api_url);
 
         Ok(Self {
             client: Client::new(),
@@ -86,5 +95,58 @@ impl StripeService {
             .to_string();
 
         Ok(StripeSetupIntent { id, client_secret })
+    }
+
+    pub async fn create_customer_portal_session(
+        &self,
+        customer_id: &str,
+        return_url: Option<&str>,
+    ) -> anyhow::Result<StripePortalSession> {
+        let mut params = HashMap::new();
+        params.insert("customer", customer_id);
+
+        if let Some(url) = return_url {
+            params.insert("return_url", url);
+        }
+
+        let response = self
+            .client
+            .post(format!("{}/billing_portal/sessions", self.api_url))
+            .basic_auth(&self.secret_key, Some(""))
+            .form(&params)
+            .send()
+            .await
+            .context("Failed to create customer portal session")?;
+
+        // Check if the response is successful
+        let status = response.status();
+        let response_text = response
+            .text()
+            .await
+            .context("Failed to read response body")?;
+
+        if !status.is_success() {
+            if response_text.contains("No configuration provided") {
+                return Err(anyhow::anyhow!(
+                    "Stripe Customer Portal is not configured. Please set up the Customer Portal in your Stripe Dashboard at https://dashboard.stripe.com/test/settings/billing/portal"
+                ));
+            }
+
+            return Err(anyhow::anyhow!(
+                "Stripe API returned error status {}: {}",
+                status,
+                response_text
+            ));
+        }
+
+        let portal_session: Value = serde_json::from_str(&response_text)
+            .context("Failed to parse customer portal session response")?;
+
+        let url = portal_session["url"]
+            .as_str()
+            .context("Failed to get portal session URL from response")?
+            .to_string();
+
+        Ok(StripePortalSession { url })
     }
 }

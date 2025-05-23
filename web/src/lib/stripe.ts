@@ -1,4 +1,4 @@
-import { loadStripe, Stripe, StripeCheckoutOptions, StripeElementsOptions } from "@stripe/stripe-js";
+import { loadStripe, Stripe, StripeElementsOptions } from "@stripe/stripe-js";
 import { env } from "~/env";
 
 // This is a singleton to ensure we only load Stripe once
@@ -10,10 +10,4 @@ export const getStripe = () => {
   }
 
   return stripePromise;
-};
-
-export const stripeOptions: StripeElementsOptions = {
-  appearance: {
-    theme: "stripe",
-  },
 };

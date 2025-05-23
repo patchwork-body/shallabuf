@@ -4,6 +4,8 @@ import {
   paymentIntentInfoSchema,
   getPaymentIntentSchema,
   updatePaymentIntentSchema,
+  createPortalSessionSchema,
+  createPortalSessionResponseSchema,
 } from "~/lib/schemas";
 import { createTRPCRouter, protectedProcedure } from "..";
 import { env } from "~/env";
@@ -76,6 +78,26 @@ export const stripeRouter = createTRPCRouter({
 
       if (!response.ok) {
         throw new Error("Failed to update payment intent");
+      }
+
+      return response.json();
+    }),
+
+  createPortalSession: protectedProcedure
+    .input(createPortalSessionSchema)
+    .output(createPortalSessionResponseSchema)
+    .mutation(async ({ input, ctx }) => {
+      const response = await fetch(`${env.API_URL}/stripe/portal-sessions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${ctx.sessionToken}`,
+        },
+        body: JSON.stringify(input),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to create portal session");
       }
 
       return response.json();

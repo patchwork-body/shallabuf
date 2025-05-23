@@ -135,3 +135,60 @@ pub async fn update_payment_intent(
         client_secret: payment_intent.stripe_client_secret,
     }))
 }
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreatePortalSessionRequest {
+    pub organization_id: Uuid,
+    pub return_url: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreatePortalSessionResponse {
+    pub url: String,
+}
+
+pub async fn create_portal_session(
+    Session(_session): Session,
+    DatabaseConnection(mut conn): DatabaseConnection,
+    Stripe(stripe): Stripe,
+    Json(payload): Json<CreatePortalSessionRequest>,
+) -> Result<Json<CreatePortalSessionResponse>, (StatusCode, String)> {
+    // Get the Stripe customer ID for this organization
+    let stripe_config = sqlx::query!(
+        r#"
+        SELECT stripe_customer_id
+        FROM stripe_configurations
+        WHERE organization_id = $1
+        "#,
+        payload.organization_id
+    )
+    .fetch_optional(&mut *conn)
+    .await
+    .map_err(|e| {
+        println!("Error fetching stripe configuration: {:?}", e);
+        (StatusCode::INTERNAL_SERVER_ERROR, e.to_string())
+    })?;
+
+    let Some(config) = stripe_config else {
+        println!("Stripe configuration not found for this organization");
+        return Err((
+            StatusCode::NOT_FOUND,
+            "Stripe configuration not found for this organization".to_string(),
+        ));
+    };
+
+    // Create the customer portal session
+    let portal_session = stripe
+        .create_customer_portal_session(&config.stripe_customer_id, payload.return_url.as_deref())
+        .await
+        .map_err(|e| {
+            println!("Error creating customer portal session: {e:?}");
+            (StatusCode::INTERNAL_SERVER_ERROR, e.to_string())
+        })?;
+
+    Ok(Json(CreatePortalSessionResponse {
+        url: portal_session.url,
+    }))
+}

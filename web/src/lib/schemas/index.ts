@@ -153,3 +153,16 @@ export const updatePaymentIntentSchema = object({
 });
 
 export type UpdatePaymentIntent = InferOutput<typeof updatePaymentIntentSchema>;
+
+export const createPortalSessionSchema = object({
+  organizationId: pipe(string(), uuid()),
+  returnUrl: optional(string()),
+});
+
+export type CreatePortalSession = InferOutput<typeof createPortalSessionSchema>;
+
+export const createPortalSessionResponseSchema = object({
+  url: string(),
+});
+
+export type CreatePortalSessionResponse = InferOutput<typeof createPortalSessionResponseSchema>;

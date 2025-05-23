@@ -1,15 +1,5 @@
-import {
-  createFileRoute,
-  ErrorComponent,
-} from "@tanstack/react-router";
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-} from "~/components/ui/card";
+import { createFileRoute, ErrorComponent } from "@tanstack/react-router";
 import { trpc } from "~/trpc/client";
-import { Skeleton } from "~/components/ui/skeleton";
 import { Separator } from "~/components/ui/separator";
 import { Settings } from "lucide-react";
 import { OrganizationDetailsCard } from "~/components/OrganizationDetailsCard";
@@ -64,5 +54,7 @@ function SettingsPage() {
 }
 
 function SettingsErrorComponent() {
-  return <ErrorComponent error={new Error("Failed to load organization settings")} />;
+  return (
+    <ErrorComponent error={new Error("Failed to load organization settings")} />
+  );
 }
