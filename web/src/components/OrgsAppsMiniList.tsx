@@ -12,7 +12,6 @@ export interface OrgsAppsMiniListProps {
   className?: string;
 }
 
-// Memoized App Item Component
 const AppItem = memo(
   ({
     app,
@@ -45,7 +44,6 @@ const AppItem = memo(
 
 AppItem.displayName = "AppItem";
 
-// Loading skeleton for apps list
 const AppsListSkeleton = ({ count = 3 }: { count?: number }) => (
   <div className="space-y-2">
     {Array.from({ length: count }).map((_, index) => (
@@ -83,7 +81,6 @@ const AppsListError = ({
   </div>
 );
 
-// Empty state component
 const EmptyAppsState = () => (
   <div className="flex flex-col items-center justify-center p-4 text-center space-y-2">
     <Folder className="h-4 w-4 text-muted-foreground/50" aria-hidden="true" />
