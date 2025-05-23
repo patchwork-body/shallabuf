@@ -58,7 +58,6 @@ const AppsListSkeleton = ({ count = 3 }: { count?: number }) => (
   </div>
 );
 
-// Error state component
 const AppsListError = ({
   onRetry,
   error,

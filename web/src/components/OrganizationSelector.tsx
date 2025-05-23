@@ -4,7 +4,6 @@ import {
   ChevronsUpDown,
   Plus,
   Building2,
-  Search,
   AlertCircle,
   ArrowUpDown,
 } from "lucide-react";
@@ -33,7 +32,6 @@ interface OrganizationSelectorProps {
   onCreateSuccess?: (orgId: string) => void;
 }
 
-// Memoized Organization Item Component
 const OrganizationItem = memo(
   ({
     org,
@@ -109,14 +107,12 @@ const OrganizationItem = memo(
 
 OrganizationItem.displayName = "OrganizationItem";
 
-// Loading Skeleton Component
 const OrganizationSelectorSkeleton = () => (
   <div className="space-y-2">
     <Skeleton className="h-10 w-full" />
   </div>
 );
 
-// Error State Component
 const OrganizationSelectorError = ({ onRetry }: { onRetry: () => void }) => (
   <div className="flex items-center justify-center p-4 text-center">
     <div className="space-y-2">
@@ -172,7 +168,6 @@ export const OrganizationSelector = ({
     return <OrganizationSelectorError onRetry={refetch} />;
   }
 
-  // Early return for no organizations
   if (!hasOrganizations) {
     return (
       <div className={cn("flex items-center space-x-2", className)}>
