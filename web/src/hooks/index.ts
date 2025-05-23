@@ -1,2 +1,2 @@
 export { useOrganizationSelector } from "./useOrganizationSelector";
-export { useTheme } from "./use-theme"; 
+export { useTheme } from "./use-theme";

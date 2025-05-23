@@ -10,18 +10,20 @@ interface UseOrganizationSelectorOptions {
   defaultSearchQuery?: string;
 }
 
-export const useOrganizationSelector = (options: UseOrganizationSelectorOptions = {}) => {
+export const useOrganizationSelector = (
+  options: UseOrganizationSelectorOptions = {}
+) => {
   const { orgId } = useParams({ strict: false });
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [hoveredOrg, setHoveredOrg] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState(options.defaultSearchQuery || "");
+  const [searchQuery, setSearchQuery] = useState(
+    options.defaultSearchQuery || ""
+  );
 
-  // Fetch organizations
   const orgsQuery = useSuspenseQuery(trpc.orgs.list.queryOptions({}));
   const organizations = orgsQuery.data?.organizations ?? [];
-  
-  // Memoized computed values
+
   const selectedOrg = useMemo(
     () => organizations.find((org: Organization) => org.id === orgId),
     [organizations, orgId]
@@ -29,7 +31,7 @@ export const useOrganizationSelector = (options: UseOrganizationSelectorOptions 
 
   const filteredOrganizations = useMemo(() => {
     if (!searchQuery.trim()) return organizations;
-    
+
     return organizations.filter((org: Organization) =>
       org.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
@@ -38,7 +40,6 @@ export const useOrganizationSelector = (options: UseOrganizationSelectorOptions 
   const hasOrganizations = organizations.length > 0;
   const hasFilteredResults = filteredOrganizations.length > 0;
 
-  // Event handlers
   const handleOrgSelect = useCallback(
     (org: Organization) => {
       if (options.onSelect) {
@@ -67,13 +68,16 @@ export const useOrganizationSelector = (options: UseOrganizationSelectorOptions 
     [navigate, options]
   );
 
-  const handleOpenChange = useCallback((newOpen: boolean) => {
-    setOpen(newOpen);
-    if (!newOpen) {
-      setSearchQuery(options.defaultSearchQuery || "");
-      setHoveredOrg(null);
-    }
-  }, [options.defaultSearchQuery]);
+  const handleOpenChange = useCallback(
+    (newOpen: boolean) => {
+      setOpen(newOpen);
+      if (!newOpen) {
+        setSearchQuery(options.defaultSearchQuery || "");
+        setHoveredOrg(null);
+      }
+    },
+    [options.defaultSearchQuery]
+  );
 
   const handleSearchChange = useCallback((value: string) => {
     setSearchQuery(value);
@@ -102,19 +106,19 @@ export const useOrganizationSelector = (options: UseOrganizationSelectorOptions 
     open,
     hoveredOrg,
     searchQuery,
-    
+
     // Data
     organizations,
     filteredOrganizations,
     selectedOrg,
     hasOrganizations,
     hasFilteredResults,
-    
+
     // Query state
     isLoading: orgsQuery.isLoading,
     isError: orgsQuery.isError,
     error: orgsQuery.error,
-    
+
     // Actions
     handleOrgSelect,
     handleCreateOrgSuccess,
@@ -124,10 +128,10 @@ export const useOrganizationSelector = (options: UseOrganizationSelectorOptions 
     handleHoverEnd,
     reset,
     refetch,
-    
+
     // Setters for advanced usage
     setOpen,
     setSearchQuery,
     setHoveredOrg,
   };
-}; 
+};
