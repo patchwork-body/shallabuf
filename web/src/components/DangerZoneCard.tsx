@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { AlertTriangle, Trash2, Loader2 } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -45,9 +45,9 @@ export function DangerZoneCard({ orgId, orgName }: DangerZoneCardProps) {
     },
   });
 
-  const handleDeleteOrg = () => {
+  const handleDeleteOrg = useCallback(() => {
     deleteOrgMutation.mutate({ id: orgId });
-  };
+  }, [deleteOrgMutation.mutate, orgId]);
 
   return (
     <Card className="border-destructive/20 bg-destructive/5">
@@ -86,7 +86,7 @@ export function DangerZoneCard({ orgId, orgName }: DangerZoneCardProps) {
                       Are you absolutely sure you want to delete{" "}
                       <strong>"{orgName}"</strong>?
                     </p>
-                    <p className="text-red-600 font-medium">
+                    <p className="text-destructive font-medium">
                       This action cannot be undone. This will permanently delete your
                       organization and remove all associated data including:
                     </p>
@@ -105,7 +105,7 @@ export function DangerZoneCard({ orgId, orgName }: DangerZoneCardProps) {
                   <AlertDialogAction
                     onClick={handleDeleteOrg}
                     disabled={deleteOrgMutation.isPending}
-                    className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+                    className="bg-destructive hover:bg-destructive/90 focus:ring-destructive"
                   >
                     {deleteOrgMutation.isPending ? (
                       <>
