@@ -56,7 +56,7 @@ export function BillingCard({ orgId }: BillingCardProps) {
           </div>
         )}
       </CardContent>
-      <CardFooter className="border-t bg-muted/50">
+      <CardFooter className="border-t">
         <Button
           variant="secondary"
           className="w-full sm:w-auto ml-auto"

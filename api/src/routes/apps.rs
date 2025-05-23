@@ -72,6 +72,10 @@ pub async fn create(
     DatabaseConnection(mut conn): DatabaseConnection,
     Json(payload): Json<CreateAppRequest>,
 ) -> Result<Json<CreateAppResponse>, (axum::http::StatusCode, String)> {
+    payload
+        .validate()
+        .map_err(|e| (axum::http::StatusCode::BAD_REQUEST, e.to_string()))?;
+
     let credentials = AppCredentials::generate().map_err(|e| {
         (
             axum::http::StatusCode::INTERNAL_SERVER_ERROR,
@@ -226,6 +230,10 @@ pub async fn edit(
     Path(app_id): Path<String>,
     Json(payload): Json<EditAppRequest>,
 ) -> Result<Json<EditAppResponse>, (axum::http::StatusCode, String)> {
+    payload
+        .validate()
+        .map_err(|e| (axum::http::StatusCode::BAD_REQUEST, e.to_string()))?;
+
     let result = sqlx::query!(
         r#"
         UPDATE apps SET name = $1, description = $2 WHERE app_id = $3

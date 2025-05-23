@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT i.id, i.organization_id\n        FROM invites i\n        INNER JOIN user_organizations uo ON uo.organization_id = i.organization_id\n        WHERE i.id = $1 AND uo.user_id = $2 AND i.status = 'pending'\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "organization_id",
+        "type_info": "Uuid"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "b93c34dc049ca0a73c645ceef66ee96991e8bf9aa1635f0676effb61a7ee49c4"
+}
