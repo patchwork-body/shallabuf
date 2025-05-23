@@ -115,7 +115,7 @@ const OrganizationSelectorSkeleton = () => (
 
 const OrganizationSelectorError = ({ onRetry }: { onRetry: () => void }) => (
   <div className="flex items-center justify-center p-4 text-center">
-    <div className="space-y-2">
+    <div className="flex items-center gap-x-2">
       <AlertCircle className="h-6 w-6 text-destructive mx-auto" />
       <p className="text-sm text-muted-foreground">
         Failed to load organizations
