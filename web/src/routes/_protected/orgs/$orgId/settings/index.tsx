@@ -31,7 +31,7 @@ function SettingsPage() {
     <div className="container mx-auto py-8 max-w-4xl">
       <div className="mb-8">
         <div className="flex items-center space-x-3 mb-2">
-          <Settings className="h-8 w-8 text-blue-600" />
+          <Settings className="size-8 text-primary" />
           <h1 className="text-3xl font-bold tracking-tight">
             Organization Settings
           </h1>

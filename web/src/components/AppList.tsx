@@ -10,6 +10,8 @@ import { AppInfo } from "~/lib/schemas";
 import { AppCard } from "./AppCard";
 import { AppCredentials, AppCredentialsDialog } from "./AppCredentialsDialog";
 import { useCallback, useState } from "react";
+import { BlocksIcon } from "lucide-react";
+import { EmptyAppList } from "./EmptyAppList";
 
 export interface AppListProps {
   organizationId: string;
@@ -17,6 +19,7 @@ export interface AppListProps {
 
 export function AppList({ organizationId }: AppListProps) {
   const [credentials, setCredentials] = useState<AppCredentials | null>(null);
+
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage } =
     useInfiniteQuery({
       ...trpc.apps.list.infiniteQueryOptions({
@@ -51,14 +54,23 @@ export function AppList({ organizationId }: AppListProps) {
   const apps: AppInfo[] = data.pages.flatMap((page) => page.apps);
 
   return (
-    <div className="space-y-8">
-      {apps.length > 0 && (
-        <div className="flex justify-end">
-          <div className="w-[200px]">
-            <CreateAppDialog onSuccess={handleCreateAppSuccess} />
+    <div className="container mx-auto py-8 max-w-4xl">
+      <div className="flex flex-col min-w-full mb-8">
+        <div className="flex items-center space-x-3 mb-2">
+          <BlocksIcon className="size-8 text-primary" />
+          <h1 className="text-3xl font-bold tracking-tight">Applications</h1>
+
+          <div className="ml-auto">
+            {apps.length > 0 && (
+              <CreateAppDialog onSuccess={handleCreateAppSuccess} />
+            )}
           </div>
         </div>
-      )}
+
+        <p className="text-muted-foreground">
+          Manage your application building blocks and API credentials.
+        </p>
+      </div>
 
       <AppCredentialsDialog
         credentials={credentials}
@@ -66,25 +78,25 @@ export function AppList({ organizationId }: AppListProps) {
       />
 
       {apps.length === 0 ? (
-        <div className="flex min-h-[200px] flex-col items-center justify-center rounded-lg border border-dashed border-gray-300 bg-gray-50 px-6 py-8 dark:border-gray-700 dark:bg-gray-800/50">
-          <h3 className="mb-2 text-lg font-semibold text-gray-900 dark:text-gray-100">No apps yet</h3>
-          <p className="mb-4 text-sm text-gray-500 dark:text-gray-400">Get started by creating your first app</p>
-          <CreateAppDialog onSuccess={handleCreateAppSuccess} />
-        </div>
+        <EmptyAppList onCreateAppSuccess={handleCreateAppSuccess} />
       ) : (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <ul className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {apps.map((app) => (
-            <AppCard
-              key={app.appId}
-              app={app}
-              isDeleting={
-                deleteAppMutation.isPending &&
-                deleteAppMutation.variables?.appId === app.appId
-              }
-              onDelete={() => deleteAppMutation.mutateAsync({ appId: app.appId })}
-            />
+            <li key={app.appId}>
+              <AppCard
+                key={app.appId}
+                app={app}
+                isDeleting={
+                  deleteAppMutation.isPending &&
+                  deleteAppMutation.variables?.appId === app.appId
+                }
+                onDelete={() =>
+                  deleteAppMutation.mutateAsync({ appId: app.appId })
+                }
+              />
+            </li>
           ))}
-        </div>
+        </ul>
       )}
 
       {hasNextPage && (

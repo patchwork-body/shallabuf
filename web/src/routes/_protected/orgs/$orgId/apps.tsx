@@ -41,12 +41,7 @@ function RouteComponent() {
 
   return (
     <HydrationBoundary state={dehydratedState}>
-      <div className="flex flex-col gap-8 min-w-[70%] mx-auto py-8">
-        <h1 className="text-3xl font-bold mb-8 text-gray-800 dark:text-gray-100">
-          Your Apps
-        </h1>
-        {orgId && <AppList organizationId={orgId} />}
-      </div>
+      {orgId && <AppList organizationId={orgId} />}
     </HydrationBoundary>
   );
 }
