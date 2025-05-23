@@ -11,9 +11,6 @@ import {
   pipe,
   uuid,
   boolean,
-  maxValue,
-  minValue,
-  number,
 } from "valibot";
 
 export const loginSchema = object({
@@ -25,6 +22,7 @@ export type Login = InferOutput<typeof loginSchema>;
 
 export const sessionSchema = object({
   id: string(),
+  username: string(),
   expiresAt: string(),
 });
 

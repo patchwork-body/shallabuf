@@ -159,7 +159,7 @@ export const Header = () => {
                     className="size-8 rounded-full bg-muted hover:bg-accent p-0 transition-all duration-200 hover:scale-105"
                   >
                     <div className="size-6 bg-primary rounded-full flex items-center justify-center text-xs font-semibold text-primary-foreground shadow-sm">
-                      {session.id?.[0]?.toUpperCase() || "U"}
+                      {session.username?.[0]?.toUpperCase() || "U"}
                     </div>
                   </Button>
                 </DropdownMenuTrigger>
@@ -170,6 +170,10 @@ export const Header = () => {
                     </p>
                     <p className="text-xs text-muted-foreground font-mono">
                       ID: {session.id.slice(0, 8)}...
+                    </p>
+
+                    <p className="text-xs text-muted-foreground font-mono">
+                      Username: {session.username}
                     </p>
                   </div>
                   <DropdownMenuSeparator />
