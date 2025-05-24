@@ -294,17 +294,11 @@ pub async fn accept_invite(
     }))
 }
 
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ListInvitesResponse {
-    pub invites: Vec<Invite>,
-}
-
 pub async fn list_invites(
     Session(session): Session,
     DatabaseConnection(mut conn): DatabaseConnection,
     Path(organization_id): Path<Uuid>,
-) -> Result<Json<ListInvitesResponse>, (StatusCode, String)> {
+) -> Result<Json<Vec<Invite>>, (StatusCode, String)> {
     // Check if user is member of the organization
     let is_member = sqlx::query!(
         "SELECT 1 as exists FROM user_organizations WHERE user_id = $1 AND organization_id = $2",
@@ -345,7 +339,7 @@ pub async fn list_invites(
     .await
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
-    Ok(Json(ListInvitesResponse { invites }))
+    Ok(Json(invites))
 }
 
 #[derive(Debug, Serialize)]

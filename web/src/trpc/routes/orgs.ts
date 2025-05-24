@@ -158,21 +158,35 @@ export const orgsRouter = createTRPCRouter({
     }))
     .output(listMembersAndInvitesResponseSchema)
     .query(async ({ input, ctx }) => {
-      const response = await fetch(`${env.API_URL}/orgs/${input.organizationId}/invites`, {
+      const invitesRes = await fetch(`${env.API_URL}/orgs/${input.organizationId}/invites`, {
         headers: {
           Authorization: `Bearer ${ctx.sessionToken}`,
           "Content-Type": "application/json",
         },
       });
 
-      if (!response.ok) {
+
+      if (!invitesRes.ok) {
         throw new Error("Failed to list members and invites");
       }
 
-      const invites = await response.json();
+      const invites = await invitesRes.json();
+
+      const membersRes = await fetch(`${env.API_URL}/orgs/${input.organizationId}/members`, {
+        headers: {
+          Authorization: `Bearer ${ctx.sessionToken}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!membersRes.ok) {
+        throw new Error("Failed to list members");
+      }
+
+      const members = await membersRes.json();
 
       return {
-        members: [],
+        members,
         invites,
       };
     }),

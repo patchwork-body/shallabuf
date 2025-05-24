@@ -17,11 +17,17 @@ export const Route = createFileRoute("/_protected/orgs/$orgId/apps")({
         getNextPageParam: (lastPage: ListAppsResponse) => lastPage.nextCursor,
       });
 
-      await context.queryClient.ensureQueryData(trpc.orgs.list.queryOptions({}));
+      await context.queryClient.ensureQueryData(
+        trpc.orgs.list.queryOptions({})
+      );
     } catch (error) {
       if (error instanceof TRPCClientError) {
         if (error.data.code === "UNAUTHORIZED") {
-          throw redirect({ to: "/login", replace: true });
+          throw redirect({
+            to: "/login",
+            replace: true,
+            search: { redirect: location.pathname },
+          });
         }
       }
 

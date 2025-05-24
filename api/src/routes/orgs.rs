@@ -244,3 +244,36 @@ pub async fn delete(
 
     Ok(StatusCode::NO_CONTENT)
 }
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Member {
+    pub id: Uuid,
+    pub name: String,
+    pub email: String,
+}
+
+pub async fn members(
+    DatabaseConnection(mut conn): DatabaseConnection,
+    Path(id): Path<Uuid>,
+) -> Result<Json<Vec<Member>>, (StatusCode, String)> {
+    let members = sqlx::query_as!(
+        Member,
+        r#"
+        SELECT
+            u.id,
+            u.name,
+            u.email
+        FROM user_organizations uo
+        INNER JOIN users u ON u.id = uo.user_id
+        WHERE uo.organization_id = $1
+        ORDER BY u.created_at DESC
+        "#,
+        id
+    )
+    .fetch_all(&mut *conn)
+    .await
+    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    Ok(Json(members))
+}

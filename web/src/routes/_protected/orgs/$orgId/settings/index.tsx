@@ -13,7 +13,14 @@ export const Route = createFileRoute("/_protected/orgs/$orgId/settings/")({
       const organization = await context.queryClient.ensureQueryData(
         trpc.orgs.get.queryOptions({ id: params.orgId })
       );
-      return { organization };
+
+      const { members, invites } = await context.queryClient.ensureQueryData(
+        trpc.orgs.listMembersAndInvites.queryOptions({
+          organizationId: params.orgId,
+        })
+      );
+
+      return { organization, members, invites };
     } catch (error) {
       throw new Error(
         `Failed to load organization: ${error instanceof Error ? error.message : "Unknown error"}`

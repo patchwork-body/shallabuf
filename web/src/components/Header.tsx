@@ -6,6 +6,7 @@ import {
   useParams,
   Link,
   useMatchRoute,
+  useLocation,
 } from "@tanstack/react-router";
 import { Logo } from "./Logo";
 import { Route } from "~/routes/__root";
@@ -55,12 +56,13 @@ export const Header = () => {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const { orgId } = useParams({ strict: false });
+  const location = useLocation();
 
   const logoutMutation = useMutation({
     ...trpc.auth.logout.mutationOptions(),
     onSuccess: () => {
       queryClient.clear();
-      navigate({ to: "/login" });
+      navigate({ to: "/login", search: { redirect: location.pathname }, replace: true });
     },
     onError: (error) => {
       console.error(error);

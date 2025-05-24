@@ -75,7 +75,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/{org_id}", get(routes::orgs::retrieve))
         .route("/{org_id}", post(routes::orgs::edit))
         .route("/{org_id}", delete(routes::orgs::delete))
-        .nest("/invites", invites_router);
+        .route("/{org_id}/members", get(routes::orgs::members))
+        .nest("/{org_id}/invites", invites_router);
 
     let stripe_router = Router::new()
         .route(

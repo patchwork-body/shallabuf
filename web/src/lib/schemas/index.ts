@@ -184,8 +184,8 @@ export type InviteResponse = InferOutput<typeof inviteResponseSchema>;
 
 export const memberSchema = object({
   id: string(),
+  name: string(),
   email: string(),
-  role: string(),
 });
 
 export const listMembersAndInvitesResponseSchema = object({
