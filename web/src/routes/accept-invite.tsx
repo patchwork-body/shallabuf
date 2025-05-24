@@ -39,7 +39,6 @@ const acceptInviteFn = createServerFn({ method: "POST" })
 
     const responseData = await response.json();
 
-    // There's no user with such email, so a new one was created.
     if (responseData.resetPasswordToken) {
       setHeader("Set-Cookie", [
         "session=; HttpOnly; Path=/; SameSite=Lax; Secure=true; Expires=Thu, 01 Jan 1970 00:00:00 GMT",
