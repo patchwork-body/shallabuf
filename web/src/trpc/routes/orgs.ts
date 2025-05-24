@@ -1,6 +1,6 @@
 import { env } from "~/env";
 import { createTRPCRouter, protectedProcedure } from "../index";
-import { object, string, array, nullable, uuid, number, minValue, maxValue, optional, pipe, minLength, maxLength } from "valibot";
+import { object, string, uuid, number, minValue, maxValue, optional, pipe, minLength, maxLength } from "valibot";
 import {
   createOrganizationSchema,
   listOrganizationsResponseSchema,
