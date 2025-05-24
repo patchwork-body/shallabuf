@@ -3,6 +3,8 @@ use reqwest::Client;
 use serde_json::Value;
 use std::collections::HashMap;
 
+use crate::config::Config;
+
 pub struct StripeService {
     client: Client,
     api_url: String,
@@ -26,15 +28,9 @@ pub struct StripePortalSession {
 }
 
 impl StripeService {
-    pub fn new() -> anyhow::Result<Self> {
-        let secret_key = std::env::var("STRIPE_SECRET_KEY")
-            .context("STRIPE_SECRET_KEY environment variable not set")?;
-
-        // Default to official Stripe API URL if not set
-        let api_url = std::env::var("STRIPE_API_URL")
-            .unwrap_or_else(|_| "https://api.stripe.com/v1".to_string());
-
-        println!("Using Stripe API URL: {}", api_url);
+    pub fn new(config: &Config) -> anyhow::Result<Self> {
+        let secret_key = config.stripe_secret_key.clone();
+        let api_url = config.stripe_api_url.clone();
 
         Ok(Self {
             client: Client::new(),

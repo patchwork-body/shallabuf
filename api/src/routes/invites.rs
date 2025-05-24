@@ -4,12 +4,77 @@ use argon2::{
 };
 use axum::http::StatusCode;
 use axum::{Json, extract::Path};
+use jsonwebtoken::{DecodingKey, EncodingKey, Header, Validation, decode, encode};
+use rand::Rng;
 use serde::{Deserialize, Serialize};
+use sqlx::Acquire;
 use time::OffsetDateTime;
 use uuid::Uuid;
-use validator::Validate;
+use validator::{Validate, ValidateEmail, ValidationError};
 
-use crate::extractors::{database_connection::DatabaseConnection, session::Session};
+use crate::extractors::{
+    config::ConfigExtractor, database_connection::DatabaseConnection, resend::Resend,
+    session::Session,
+};
+
+fn validate_emails(emails: &[String]) -> Result<(), ValidationError> {
+    for email in emails {
+        if !email.validate_email() {
+            return Err(ValidationError::new("invalid_email"));
+        }
+    }
+
+    Ok(())
+}
+
+// Generate a 32-character random password with mixed case letters, numbers, and symbols
+const CHARSET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
+
+fn generate_secure_temp_password() -> String {
+    let mut rng = rand::rng();
+
+    (0..32)
+        .map(|_| {
+            let idx = rng.random_range(0..CHARSET.len());
+            CHARSET[idx] as char
+        })
+        .collect()
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct InviteJwtPayload {
+    pub invite_id: Uuid,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct InviteJwtClaims {
+    pub sub: String,
+    pub exp: i64,
+    pub iat: i64,
+    pub payload: InviteJwtPayload,
+}
+
+fn generate_jwt_token(invite_id: Uuid, jwt_secret: &str) -> Result<String, (StatusCode, String)> {
+    let payload = InviteJwtPayload { invite_id };
+    let now = OffsetDateTime::now_utc();
+    let exp = now + time::Duration::days(1);
+
+    let claims = InviteJwtClaims {
+        sub: invite_id.to_string(),
+        exp: exp.unix_timestamp(),
+        iat: now.unix_timestamp(),
+        payload,
+    };
+
+    let jwt_token = encode(
+        &Header::default(),
+        &claims,
+        &EncodingKey::from_secret(jwt_secret.as_bytes()),
+    )
+    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    Ok(jwt_token)
+}
 
 #[derive(sqlx::Type, Serialize, Deserialize, Clone, Debug)]
 #[sqlx(type_name = "invite_status", rename_all = "snake_case")]
@@ -38,23 +103,18 @@ pub struct Invite {
 #[derive(Debug, Deserialize, Validate)]
 #[serde(rename_all = "camelCase")]
 pub struct InviteRequest {
-    #[validate(email)]
-    pub email: String,
+    #[validate(length(min = 1, max = 10), custom(function = "validate_emails"))]
+    pub emails: Vec<String>,
     pub organization_id: Uuid,
 }
 
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct InviteResponse {
-    pub invite: Invite,
-    pub magic_link: String,
-}
-
-pub async fn invite_member(
+pub async fn invite_members(
     Session(session): Session,
     DatabaseConnection(mut conn): DatabaseConnection,
+    ConfigExtractor(config): ConfigExtractor,
+    Resend(resend): Resend,
     Json(payload): Json<InviteRequest>,
-) -> Result<Json<InviteResponse>, (StatusCode, String)> {
+) -> Result<Json<Invite>, (StatusCode, String)> {
     payload
         .validate()
         .map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))?;
@@ -112,7 +172,7 @@ pub async fn invite_member(
             updated_at
         "#,
         payload.organization_id,
-        payload.email,
+        payload.emails[0],
         expires_at
     )
     .fetch_one(&mut *conn)
@@ -128,24 +188,21 @@ pub async fn invite_member(
         }
     })?;
 
-    // Generate magic link (in a real app, you'd use a proper base URL from config)
-    let magic_link = format!("https://yourapp.com/accept-invite/{}", invite.id);
+    let jwt_token = generate_jwt_token(invite.id, &config.jwt_secret)?;
+    let magic_link = format!("{}/accept-invite?token={}", config.frontend_url, jwt_token);
 
-    // TODO: Send email using Resend
-    // For now, we'll just return the response without actually sending the email
+    resend
+        .send_invites(payload.emails, &magic_link)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
-    Ok(Json(InviteResponse { invite, magic_link }))
+    Ok(Json(invite))
 }
 
-#[derive(Debug, Deserialize, Validate)]
+#[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AcceptInviteRequest {
-    #[validate(length(min = 1, max = 255))]
-    pub name: String,
-    #[validate(email)]
-    pub email: String,
-    #[validate(length(min = 8))]
-    pub password: String,
+    pub token: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -156,13 +213,16 @@ pub struct AcceptInviteResponse {
 }
 
 pub async fn accept_invite(
-    Path(invite_id): Path<Uuid>,
     DatabaseConnection(mut conn): DatabaseConnection,
+    ConfigExtractor(config): ConfigExtractor,
     Json(payload): Json<AcceptInviteRequest>,
 ) -> Result<Json<AcceptInviteResponse>, (StatusCode, String)> {
-    payload
-        .validate()
-        .map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))?;
+    let token_data = decode::<InviteJwtClaims>(
+        &payload.token,
+        &DecodingKey::from_secret(config.jwt_secret.as_bytes()),
+        &Validation::default(),
+    )
+    .map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))?;
 
     // Get the invite and check if it's valid
     let invite = sqlx::query_as!(
@@ -179,7 +239,7 @@ pub async fn accept_invite(
         FROM invites
         WHERE id = $1 AND status = 'pending'
         "#,
-        invite_id
+        token_data.claims.payload.invite_id
     )
     .fetch_optional(&mut *conn)
     .await
@@ -194,7 +254,7 @@ pub async fn accept_invite(
         // Mark as expired
         sqlx::query!(
             "UPDATE invites SET status = 'expired' WHERE id = $1",
-            invite_id
+            token_data.claims.payload.invite_id
         )
         .execute(&mut *conn)
         .await
@@ -203,17 +263,14 @@ pub async fn accept_invite(
         return Err((StatusCode::BAD_REQUEST, "Invite has expired".to_string()));
     }
 
-    // Check if email matches
-    if invite.email != payload.email {
-        return Err((
-            StatusCode::BAD_REQUEST,
-            "Email does not match invite".to_string(),
-        ));
-    }
-
     // Check if user already exists
-    let existing_user = sqlx::query!("SELECT id FROM users WHERE email = $1", payload.email)
+    let existing_user = sqlx::query!("SELECT id FROM users WHERE email = $1", invite.email)
         .fetch_optional(&mut *conn)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    let mut transaction = conn
+        .begin()
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
@@ -224,7 +281,7 @@ pub async fn accept_invite(
             user.id,
             invite.organization_id
         )
-        .fetch_optional(&mut *conn)
+        .fetch_optional(&mut *transaction)
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
         .is_some();
@@ -236,7 +293,7 @@ pub async fn accept_invite(
                 user.id,
                 invite.organization_id
             )
-            .execute(&mut *conn)
+            .execute(&mut *transaction)
             .await
             .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
         }
@@ -246,23 +303,24 @@ pub async fn accept_invite(
         // Create new user
         let salt = SaltString::generate(&mut OsRng);
         let argon2 = Argon2::default();
-        let password_hash = argon2
-            .hash_password(payload.password.as_bytes(), &salt)
+        let temp_password = generate_secure_temp_password();
+
+        let hashed_password = argon2
+            .hash_password(temp_password.as_bytes(), &salt)
             .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
             .to_string();
 
         let user = sqlx::query!(
             r#"
-            INSERT INTO users (name, email, password_hash, email_verified)
-            VALUES ($1, $2, $3, $4)
+            INSERT INTO users (email, password_hash, email_verified)
+            VALUES ($1, $2, $3)
             RETURNING id
             "#,
-            payload.name,
-            payload.email,
-            password_hash,
+            invite.email,
+            hashed_password,
             true // Email is verified since they clicked the invite link
         )
-        .fetch_one(&mut *conn)
+        .fetch_one(&mut *transaction)
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
@@ -272,7 +330,7 @@ pub async fn accept_invite(
             user.id,
             invite.organization_id
         )
-        .execute(&mut *conn)
+        .execute(&mut *transaction)
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
@@ -282,11 +340,16 @@ pub async fn accept_invite(
     // Mark invite as accepted
     sqlx::query!(
         "UPDATE invites SET status = 'accepted' WHERE id = $1",
-        invite_id
+        token_data.claims.payload.invite_id
     )
-    .execute(&mut *conn)
+    .execute(&mut *transaction)
     .await
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    transaction
+        .commit()
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
     Ok(Json(AcceptInviteResponse {
         user_id,

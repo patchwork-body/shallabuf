@@ -1,5 +1,5 @@
-use crate::config::Config;
 use crate::services::stripe::StripeService;
+use crate::{config::Config, services::resend::ResendService};
 use std::sync::Arc;
 
 #[derive(Clone)]
@@ -8,4 +8,5 @@ pub struct AppState {
     pub redis: redis::aio::ConnectionManager,
     pub config: Config,
     pub stripe: Arc<StripeService>,
+    pub resend: Arc<ResendService>,
 }

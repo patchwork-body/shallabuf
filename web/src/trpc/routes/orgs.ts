@@ -1,6 +1,6 @@
 import { env } from "~/env";
 import { createTRPCRouter, protectedProcedure } from "../index";
-import { object, string, uuid, number, minValue, maxValue, optional, pipe, minLength, maxLength } from "valibot";
+import { object, string, uuid, number, minValue, maxValue, optional, pipe, minLength, maxLength, array, email } from "valibot";
 import {
   createOrganizationSchema,
   inviteResponseSchema,
@@ -129,9 +129,9 @@ export const orgsRouter = createTRPCRouter({
       return true;
     }),
 
-  inviteMember: protectedProcedure
+  inviteMembers: protectedProcedure
     .input(object({
-      email: string(),
+      emails: array(pipe(string(), email())),
       organizationId: pipe(string(), uuid()),
     }))
     .output(inviteResponseSchema)
@@ -142,7 +142,7 @@ export const orgsRouter = createTRPCRouter({
           "Content-Type": "application/json",
           Authorization: `Bearer ${ctx.sessionToken}`,
         },
-        body: JSON.stringify({ email: input.email }),
+        body: JSON.stringify({ emails: input.emails }),
       });
 
       if (!response.ok) {

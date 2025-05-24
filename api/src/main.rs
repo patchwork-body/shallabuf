@@ -44,7 +44,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .await
         .expect("Failed to create Redis connection manager");
 
-    let stripe = Arc::new(services::stripe::StripeService::new()?);
+    let stripe = Arc::new(services::stripe::StripeService::new(&config)?);
+    let resend = Arc::new(services::resend::ResendService::new(&config)?);
 
     let jwt_router = Router::new()
         .route("/issue", post(routes::jwt::issue))
@@ -65,8 +66,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let invites_router = Router::new()
         .route("/", get(routes::invites::list_invites))
-        .route("/", post(routes::invites::invite_member))
-        .route("/{invite_id}", get(routes::invites::accept_invite))
+        .route("/", post(routes::invites::invite_members))
+        .route("/accept", post(routes::invites::accept_invite))
         .route("/{invite_id}", delete(routes::invites::revoke_invite));
 
     let orgs_router = Router::new()
@@ -111,6 +112,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             redis,
             config: config.clone(),
             stripe,
+            resend,
         });
 
     let listener = tokio::net::TcpListener::bind(&config.listen_addr).await?;

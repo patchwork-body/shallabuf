@@ -14,7 +14,7 @@ use time::{Duration, OffsetDateTime};
 use tracing::info;
 use uuid::Uuid;
 
-use crate::extractors::database_connection::DatabaseConnection;
+use crate::extractors::{config::ConfigExtractor, database_connection::DatabaseConnection};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -100,6 +100,7 @@ pub struct CreateJwtResponse {
 pub async fn issue(
     DatabaseConnection(mut conn): DatabaseConnection,
     auth: TypedHeader<Authorization<Bearer>>,
+    ConfigExtractor(config): ConfigExtractor,
     Json(CreateJwtRequest {
         app_id,
         user_id,
@@ -147,17 +148,11 @@ pub async fn issue(
             )
         })?;
 
-    let secret = std::env::var("JWT_SECRET").map_err(|_| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            "JWT_SECRET not set".to_string(),
-        )
-    })?;
-
     info!("Generating with payload: {payload:?}");
 
     // Generate tokens
-    let (access_token, refresh_token) = generate_token_pair(app_id, user_id, payload, &secret)?;
+    let (access_token, refresh_token) =
+        generate_token_pair(app_id, user_id, payload, &config.jwt_secret)?;
 
     Ok(Json(CreateJwtResponse {
         access_token,
