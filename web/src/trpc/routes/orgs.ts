@@ -167,11 +167,7 @@ export const orgsRouter = createTRPCRouter({
         throw new Error("Failed to invite member");
       }
 
-      const data = await response.json();
-
-      console.log(data);
-
-      return data;
+      return await response.json();
     }),
 
   revokeInvite: protectedProcedure
