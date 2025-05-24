@@ -89,15 +89,13 @@ pub enum InviteStatus {
 #[derive(Debug, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Invite {
-    id: Uuid,
-    organization_id: Uuid,
-    email: String,
-    status: InviteStatus,
-    expires_at: OffsetDateTime,
+    pub id: Uuid,
+    pub email: String,
+    pub status: InviteStatus,
     #[serde(with = "time::serde::rfc3339")]
-    created_at: OffsetDateTime,
+    pub expires_at: OffsetDateTime,
     #[serde(with = "time::serde::rfc3339")]
-    updated_at: OffsetDateTime,
+    pub created_at: OffsetDateTime,
 }
 
 #[derive(Debug, Deserialize, Validate)]
@@ -114,7 +112,7 @@ pub async fn invite_members(
     ConfigExtractor(config): ConfigExtractor,
     Resend(resend): Resend,
     Json(payload): Json<InviteRequest>,
-) -> Result<Json<Invite>, (StatusCode, String)> {
+) -> Result<Json<Vec<Invite>>, (StatusCode, String)> {
     payload
         .validate()
         .map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))?;
@@ -137,7 +135,7 @@ pub async fn invite_members(
         ));
     }
 
-    // Check if there are already 10 pending invites for this organization
+    // Check if adding these invites would exceed the limit
     let pending_count = sqlx::query!(
         "SELECT COUNT(*) as count FROM invites WHERE organization_id = $1 AND status = 'pending'",
         payload.organization_id
@@ -146,57 +144,68 @@ pub async fn invite_members(
     .await
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
-    if pending_count.count.unwrap_or(0) >= 10 {
+    let current_pending = pending_count.count.unwrap_or(0);
+    let new_invites_count = payload.emails.len() as i64;
+
+    if current_pending + new_invites_count > 10 {
         return Err((
             StatusCode::BAD_REQUEST,
-            "Maximum pending invites limit reached".to_string(),
+            "Adding these invites would exceed the maximum pending invites limit (10)".to_string(),
         ));
     }
 
-    // Set expiration to 7 days from now
-    let expires_at = OffsetDateTime::now_utc() + time::Duration::days(7);
+    // Set expiration to 1 day from now
+    let expires_at = OffsetDateTime::now_utc() + time::Duration::days(1);
 
-    // Create the invite
-    let invite = sqlx::query_as!(
+    let invites = sqlx::query_as!(
         Invite,
         r#"
         INSERT INTO invites (organization_id, email, expires_at)
-        VALUES ($1, $2, $3)
+        SELECT
+            organization_id, email, expires_at
+        FROM
+            UNNEST($1::uuid[], $2::text[], $3::timestamptz[]) AS a(organization_id, email, expires_at)
         RETURNING
             id,
-            organization_id,
             email,
             status as "status: InviteStatus",
             expires_at,
-            created_at,
-            updated_at
+            created_at
         "#,
-        payload.organization_id,
-        payload.emails[0],
-        expires_at
+        &vec![payload.organization_id; payload.emails.len()] as &[Uuid],
+        &payload.emails,
+        &vec![expires_at; payload.emails.len()] as &[OffsetDateTime]
     )
-    .fetch_one(&mut *conn)
+    .fetch_all(&mut *conn)
     .await
     .map_err(|e| {
         if e.to_string().contains("unique") {
             (
                 StatusCode::CONFLICT,
-                "Invite already exists for this email and organization".to_string(),
+                "One or more invites already exist for this organization".to_string(),
             )
         } else {
             (StatusCode::INTERNAL_SERVER_ERROR, e.to_string())
         }
     })?;
 
-    let jwt_token = generate_jwt_token(invite.id, &config.jwt_secret)?;
-    let magic_link = format!("{}/accept-invite?token={}", config.frontend_url, jwt_token);
+    // Generate JWT tokens and magic links for each invite
+    let mut magic_links = Vec::new();
+    for invite in &invites {
+        let jwt_token = generate_jwt_token(invite.id, &config.jwt_secret)?;
+        let magic_link = format!("{}/accept-invite?token={}", config.frontend_url, jwt_token);
+        magic_links.push(magic_link);
+    }
 
-    resend
-        .send_invites(payload.emails, &magic_link)
-        .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    // Send individual emails with their respective magic links
+    for (invite, magic_link) in invites.iter().zip(magic_links.iter()) {
+        resend
+            .send_invites(&invite.email, magic_link)
+            .await
+            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    }
 
-    Ok(Json(invite))
+    Ok(Json(invites))
 }
 
 #[derive(Debug, Deserialize)]
@@ -225,17 +234,15 @@ pub async fn accept_invite(
     .map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))?;
 
     // Get the invite and check if it's valid
-    let invite = sqlx::query_as!(
-        Invite,
+    let invite = sqlx::query!(
         r#"
         SELECT
             id,
-            organization_id,
             email,
+            organization_id,
             status as "status: InviteStatus",
             expires_at,
-            created_at,
-            updated_at
+            created_at
         FROM invites
         WHERE id = $1 AND status = 'pending'
         "#,
@@ -385,12 +392,10 @@ pub async fn list_invites(
         r#"
         SELECT
             id,
-            organization_id,
             email,
             status as "status: InviteStatus",
             expires_at,
-            created_at,
-            updated_at
+            created_at
         FROM invites
         WHERE organization_id = $1
         AND status = 'pending'
@@ -413,17 +418,21 @@ pub struct RevokeInviteResponse {
 pub async fn revoke_invite(
     Session(session): Session,
     DatabaseConnection(mut conn): DatabaseConnection,
-    Path(invite_id): Path<Uuid>,
+    Path((organization_id, invite_id)): Path<(Uuid, Uuid)>,
 ) -> Result<Json<RevokeInviteResponse>, (StatusCode, String)> {
     // Get the invite and check if user has permission
     let _invite = sqlx::query!(
         r#"
-        SELECT i.id, i.organization_id
+        SELECT i.id
         FROM invites i
-        INNER JOIN user_organizations uo ON uo.organization_id = i.organization_id
-        WHERE i.id = $1 AND uo.user_id = $2 AND i.status = 'pending'
+        WHERE i.id = $1 AND i.organization_id = $2 AND i.status = 'pending'
+        AND EXISTS (
+            SELECT 1 FROM user_organizations uo
+            WHERE uo.user_id = $3 AND uo.organization_id = $2
+        )
         "#,
         invite_id,
+        organization_id,
         session.user_id
     )
     .fetch_optional(&mut *conn)

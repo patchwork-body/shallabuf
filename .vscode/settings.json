@@ -26,6 +26,7 @@
     "SREM",
     "stagewise",
     "thiserror",
+    "timestamptz",
     "tungstenite",
     "valibot",
     "vinxi"

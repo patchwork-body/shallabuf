@@ -1,6 +1,20 @@
 import { env } from "~/env";
 import { createTRPCRouter, protectedProcedure } from "../index";
-import { object, string, uuid, number, minValue, maxValue, optional, pipe, minLength, maxLength, array, email } from "valibot";
+import {
+  object,
+  string,
+  uuid,
+  number,
+  minValue,
+  maxValue,
+  optional,
+  pipe,
+  minLength,
+  maxLength,
+  array,
+  email,
+  boolean,
+} from "valibot";
 import {
   createOrganizationSchema,
   inviteResponseSchema,
@@ -37,9 +51,7 @@ export const orgsRouter = createTRPCRouter({
         limit: optional(pipe(number(), minValue(1), maxValue(100))),
       })
     )
-    .output(
-      listOrganizationsResponseSchema
-    )
+    .output(listOrganizationsResponseSchema)
     .query(async ({ input, ctx }) => {
       const params = new URLSearchParams();
       if (input.cursor) params.set("cursor", input.cursor);
@@ -130,41 +142,115 @@ export const orgsRouter = createTRPCRouter({
     }),
 
   inviteMembers: protectedProcedure
-    .input(object({
-      emails: array(pipe(string(), email())),
-      organizationId: pipe(string(), uuid()),
-    }))
+    .input(
+      object({
+        emails: array(pipe(string(), email())),
+        organizationId: pipe(string(), uuid()),
+      })
+    )
     .output(inviteResponseSchema)
     .mutation(async ({ input, ctx }) => {
-      const response = await fetch(`${env.API_URL}/orgs/${input.organizationId}/invites`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${ctx.sessionToken}`,
-        },
-        body: JSON.stringify({ emails: input.emails }),
-      });
+      const response = await fetch(
+        `${env.API_URL}/orgs/${input.organizationId}/invites`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${ctx.sessionToken}`,
+          },
+          body: JSON.stringify(input),
+        }
+      );
 
       if (!response.ok) {
+        console.error(await response.text());
         throw new Error("Failed to invite member");
+      }
+
+      const data = await response.json();
+
+      console.log(data);
+
+      return data;
+    }),
+
+  revokeInvite: protectedProcedure
+    .input(
+      object({
+        organizationId: pipe(string(), uuid()),
+        inviteId: pipe(string(), uuid()),
+      })
+    )
+    .output(
+      object({
+        success: boolean(),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      const response = await fetch(
+        `${env.API_URL}/orgs/${input.organizationId}/invites/${input.inviteId}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${ctx.sessionToken}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        console.log(await response.text());
+        throw new Error("Failed to revoke invite");
+      }
+
+      return response.json();
+    }),
+
+  resendInvite: protectedProcedure
+    .input(
+      object({
+        organizationId: pipe(string(), uuid()),
+        inviteId: pipe(string(), uuid()),
+      })
+    )
+    .output(inviteResponseSchema)
+    .mutation(async ({ input, ctx }) => {
+      const response = await fetch(
+        `${env.API_URL}/orgs/${input.organizationId}/invites/${input.inviteId}/resend`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${ctx.sessionToken}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        console.log(await response.text());
+        throw new Error("Failed to resend invite");
       }
 
       return response.json();
     }),
 
   listMembersAndInvites: protectedProcedure
-    .input(object({
-      organizationId: pipe(string(), uuid()),
-    }))
+    .input(
+      object({
+        organizationId: pipe(string(), uuid()),
+      })
+    )
     .output(listMembersAndInvitesResponseSchema)
     .query(async ({ input, ctx }) => {
-      const invitesRes = await fetch(`${env.API_URL}/orgs/${input.organizationId}/invites`, {
-        headers: {
-          Authorization: `Bearer ${ctx.sessionToken}`,
-          "Content-Type": "application/json",
-        },
-      });
-
+      const invitesRes = await fetch(
+        `${env.API_URL}/orgs/${input.organizationId}/invites`,
+        {
+          headers: {
+            Authorization: `Bearer ${ctx.sessionToken}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
 
       if (!invitesRes.ok) {
         throw new Error("Failed to list members and invites");
@@ -172,12 +258,15 @@ export const orgsRouter = createTRPCRouter({
 
       const invites = await invitesRes.json();
 
-      const membersRes = await fetch(`${env.API_URL}/orgs/${input.organizationId}/members`, {
-        headers: {
-          Authorization: `Bearer ${ctx.sessionToken}`,
-          "Content-Type": "application/json",
-        },
-      });
+      const membersRes = await fetch(
+        `${env.API_URL}/orgs/${input.organizationId}/members`,
+        {
+          headers: {
+            Authorization: `Bearer ${ctx.sessionToken}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
 
       if (!membersRes.ok) {
         throw new Error("Failed to list members");

@@ -21,10 +21,9 @@ export function InviteMemberDialog({
   isOpen,
   onOpenChange,
 }: InviteMemberDialogProps) {
-  const { form, isSubmitting, addEmailField, removeEmailField } =
-    useInviteMembers(() => {
-      onOpenChange(false);
-    });
+  const { form, addEmailField, removeEmailField } = useInviteMembers(() => {
+    onOpenChange(false);
+  });
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -83,14 +82,8 @@ export function InviteMemberDialog({
                             }
                           }}
                           className={`w-full ${email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) ? "border-destructive" : ""}`}
-                          disabled={isSubmitting}
+                          disabled={form.state.isSubmitting}
                         />
-                        {email.trim() &&
-                          !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) && (
-                            <p className="text-xs text-destructive mt-1">
-                              Please enter a valid email address
-                            </p>
-                          )}
                       </div>
 
                       {field.state.value.length > 1 && (
@@ -99,7 +92,7 @@ export function InviteMemberDialog({
                           variant="outline"
                           size="sm"
                           onClick={() => removeEmailField(index)}
-                          disabled={isSubmitting}
+                          disabled={form.state.isSubmitting}
                           className="shrink-0 mt-0"
                         >
                           <X className="size-4" />
@@ -123,7 +116,7 @@ export function InviteMemberDialog({
                 variant="outline"
                 size="sm"
                 onClick={addEmailField}
-                disabled={isSubmitting}
+                disabled={form.state.isSubmitting}
                 className="w-full"
               >
                 <Plus className="size-4 mr-2" />
@@ -137,7 +130,7 @@ export function InviteMemberDialog({
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
-              disabled={isSubmitting}
+              disabled={form.state.isSubmitting}
               className="w-full sm:w-auto"
             >
               Cancel
@@ -148,12 +141,12 @@ export function InviteMemberDialog({
                 <Button
                   type="submit"
                   disabled={
-                    isSubmitting ||
+                    form.state.isSubmitting ||
                     form.getFieldValue("emails").every((email) => !email.trim())
                   }
                   className="w-full sm:w-auto"
                 >
-                  {isSubmitting ? (
+                  {form.state.isSubmitting ? (
                     <>
                       <Loader2 className="size-4 mr-2 animate-spin" />
                       Sending Invitations...

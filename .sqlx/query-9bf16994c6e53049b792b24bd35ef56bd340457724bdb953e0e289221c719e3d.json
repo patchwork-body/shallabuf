@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        INSERT INTO invites (organization_id, email, expires_at)\n        VALUES ($1, $2, $3)\n        RETURNING\n            id,\n            organization_id,\n            email,\n            status as \"status: InviteStatus\",\n            expires_at,\n            created_at,\n            updated_at\n        ",
+  "query": "\n        SELECT\n            id,\n            email,\n            organization_id,\n            status as \"status: InviteStatus\",\n            expires_at,\n            created_at\n        FROM invites\n        WHERE id = $1 AND status = 'pending'\n        ",
   "describe": {
     "columns": [
       {
@@ -10,13 +10,13 @@
       },
       {
         "ordinal": 1,
-        "name": "organization_id",
-        "type_info": "Uuid"
+        "name": "email",
+        "type_info": "Varchar"
       },
       {
         "ordinal": 2,
-        "name": "email",
-        "type_info": "Varchar"
+        "name": "organization_id",
+        "type_info": "Uuid"
       },
       {
         "ordinal": 3,
@@ -44,18 +44,11 @@
         "ordinal": 5,
         "name": "created_at",
         "type_info": "Timestamptz"
-      },
-      {
-        "ordinal": 6,
-        "name": "updated_at",
-        "type_info": "Timestamptz"
       }
     ],
     "parameters": {
       "Left": [
-        "Uuid",
-        "Varchar",
-        "Timestamptz"
+        "Uuid"
       ]
     },
     "nullable": [
@@ -64,9 +57,8 @@
       false,
       false,
       false,
-      false,
       false
     ]
   },
-  "hash": "4138670f603b6ab7db0c9ea5c80f08ca599847471dd1a7a2b4ad6e4c91a35317"
+  "hash": "9bf16994c6e53049b792b24bd35ef56bd340457724bdb953e0e289221c719e3d"
 }

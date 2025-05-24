@@ -15,17 +15,11 @@ import {
 import { SocialLoginButtons } from "~/components/SocialLoginButtons";
 
 export const Route = createFileRoute("/login/")({
-  validateSearch: (search: Record<string, unknown>) => {
-    return {
-      redirect: (search.redirect as string) || undefined,
-    };
-  },
   component: Login,
 });
 
 function Login() {
   const router = useRouter();
-  const { redirect } = Route.useSearch();
   const loginMutation = useMutation(trpc.auth.login.mutationOptions());
 
   const form = useForm({
@@ -38,10 +32,7 @@ function Login() {
         await loginMutation.mutateAsync(value);
         await router.invalidate();
 
-        // Navigate to redirect URL if provided and valid, otherwise go to orgs
-        const redirectTo =
-          redirect && isValidRedirect(redirect) ? redirect : "/orgs";
-        router.navigate({ to: redirectTo });
+        router.navigate({ to: '/orgs' });
       } catch (err) {
         console.error(err);
       }

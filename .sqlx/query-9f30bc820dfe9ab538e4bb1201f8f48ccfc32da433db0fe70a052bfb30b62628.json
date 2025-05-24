@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT\n            id,\n            organization_id,\n            email,\n            status as \"status: InviteStatus\",\n            expires_at,\n            created_at,\n            updated_at\n        FROM invites\n        WHERE id = $1 AND status = 'pending'\n        ",
+  "query": "\n        SELECT\n            id,\n            email,\n            status as \"status: InviteStatus\",\n            expires_at,\n            created_at\n        FROM invites\n        WHERE organization_id = $1\n        AND status = 'pending'\n        ORDER BY created_at DESC\n        ",
   "describe": {
     "columns": [
       {
@@ -10,16 +10,11 @@
       },
       {
         "ordinal": 1,
-        "name": "organization_id",
-        "type_info": "Uuid"
-      },
-      {
-        "ordinal": 2,
         "name": "email",
         "type_info": "Varchar"
       },
       {
-        "ordinal": 3,
+        "ordinal": 2,
         "name": "status: InviteStatus",
         "type_info": {
           "Custom": {
@@ -36,18 +31,13 @@
         }
       },
       {
-        "ordinal": 4,
+        "ordinal": 3,
         "name": "expires_at",
         "type_info": "Timestamptz"
       },
       {
-        "ordinal": 5,
+        "ordinal": 4,
         "name": "created_at",
-        "type_info": "Timestamptz"
-      },
-      {
-        "ordinal": 6,
-        "name": "updated_at",
         "type_info": "Timestamptz"
       }
     ],
@@ -61,10 +51,8 @@
       false,
       false,
       false,
-      false,
-      false,
       false
     ]
   },
-  "hash": "c4ec4f5cd5b22ea3b3de569a60475a51af20ed322ecbbc5a240a0f1d99f13ddb"
+  "hash": "9f30bc820dfe9ab538e4bb1201f8f48ccfc32da433db0fe70a052bfb30b62628"
 }

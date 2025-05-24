@@ -18,13 +18,9 @@ impl ResendService {
         })
     }
 
-    pub async fn send_invites(
-        &self,
-        to: Vec<String>,
-        magic_link: &str,
-    ) -> Result<CreateEmailResponse> {
+    pub async fn send_invites(&self, to: &str, magic_link: &str) -> Result<CreateEmailResponse> {
         let email =
-            CreateEmailBaseOptions::new(self.from.clone(), to, "Invitation to join the team")
+            CreateEmailBaseOptions::new(self.from.clone(), vec![to], "Invitation to join the team")
                 .with_html(&format!(
                     "<a href='{}'>Click here to accept the invitation</a>",
                     magic_link

@@ -166,7 +166,7 @@ export const createPortalSessionResponseSchema = object({
 export type CreatePortalSessionResponse = InferOutput<typeof createPortalSessionResponseSchema>;
 
 export const inviteSchema = object({
-  id: string(),
+  id: pipe(string(), uuid()),
   email: string(),
   status: string(),
   expiresAt: string(),
@@ -175,10 +175,7 @@ export const inviteSchema = object({
 
 export type Invite = InferOutput<typeof inviteSchema>;
 
-export const inviteResponseSchema = object({
-  invite: inviteSchema,
-  magicLink: string(),
-});
+export const inviteResponseSchema = array(inviteSchema);
 
 export type InviteResponse = InferOutput<typeof inviteResponseSchema>;
 

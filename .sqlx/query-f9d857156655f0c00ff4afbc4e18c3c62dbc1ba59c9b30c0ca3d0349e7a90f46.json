@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT\n            id,\n            organization_id,\n            email,\n            status as \"status: InviteStatus\",\n            expires_at,\n            created_at,\n            updated_at\n        FROM invites\n        WHERE organization_id = $1\n        AND status = 'pending'\n        ORDER BY created_at DESC\n        ",
+  "query": "\n        INSERT INTO invites (organization_id, email, expires_at)\n        SELECT\n            organization_id, email, expires_at\n        FROM\n            UNNEST($1::uuid[], $2::text[], $3::timestamptz[]) AS a(organization_id, email, expires_at)\n        RETURNING\n            id,\n            email,\n            status as \"status: InviteStatus\",\n            expires_at,\n            created_at\n        ",
   "describe": {
     "columns": [
       {
@@ -10,16 +10,11 @@
       },
       {
         "ordinal": 1,
-        "name": "organization_id",
-        "type_info": "Uuid"
-      },
-      {
-        "ordinal": 2,
         "name": "email",
         "type_info": "Varchar"
       },
       {
-        "ordinal": 3,
+        "ordinal": 2,
         "name": "status: InviteStatus",
         "type_info": {
           "Custom": {
@@ -36,24 +31,21 @@
         }
       },
       {
-        "ordinal": 4,
+        "ordinal": 3,
         "name": "expires_at",
         "type_info": "Timestamptz"
       },
       {
-        "ordinal": 5,
+        "ordinal": 4,
         "name": "created_at",
-        "type_info": "Timestamptz"
-      },
-      {
-        "ordinal": 6,
-        "name": "updated_at",
         "type_info": "Timestamptz"
       }
     ],
     "parameters": {
       "Left": [
-        "Uuid"
+        "UuidArray",
+        "TextArray",
+        "TimestamptzArray"
       ]
     },
     "nullable": [
@@ -61,10 +53,8 @@
       false,
       false,
       false,
-      false,
-      false,
       false
     ]
   },
-  "hash": "e97dc7aad0590e06f8c6c1e34d2b9bddf970f5c1579f67ffb65ff9db3f242e06"
+  "hash": "f9d857156655f0c00ff4afbc4e18c3c62dbc1ba59c9b30c0ca3d0349e7a90f46"
 }

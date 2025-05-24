@@ -1,5 +1,5 @@
-import { Users, Mail, User } from "lucide-react";
-import { useState } from "react";
+import { Users, Mail, User, Clock, X, RotateCcw, Trash } from "lucide-react";
+import { useState, useEffect } from "react";
 import { Button } from "~/components/ui/button";
 import {
   Card,
@@ -10,7 +10,7 @@ import {
   CardTitle,
 } from "~/components/ui/card";
 import { InviteMemberDialog } from "./InviteMemberDialog";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { trpc } from "~/trpc/client";
 import { useParams } from "@tanstack/react-router";
 import { Route } from "~/routes/__root";
@@ -19,12 +19,34 @@ export function TeamManagementCard() {
   const { orgId } = useParams({ strict: false });
   const { session } = Route.useRouteContext();
   const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
+  const [isClient, setIsClient] = useState(false);
+  const queryClient = useQueryClient();
+
+  const revokeInviteMutation = useMutation({
+    ...trpc.orgs.revokeInvite.mutationOptions(),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: trpc.orgs.listMembersAndInvites.queryKey({
+          organizationId: orgId!,
+        }),
+      });
+    },
+  })
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   const { data } = useSuspenseQuery(
     trpc.orgs.listMembersAndInvites.queryOptions({
       organizationId: orgId!,
     })
   );
+
+  const formatDate = (dateString: string) => {
+    if (!isClient) return "...";
+    return new Date(dateString).toLocaleDateString();
+  };
 
   return (
     <>
@@ -67,7 +89,10 @@ export function TeamManagementCard() {
                           </div>
                         </div>
                         <div className="text-xs text-muted-foreground">
-                          {session?.username === member.name || session?.username === member.email ? "You" : "Member"}
+                          {session?.username === member.name ||
+                          session?.username === member.email
+                            ? "You"
+                            : "Member"}
                         </div>
                       </div>
                     ))}
@@ -85,25 +110,34 @@ export function TeamManagementCard() {
                     {data.invites.map((invite) => (
                       <div
                         key={invite.id}
-                        className="flex items-center justify-between p-3 border rounded-lg bg-orange-50/50"
+                        className="flex items-center justify-between p-3 border rounded-lg"
                       >
                         <div className="flex items-center space-x-3">
-                          <div className="size-8 bg-orange-100 rounded-full flex items-center justify-center">
-                            <Mail className="size-4 text-orange-600" />
+                          <div className="size-8 bg-primary/10 rounded-full flex items-center justify-center">
+                            <Clock className="size-4 text-primary" />
                           </div>
                           <div>
                             <p className="text-sm font-medium">
                               {invite.email}
                             </p>
                             <p className="text-xs text-muted-foreground">
-                              Invited{" "}
-                              {new Date(invite.createdAt).toLocaleDateString()}
+                              Invited {formatDate(invite.createdAt)}
                             </p>
                           </div>
                         </div>
-                        <div className="text-xs text-orange-600 font-medium">
-                          Pending
-                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => revokeInviteMutation.mutate({
+                            organizationId: orgId!,
+                            inviteId: invite.id,
+                          })}
+                          disabled={revokeInviteMutation.isPending}
+                          className="text-destructive hover:text-destructive"
+                        >
+                          <Trash className="size-4 mr-1" />
+                          Revoke
+                        </Button>
                       </div>
                     ))}
                   </div>

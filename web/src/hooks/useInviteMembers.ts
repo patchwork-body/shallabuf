@@ -1,6 +1,9 @@
 import { useForm } from "@tanstack/react-form";
 import * as v from "valibot";
-import { useState } from "react";
+import { useCallback } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { trpc } from "~/trpc/client";
+import { useParams } from "@tanstack/react-router";
 
 const EmailSchema = v.pipe(
   v.string(),
@@ -19,26 +22,40 @@ const InviteFormSchema = v.object({
 export type InviteFormData = v.InferInput<typeof InviteFormSchema>;
 
 export function useInviteMembers(onSuccess?: () => void) {
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { orgId } = useParams({ strict: false });
+  const queryClient = useQueryClient();
+  const inviteMembersMutation = useMutation({
+    ...trpc.orgs.inviteMembers.mutationOptions(),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: trpc.orgs.listMembersAndInvites.queryKey({
+          organizationId: orgId,
+        }),
+      });
 
-  const inviteMembers = async (emails: string[]) => {
-    setIsSubmitting(true);
+      onSuccess?.();
+    },
+  });
+
+  const inviteMembers = useCallback(async (emails: string[]) => {
+    if (!orgId) {
+      return;
+    }
+
     try {
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-
-      console.log("Invitations sent to:", emails);
-      return { success: true, invitedEmails: emails };
+      await inviteMembersMutation.mutateAsync({
+        emails,
+        organizationId: orgId,
+      });
     } catch (error) {
       console.error("Failed to send invitations:", error);
       throw new Error("Failed to send invitations");
-    } finally {
-      setIsSubmitting(false);
     }
-  };
+  }, [inviteMembersMutation, orgId]);
 
   const form = useForm({
     defaultValues: {
-      emails: [""] as string[],
+      emails: [""],
     },
     onSubmit: async ({ value }) => {
       try {
@@ -75,7 +92,6 @@ export function useInviteMembers(onSuccess?: () => void) {
 
   return {
     form,
-    isSubmitting,
     addEmailField,
     removeEmailField,
   };
