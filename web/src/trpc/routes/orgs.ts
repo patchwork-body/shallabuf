@@ -3,6 +3,8 @@ import { createTRPCRouter, protectedProcedure } from "../index";
 import { object, string, uuid, number, minValue, maxValue, optional, pipe, minLength, maxLength } from "valibot";
 import {
   createOrganizationSchema,
+  inviteResponseSchema,
+  listMembersAndInvitesResponseSchema,
   listOrganizationsResponseSchema,
   organizationSchema,
 } from "~/lib/schemas";
@@ -125,5 +127,53 @@ export const orgsRouter = createTRPCRouter({
       }
 
       return true;
+    }),
+
+  inviteMember: protectedProcedure
+    .input(object({
+      email: string(),
+      organizationId: pipe(string(), uuid()),
+    }))
+    .output(inviteResponseSchema)
+    .mutation(async ({ input, ctx }) => {
+      const response = await fetch(`${env.API_URL}/orgs/${input.organizationId}/invites`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${ctx.sessionToken}`,
+        },
+        body: JSON.stringify({ email: input.email }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to invite member");
+      }
+
+      return response.json();
+    }),
+
+  listMembersAndInvites: protectedProcedure
+    .input(object({
+      organizationId: pipe(string(), uuid()),
+    }))
+    .output(listMembersAndInvitesResponseSchema)
+    .query(async ({ input, ctx }) => {
+      const response = await fetch(`${env.API_URL}/orgs/${input.organizationId}/invites`, {
+        headers: {
+          Authorization: `Bearer ${ctx.sessionToken}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to list members and invites");
+      }
+
+      const invites = await response.json();
+
+      return {
+        members: [],
+        invites,
+      };
     }),
 });

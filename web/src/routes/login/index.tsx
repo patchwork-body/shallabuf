@@ -15,11 +15,17 @@ import {
 import { SocialLoginButtons } from "~/components/SocialLoginButtons";
 
 export const Route = createFileRoute("/login/")({
+  validateSearch: (search: Record<string, unknown>) => {
+    return {
+      redirect: (search.redirect as string) || undefined,
+    };
+  },
   component: Login,
 });
 
 function Login() {
   const router = useRouter();
+  const { redirect } = Route.useSearch();
   const loginMutation = useMutation(trpc.auth.login.mutationOptions());
 
   const form = useForm({
@@ -30,8 +36,12 @@ function Login() {
     onSubmit: async ({ value }) => {
       try {
         await loginMutation.mutateAsync(value);
-        await router.invalidate()
-        router.navigate({ to: "/orgs" });
+        await router.invalidate();
+
+        // Navigate to redirect URL if provided and valid, otherwise go to orgs
+        const redirectTo =
+          redirect && isValidRedirect(redirect) ? redirect : "/orgs";
+        router.navigate({ to: redirectTo });
       } catch (err) {
         console.error(err);
       }
@@ -131,4 +141,14 @@ function Login() {
       </Card>
     </div>
   );
+}
+
+// Security function to validate redirect URLs
+function isValidRedirect(redirect: string): boolean {
+  try {
+    // Only allow relative URLs starting with "/" to prevent open redirects
+    return redirect.startsWith("/") && !redirect.startsWith("//");
+  } catch {
+    return false;
+  }
 }

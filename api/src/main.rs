@@ -63,12 +63,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/{app_id}", post(routes::apps::edit))
         .route("/{app_id}", delete(routes::apps::delete));
 
+    let invites_router = Router::new()
+        .route("/", get(routes::invites::list_invites))
+        .route("/", post(routes::invites::invite_member))
+        .route("/{invite_id}", get(routes::invites::accept_invite))
+        .route("/{invite_id}", delete(routes::invites::revoke_invite));
+
     let orgs_router = Router::new()
         .route("/", post(routes::orgs::create))
         .route("/", get(routes::orgs::list))
         .route("/{org_id}", get(routes::orgs::retrieve))
         .route("/{org_id}", post(routes::orgs::edit))
-        .route("/{org_id}", delete(routes::orgs::delete));
+        .route("/{org_id}", delete(routes::orgs::delete))
+        .nest("/invites", invites_router);
 
     let stripe_router = Router::new()
         .route(
@@ -88,19 +95,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             post(routes::stripe::create_portal_session),
         );
 
-    let invites_router = Router::new()
-        .route("/", post(routes::invites::invite_member))
-        .route("/{invite_id}", post(routes::invites::accept_invite))
-        .route("/{organization_id}", get(routes::invites::list_invites))
-        .route("/{invite_id}", delete(routes::invites::revoke_invite));
-
     let api_v0 = Router::new()
         .nest("/jwt", jwt_router)
         .nest("/auth", auth_router)
         .nest("/apps", apps_router)
         .nest("/orgs", orgs_router)
-        .nest("/stripe", stripe_router)
-        .nest("/invites", invites_router);
+        .nest("/stripe", stripe_router);
 
     let app = Router::new()
         .nest("/api/v0", api_v0)

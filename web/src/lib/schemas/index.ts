@@ -164,3 +164,33 @@ export const createPortalSessionResponseSchema = object({
 });
 
 export type CreatePortalSessionResponse = InferOutput<typeof createPortalSessionResponseSchema>;
+
+export const inviteSchema = object({
+  id: string(),
+  email: string(),
+  status: string(),
+  expiresAt: string(),
+  createdAt: string(),
+});
+
+export type Invite = InferOutput<typeof inviteSchema>;
+
+export const inviteResponseSchema = object({
+  invite: inviteSchema,
+  magicLink: string(),
+});
+
+export type InviteResponse = InferOutput<typeof inviteResponseSchema>;
+
+export const memberSchema = object({
+  id: string(),
+  email: string(),
+  role: string(),
+});
+
+export const listMembersAndInvitesResponseSchema = object({
+  members: array(memberSchema),
+  invites: array(inviteSchema),
+});
+
+export type ListMembersAndInvitesResponse = InferOutput<typeof listMembersAndInvitesResponseSchema>;

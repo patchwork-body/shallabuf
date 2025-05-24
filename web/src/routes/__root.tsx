@@ -114,10 +114,10 @@ function RootDocument({ children }: { children: ReactNode }) {
         <HeadContent />
       </head>
       <body>
-        <main className="min-h-dvh grid grid-rows-[auto_1fr] bg-background">
+        <div className="min-h-dvh grid grid-rows-[auto_1fr] bg-background">
           <Header />
           {children}
-        </main>
+        </div>
         <ReactQueryDevtools buttonPosition="bottom-left" />
         <TanStackRouterDevtools position="bottom-right" />
         <Scripts />
