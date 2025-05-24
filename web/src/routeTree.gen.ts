@@ -11,6 +11,8 @@
 // Import Routes
 
 import { Route as rootRoute } from './routes/__root'
+import { Route as ResetPasswordImport } from './routes/reset-password'
+import { Route as AcceptInviteImport } from './routes/accept-invite'
 import { Route as ProtectedImport } from './routes/_protected'
 import { Route as IndexImport } from './routes/index'
 import { Route as LoginIndexImport } from './routes/login/index'
@@ -19,6 +21,18 @@ import { Route as ProtectedOrgsOrgIdAppsImport } from './routes/_protected/orgs/
 import { Route as ProtectedOrgsOrgIdSettingsIndexImport } from './routes/_protected/orgs/$orgId/settings/index'
 
 // Create/Update Routes
+
+const ResetPasswordRoute = ResetPasswordImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const AcceptInviteRoute = AcceptInviteImport.update({
+  id: '/accept-invite',
+  path: '/accept-invite',
+  getParentRoute: () => rootRoute,
+} as any)
 
 const ProtectedRoute = ProtectedImport.update({
   id: '/_protected',
@@ -74,6 +88,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProtectedImport
       parentRoute: typeof rootRoute
     }
+    '/accept-invite': {
+      id: '/accept-invite'
+      path: '/accept-invite'
+      fullPath: '/accept-invite'
+      preLoaderRoute: typeof AcceptInviteImport
+      parentRoute: typeof rootRoute
+    }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordImport
+      parentRoute: typeof rootRoute
+    }
     '/login/': {
       id: '/login/'
       path: '/login'
@@ -126,6 +154,8 @@ const ProtectedRouteWithChildren = ProtectedRoute._addFileChildren(
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '': typeof ProtectedRouteWithChildren
+  '/accept-invite': typeof AcceptInviteRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/login': typeof LoginIndexRoute
   '/orgs': typeof ProtectedOrgsIndexRoute
   '/orgs/$orgId/apps': typeof ProtectedOrgsOrgIdAppsRoute
@@ -135,6 +165,8 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '': typeof ProtectedRouteWithChildren
+  '/accept-invite': typeof AcceptInviteRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/login': typeof LoginIndexRoute
   '/orgs': typeof ProtectedOrgsIndexRoute
   '/orgs/$orgId/apps': typeof ProtectedOrgsOrgIdAppsRoute
@@ -145,6 +177,8 @@ export interface FileRoutesById {
   __root__: typeof rootRoute
   '/': typeof IndexRoute
   '/_protected': typeof ProtectedRouteWithChildren
+  '/accept-invite': typeof AcceptInviteRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/login/': typeof LoginIndexRoute
   '/_protected/orgs/': typeof ProtectedOrgsIndexRoute
   '/_protected/orgs/$orgId/apps': typeof ProtectedOrgsOrgIdAppsRoute
@@ -156,6 +190,8 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | ''
+    | '/accept-invite'
+    | '/reset-password'
     | '/login'
     | '/orgs'
     | '/orgs/$orgId/apps'
@@ -164,6 +200,8 @@ export interface FileRouteTypes {
   to:
     | '/'
     | ''
+    | '/accept-invite'
+    | '/reset-password'
     | '/login'
     | '/orgs'
     | '/orgs/$orgId/apps'
@@ -172,6 +210,8 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/_protected'
+    | '/accept-invite'
+    | '/reset-password'
     | '/login/'
     | '/_protected/orgs/'
     | '/_protected/orgs/$orgId/apps'
@@ -182,12 +222,16 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ProtectedRoute: typeof ProtectedRouteWithChildren
+  AcceptInviteRoute: typeof AcceptInviteRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
   LoginIndexRoute: typeof LoginIndexRoute
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ProtectedRoute: ProtectedRouteWithChildren,
+  AcceptInviteRoute: AcceptInviteRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
   LoginIndexRoute: LoginIndexRoute,
 }
 
@@ -203,6 +247,8 @@ export const routeTree = rootRoute
       "children": [
         "/",
         "/_protected",
+        "/accept-invite",
+        "/reset-password",
         "/login/"
       ]
     },
@@ -216,6 +262,12 @@ export const routeTree = rootRoute
         "/_protected/orgs/$orgId/apps",
         "/_protected/orgs/$orgId/settings/"
       ]
+    },
+    "/accept-invite": {
+      "filePath": "accept-invite.tsx"
+    },
+    "/reset-password": {
+      "filePath": "reset-password.tsx"
     },
     "/login/": {
       "filePath": "login/index.tsx"

@@ -1,8 +1,13 @@
 use crate::extractors::{
     database_connection::DatabaseConnection, redis_connection::RedisConnection,
 };
-use argon2::{Argon2, PasswordHash, PasswordVerifier};
+use crate::routes::invites::ResetPasswordJwtClaims;
+use argon2::{
+    Argon2, PasswordHash, PasswordHasher, PasswordVerifier,
+    password_hash::{SaltString, rand_core::OsRng},
+};
 use axum::Json;
+use jsonwebtoken::{DecodingKey, Validation, decode};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use sqlx::Acquire;
@@ -14,8 +19,8 @@ use crate::{
     error::AuthError,
     extractors::{config::ConfigExtractor, session::Session},
     session::{
-        Session as SessionValue, create_session, generate_session_token, invalidate_session,
-        validate_session_token,
+        Session as SessionValue, create_session, generate_session_token,
+        invalidate_all_user_sessions, invalidate_session, validate_session_token,
     },
 };
 
@@ -446,6 +451,89 @@ pub async fn google_login(
 
     Ok(Json(LoginResponse {
         token,
+        expires_at: session.expires_at,
+    }))
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ResetPasswordRequest {
+    pub token: String,
+    pub new_password: String,
+}
+
+pub async fn reset_password(
+    DatabaseConnection(mut conn): DatabaseConnection,
+    RedisConnection(redis): RedisConnection,
+    ConfigExtractor(config): ConfigExtractor,
+    Json(ResetPasswordRequest {
+        token,
+        new_password,
+    }): Json<ResetPasswordRequest>,
+) -> Result<Json<LoginResponse>, AuthError> {
+    // Validate token and extract user ID
+    let token_data = decode::<ResetPasswordJwtClaims>(
+        &token,
+        &DecodingKey::from_secret(config.jwt_secret.as_bytes()),
+        &Validation::default(),
+    )
+    .map_err(|e| AuthError::Internal(e.to_string()))?;
+
+    let user_id = token_data.claims.payload.user_id;
+
+    // Check that this is an existing user
+    let user = sqlx::query!(
+        r#"
+        SELECT id, name, email
+        FROM users
+        WHERE id = $1
+        "#,
+        user_id
+    )
+    .fetch_optional(&mut *conn)
+    .await
+    .map_err(AuthError::Database)?
+    .ok_or(AuthError::InvalidCredentials)?;
+
+    // Hash new password
+    let salt = SaltString::generate(&mut OsRng);
+    let argon2 = Argon2::default();
+    let new_hashed_password = argon2
+        .hash_password(new_password.as_bytes(), &salt)
+        .map_err(|error| AuthError::Internal(error.to_string()))?
+        .to_string();
+
+    // Update password and clear the reset requirement
+    sqlx::query!(
+        r#"
+        UPDATE users
+        SET password_hash = $1
+        WHERE id = $2
+        "#,
+        new_hashed_password,
+        user_id
+    )
+    .execute(&mut *conn)
+    .await
+    .map_err(AuthError::Database)?;
+
+    // Invalidate all existing sessions for this user
+    invalidate_all_user_sessions(redis.clone(), user_id).await?;
+
+    // Create a new session
+    let session_token = generate_session_token();
+
+    let session = create_session(
+        redis,
+        &session_token,
+        user_id,
+        &user.name,
+        config.session_duration_minutes,
+    )
+    .await?;
+
+    Ok(Json(LoginResponse {
+        token: session_token,
         expires_at: session.expires_at,
     }))
 }

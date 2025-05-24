@@ -6,6 +6,7 @@ import {
   publicProcedure,
 } from "../index";
 import { env } from "~/env";
+import { object, optional, string } from "valibot";
 
 export const authRouter = createTRPCRouter({
   login: publicProcedure.input(loginSchema).mutation(async ({ input, ctx }) => {

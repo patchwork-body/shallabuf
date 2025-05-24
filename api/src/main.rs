@@ -55,6 +55,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/login", post(routes::auth::login))
         .route("/validate-session", post(routes::auth::validate_session))
         .route("/logout", post(routes::auth::logout))
+        .route("/reset-password", post(routes::auth::reset_password))
         .route("/github/login", post(routes::auth::github_login))
         .route("/google/login", post(routes::auth::google_login));
 
@@ -67,7 +68,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let invites_router = Router::new()
         .route("/", get(routes::invites::list_invites))
         .route("/", post(routes::invites::invite_members))
-        .route("/accept", post(routes::invites::accept_invite))
         .route("/{invite_id}", delete(routes::invites::revoke_invite));
 
     let orgs_router = Router::new()
@@ -102,7 +102,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .nest("/auth", auth_router)
         .nest("/apps", apps_router)
         .nest("/orgs", orgs_router)
-        .nest("/stripe", stripe_router);
+        .nest("/stripe", stripe_router)
+        .route("/invites/accept", post(routes::invites::accept_invite));
 
     let app = Router::new()
         .nest("/api/v0", api_v0)

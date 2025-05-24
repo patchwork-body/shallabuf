@@ -54,13 +54,54 @@ struct InviteJwtClaims {
     pub payload: InviteJwtPayload,
 }
 
-fn generate_jwt_token(invite_id: Uuid, jwt_secret: &str) -> Result<String, (StatusCode, String)> {
+fn generate_invite_jwt_token(
+    invite_id: Uuid,
+    jwt_secret: &str,
+) -> Result<String, (StatusCode, String)> {
     let payload = InviteJwtPayload { invite_id };
     let now = OffsetDateTime::now_utc();
     let exp = now + time::Duration::days(1);
 
     let claims = InviteJwtClaims {
         sub: invite_id.to_string(),
+        exp: exp.unix_timestamp(),
+        iat: now.unix_timestamp(),
+        payload,
+    };
+
+    let jwt_token = encode(
+        &Header::default(),
+        &claims,
+        &EncodingKey::from_secret(jwt_secret.as_bytes()),
+    )
+    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    Ok(jwt_token)
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ResetPasswordJwtPayload {
+    pub user_id: Uuid,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ResetPasswordJwtClaims {
+    pub sub: String,
+    pub exp: i64,
+    pub iat: i64,
+    pub payload: ResetPasswordJwtPayload,
+}
+
+fn generate_reset_password_jwt_token(
+    user_id: Uuid,
+    jwt_secret: &str,
+) -> Result<String, (StatusCode, String)> {
+    let payload = ResetPasswordJwtPayload { user_id };
+    let now = OffsetDateTime::now_utc();
+    let exp = now + time::Duration::days(1);
+
+    let claims = ResetPasswordJwtClaims {
+        sub: user_id.to_string(),
         exp: exp.unix_timestamp(),
         iat: now.unix_timestamp(),
         payload,
@@ -192,7 +233,7 @@ pub async fn invite_members(
     // Generate JWT tokens and magic links for each invite
     let mut magic_links = Vec::new();
     for invite in &invites {
-        let jwt_token = generate_jwt_token(invite.id, &config.jwt_secret)?;
+        let jwt_token = generate_invite_jwt_token(invite.id, &config.jwt_secret)?;
         let magic_link = format!("{}/accept-invite?token={}", config.frontend_url, jwt_token);
         magic_links.push(magic_link);
     }
@@ -217,8 +258,8 @@ pub struct AcceptInviteRequest {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AcceptInviteResponse {
-    pub user_id: Uuid,
-    pub organization_id: Uuid,
+    pub organization_id: Option<Uuid>,
+    pub reset_password_token: Option<String>,
 }
 
 pub async fn accept_invite(
@@ -281,7 +322,7 @@ pub async fn accept_invite(
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
-    let user_id = if let Some(user) = existing_user {
+    let (user_id, password_reset_required) = if let Some(user) = existing_user {
         // User exists, check if already in organization
         let is_member = sqlx::query!(
             "SELECT 1 as exists FROM user_organizations WHERE user_id = $1 AND organization_id = $2",
@@ -305,7 +346,7 @@ pub async fn accept_invite(
             .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
         }
 
-        user.id
+        (user.id, false) // Existing user doesn't need password reset
     } else {
         // Create new user
         let salt = SaltString::generate(&mut OsRng);
@@ -319,13 +360,14 @@ pub async fn accept_invite(
 
         let user = sqlx::query!(
             r#"
-            INSERT INTO users (email, password_hash, email_verified)
-            VALUES ($1, $2, $3)
+            INSERT INTO users (email, name, password_hash, email_verified)
+            VALUES ($1, $2, $3, $4)
             RETURNING id
             "#,
             invite.email,
+            invite.email.split("@").next().unwrap_or(&invite.email),
             hashed_password,
-            true // Email is verified since they clicked the invite link
+            true, // Email is verified since they clicked the invite link
         )
         .fetch_one(&mut *transaction)
         .await
@@ -341,7 +383,7 @@ pub async fn accept_invite(
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
-        user.id
+        (user.id, true) // New user needs password reset
     };
 
     // Mark invite as accepted
@@ -358,9 +400,18 @@ pub async fn accept_invite(
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
+    if password_reset_required {
+        let reset_password_token = generate_reset_password_jwt_token(user_id, &config.jwt_secret)?;
+
+        return Ok(Json(AcceptInviteResponse {
+            reset_password_token: Some(reset_password_token),
+            organization_id: None,
+        }));
+    }
+
     Ok(Json(AcceptInviteResponse {
-        user_id,
-        organization_id: invite.organization_id,
+        reset_password_token: None,
+        organization_id: Some(invite.organization_id),
     }))
 }
 

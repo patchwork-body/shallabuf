@@ -151,3 +151,39 @@ pub async fn invalidate_session(
 
     Ok(())
 }
+
+pub async fn invalidate_all_user_sessions(
+    mut redis: redis::aio::ConnectionManager,
+    user_id: Uuid,
+) -> Result<(), AuthError> {
+    use redis::AsyncCommands;
+
+    // Get all session keys that match the pattern "session:*"
+    let pattern = "session:*".to_string();
+    let keys: Vec<String> = redis.keys(pattern).await.map_err(AuthError::Redis)?;
+
+    if keys.is_empty() {
+        return Ok(());
+    }
+
+    // Get all session data to check which ones belong to the user
+    let session_data: Vec<Option<String>> = redis.mget(&keys).await.map_err(AuthError::Redis)?;
+
+    let mut keys_to_delete = Vec::new();
+
+    for (key, data) in keys.iter().zip(session_data.iter()) {
+        if let Some(session_str) = data {
+            if let Ok(session) = serde_json::from_str::<Session>(session_str) {
+                if session.user_id == user_id {
+                    keys_to_delete.push(key.clone());
+                }
+            }
+        }
+    }
+
+    if !keys_to_delete.is_empty() {
+        let _: () = redis.del(&keys_to_delete).await.map_err(AuthError::Redis)?;
+    }
+
+    Ok(())
+}
