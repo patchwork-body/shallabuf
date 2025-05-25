@@ -1,10 +1,12 @@
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "@tanstack/react-start/config";
+import { cloudflare } from "unenv";
 import tsConfigPaths from "vite-tsconfig-paths";
 
 export default defineConfig({
   server: {
-    preset: "bun",
+    preset: "cloudflare-module",
+    unenv: cloudflare,
   },
   tsr: {
     appDirectory: "src",
@@ -16,9 +18,6 @@ export default defineConfig({
       }),
       tailwindcss(),
     ],
-    resolve: {
-      conditions: ["browser"],
-    },
     build: {
       rollupOptions: {
         external: [

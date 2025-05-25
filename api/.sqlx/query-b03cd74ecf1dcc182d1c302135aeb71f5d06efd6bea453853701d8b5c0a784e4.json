@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT i.id\n        FROM invites i\n        WHERE i.id = $1 AND i.organization_id = $2 AND i.status = 'pending'\n        AND EXISTS (\n            SELECT 1 FROM user_organizations uo\n            WHERE uo.user_id = $3 AND uo.organization_id = $2\n        )\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "b03cd74ecf1dcc182d1c302135aeb71f5d06efd6bea453853701d8b5c0a784e4"
+}

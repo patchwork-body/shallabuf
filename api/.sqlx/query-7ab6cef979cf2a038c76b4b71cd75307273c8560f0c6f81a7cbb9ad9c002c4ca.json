@@ -1,0 +1,34 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT\n            stripe_payment_intent_id,\n            stripe_payment_method_id,\n            stripe_client_secret\n        FROM\n            stripe_configurations\n        WHERE\n            organization_id = $1\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "stripe_payment_intent_id",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 1,
+        "name": "stripe_payment_method_id",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "stripe_client_secret",
+        "type_info": "Varchar"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "7ab6cef979cf2a038c76b4b71cd75307273c8560f0c6f81a7cbb9ad9c002c4ca"
+}

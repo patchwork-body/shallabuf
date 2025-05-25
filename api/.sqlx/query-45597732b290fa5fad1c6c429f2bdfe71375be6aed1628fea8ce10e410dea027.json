@@ -1,0 +1,34 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT\n            u.id,\n            u.name,\n            u.email\n        FROM user_organizations uo\n        INNER JOIN users u ON u.id = uo.user_id\n        WHERE uo.organization_id = $1\n        ORDER BY u.created_at DESC\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "email",
+        "type_info": "Varchar"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "45597732b290fa5fad1c6c429f2bdfe71375be6aed1628fea8ce10e410dea027"
+}
