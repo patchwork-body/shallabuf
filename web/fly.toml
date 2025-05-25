@@ -1,4 +1,4 @@
-# fly.toml app configuration file generated for shallabuf-landing on 2025-05-12T22:03:39+02:00
+# fly.toml app configuration file generated for shallabuf-web on 2025-05-25T16:47:31+02:00
 #
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
@@ -48,6 +48,6 @@ primary_region = 'cdg'
     protocol = 'http'
 
 [[vm]]
+  memory = '512mb'
   cpu_kind = 'shared'
   cpus = 1
-  memory = '512mb'
