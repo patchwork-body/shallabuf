@@ -25,6 +25,12 @@ pub enum AuthError {
 
     #[error("Session expired")]
     SessionExpired,
+
+    #[error("User not found")]
+    UserNotFound,
+
+    #[error("User has no password")]
+    HasNoPassword,
 }
 
 #[derive(Serialize)]
@@ -52,6 +58,10 @@ impl IntoResponse for AuthError {
             }
             AuthError::InvalidSession => (StatusCode::UNAUTHORIZED, "Invalid session".to_string()),
             AuthError::SessionExpired => (StatusCode::UNAUTHORIZED, "Session expired".to_string()),
+            AuthError::UserNotFound => (StatusCode::NOT_FOUND, "User not found".to_string()),
+            AuthError::HasNoPassword => {
+                (StatusCode::UNAUTHORIZED, "User has no password".to_string())
+            }
         };
 
         let body = Json(ErrorResponse {

@@ -6,7 +6,6 @@ import {
   publicProcedure,
 } from "../index";
 import { env } from "~/env";
-import { object, optional, string } from "valibot";
 
 export const authRouter = createTRPCRouter({
   login: publicProcedure.input(loginSchema).mutation(async ({ input, ctx }) => {
@@ -20,6 +19,9 @@ export const authRouter = createTRPCRouter({
       });
 
       if (!response.ok) {
+        const error = await response.text();
+        console.error(error);
+
         throw new TRPCError({
           code: "UNAUTHORIZED",
           message: "Login failed",

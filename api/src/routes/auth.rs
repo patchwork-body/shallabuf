@@ -64,11 +64,11 @@ pub async fn login(
     .map_err(AuthError::Database)?;
 
     let Some(user) = user else {
-        return Err(AuthError::InvalidCredentials);
+        return Err(AuthError::UserNotFound);
     };
 
     let Some(password_hash) = user.password_hash else {
-        return Err(AuthError::InvalidCredentials);
+        return Err(AuthError::HasNoPassword);
     };
 
     let parsed_password_hash = PasswordHash::new(&password_hash)

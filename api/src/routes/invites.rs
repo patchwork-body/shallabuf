@@ -12,9 +12,12 @@ use time::OffsetDateTime;
 use uuid::Uuid;
 use validator::{Validate, ValidateEmail, ValidationError};
 
-use crate::extractors::{
-    config::ConfigExtractor, database_connection::DatabaseConnection, resend::Resend,
-    session::Session,
+use crate::{
+    dto::key_provider_type::KeyProviderType,
+    extractors::{
+        config::ConfigExtractor, database_connection::DatabaseConnection, resend::Resend,
+        session::Session,
+    },
 };
 
 fn validate_emails(emails: &[String]) -> Result<(), ValidationError> {
@@ -370,6 +373,16 @@ pub async fn accept_invite(
             true, // Email is verified since they clicked the invite link
         )
         .fetch_one(&mut *transaction)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+        sqlx::query!(
+            "INSERT INTO keys (user_id, provider, provider_key) VALUES ($1, $2, $3)",
+            user.id,
+            KeyProviderType::Password as KeyProviderType,
+            invite.email
+        )
+        .execute(&mut *transaction)
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
