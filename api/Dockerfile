@@ -47,6 +47,7 @@ ENV LISTEN_ADDR=0.0.0.0:8000
 ENV PORT=8000
 ENV RUST_ENV=prod
 ENV RUST_LOG=info
+ENV FRONTEND_URL='https://shallabuf-web.pages.dev'
 
 EXPOSE 8000
 
