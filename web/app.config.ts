@@ -18,5 +18,19 @@ export default defineConfig({
       }),
       tailwindcss(),
     ],
+    resolve: {
+      conditions: ["browser"],
+    },
+    build: {
+      rollupOptions: {
+        external: [
+          "node:stream",
+          "node:fs",
+          "node:path",
+          "node:async_hooks",
+          "node:stream/web",
+        ],
+      },
+    },
   },
 });
