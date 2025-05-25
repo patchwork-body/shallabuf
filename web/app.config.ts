@@ -5,7 +5,7 @@ import tsConfigPaths from "vite-tsconfig-paths";
 
 export default defineConfig({
   server: {
-    preset: "cloudflare-module",
+    preset: "cloudflare-pages",
     unenv: cloudflare,
   },
   tsr: {
