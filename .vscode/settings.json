@@ -28,6 +28,7 @@
     "thiserror",
     "timestamptz",
     "tungstenite",
+    "unenv",
     "valibot",
     "vinxi"
   ]
