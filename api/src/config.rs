@@ -30,7 +30,7 @@ impl Config {
             .set_default("jwt_secret", "secret")?
             .set_default("listen_addr", "0.0.0.0:8000")?
             .set_default("session_duration_minutes", 30)?
-            .set_default("stripe_api_url", "")?
+            .set_default("stripe_api_url", "https://api.stripe.com/v1")?
             .set_default("stripe_secret_key", "")?
             .set_default("resend_api_key", "")?
             .set_default("resend_from_email", "")?
