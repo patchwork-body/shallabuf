@@ -312,6 +312,7 @@ export const OrganizationSelector = ({
                           Recent apps in this organization
                         </p>
                       </div>
+
                       <OrgsAppsMiniList organizationId={hoveredOrg} />
                     </div>
                   ) : (

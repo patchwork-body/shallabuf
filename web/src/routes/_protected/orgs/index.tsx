@@ -1,18 +1,23 @@
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
-import { trpc } from "~/trpc/client";
 import { CreateOrganizationDialog } from "~/components/CreateOrganizationDialog";
 import { Button } from "~/components/ui/button";
 import { useCallback } from "react";
+import { orgsListFn } from "~/server-functions/orgs";
 
 export const Route = createFileRoute("/_protected/orgs/")({
   beforeLoad: async ({ context }) => {
-    const result = await context.queryClient.fetchQuery(
-      trpc.orgs.list.queryOptions({ limit: 1 })
-    );
+    const result = await context.queryClient.fetchQuery({
+      queryKey: ["orgs", "list"],
+      queryFn: () =>
+        orgsListFn({
+          data: {
+            cursor: null,
+            limit: 1,
+          },
+        }),
+    });
 
-    if (
-      result.organizations.length > 0
-    ) {
+    if (result.organizations.length > 0) {
       if (result.organizations[0]?.billingConnected) {
         throw redirect({
           to: "/orgs/$orgId/apps",
@@ -20,7 +25,7 @@ export const Route = createFileRoute("/_protected/orgs/")({
         });
       } else {
         throw redirect({
-          to: "/orgs/$orgId/settings",
+          to: "/orgs/$orgId/apps",
           params: { orgId: result.organizations[0].id },
         });
       }
@@ -32,9 +37,12 @@ export const Route = createFileRoute("/_protected/orgs/")({
 function SetupOrganization() {
   const navigate = useNavigate();
 
-  const onOrganizationCreated = useCallback((orgId: string) => {
-    navigate({ to: "/orgs/$orgId/settings", params: { orgId } });
-  }, [navigate]);
+  const onOrganizationCreated = useCallback(
+    (orgId: string) => {
+      navigate({ to: "/orgs/$orgId/apps", params: { orgId } });
+    },
+    [navigate]
+  );
 
   return (
     <div className="flex flex-col items-center justify-center p-4">

@@ -5,13 +5,13 @@ import {
   useQueryClient,
   useMutation,
 } from "@tanstack/react-query";
-import { trpc } from "~/trpc/client";
 import { AppInfo } from "~/lib/schemas";
 import { AppCard } from "./AppCard";
 import { AppCredentials, AppCredentialsDialog } from "./AppCredentialsDialog";
 import { useCallback, useState } from "react";
 import { BlocksIcon } from "lucide-react";
 import { EmptyAppList } from "./EmptyAppList";
+import { appsDeleteFn, appsListFn } from "~/server-functions/apps";
 
 export interface AppListProps {
   organizationId: string;
@@ -22,25 +22,19 @@ export function AppList({ organizationId }: AppListProps) {
 
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage } =
     useInfiniteQuery({
-      ...trpc.apps.list.infiniteQueryOptions({
-        organizationId,
-        cursor: undefined,
-        limit: 10,
-      }),
-      getNextPageParam: (lastPage) => lastPage.nextCursor,
+      queryKey: ["apps", "list", "infinite", organizationId],
+      queryFn: () => appsListFn({ data: { organizationId, cursor: null, limit: 10 } }),
+      getNextPageParam: (lastPage: any) => lastPage.nextCursor,
+      initialPageParam: null,
     });
 
   const queryClient = useQueryClient();
   const deleteAppMutation = useMutation({
-    ...trpc.apps.delete.mutationOptions(),
+    mutationFn: appsDeleteFn,
     onSuccess: async () => {
-      await queryClient.invalidateQueries(
-        trpc.apps.list.infiniteQueryOptions({
-          organizationId,
-          cursor: undefined,
-          limit: 10,
-        })
-      );
+      await queryClient.invalidateQueries({
+        queryKey: ["apps", "list", organizationId],
+      });
     },
   });
 
@@ -88,10 +82,10 @@ export function AppList({ organizationId }: AppListProps) {
                 app={app}
                 isDeleting={
                   deleteAppMutation.isPending &&
-                  deleteAppMutation.variables?.appId === app.appId
+                  deleteAppMutation.variables?.data?.id === app.id
                 }
-                onDelete={() =>
-                  deleteAppMutation.mutateAsync({ appId: app.appId })
+                onDelete={async () =>
+                  await deleteAppMutation.mutateAsync({ data: { id: app.id } })
                 }
               />
             </li>

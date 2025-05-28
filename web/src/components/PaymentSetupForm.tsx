@@ -3,8 +3,8 @@ import { useMutation } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import { PaymentForm } from "./PaymentForm";
 import { getStripe } from "~/lib/stripe";
-import { trpc } from "~/trpc/client";
 import { Button } from "./ui/button";
+import { stripeCreatePaymentIntentFn } from "~/server-functions/stripe";
 
 interface PaymentSetupFormProps {
   orgId: string;
@@ -14,7 +14,7 @@ export function PaymentSetupForm({ orgId }: PaymentSetupFormProps) {
   const [clientSecret, setClientSecret] = useState<string | undefined>();
 
   const createPaymentIntentMutation = useMutation({
-    ...trpc.stripe.createPaymentIntent.mutationOptions(),
+    mutationFn: stripeCreatePaymentIntentFn,
     onSuccess: (data) => {
       setClientSecret(data.clientSecret);
     },
@@ -26,7 +26,7 @@ export function PaymentSetupForm({ orgId }: PaymentSetupFormProps) {
       orgId &&
       createPaymentIntentMutation.isIdle
     ) {
-      createPaymentIntentMutation.mutate({ organizationId: orgId });
+      createPaymentIntentMutation.mutate({ data: { organizationId: orgId } });
     }
   }, [
     clientSecret,
@@ -62,7 +62,7 @@ export function PaymentSetupForm({ orgId }: PaymentSetupFormProps) {
       {!clientSecret && !createPaymentIntentMutation.isPending && (
         <Button
           onClick={() =>
-            createPaymentIntentMutation.mutate({ organizationId: orgId })
+            createPaymentIntentMutation.mutate({ data: { organizationId: orgId }})
           }
           disabled={createPaymentIntentMutation.isPending}
         >

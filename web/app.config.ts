@@ -1,7 +1,7 @@
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "@tanstack/react-start/config";
-import { cloudflare } from "unenv";
 import tsConfigPaths from "vite-tsconfig-paths";
+import { cloudflare } from "unenv";
 
 export default defineConfig({
   server: {
@@ -18,16 +18,5 @@ export default defineConfig({
       }),
       tailwindcss(),
     ],
-    build: {
-      rollupOptions: {
-        external: [
-          "node:stream",
-          "node:fs",
-          "node:path",
-          "node:async_hooks",
-          "node:stream/web",
-        ],
-      },
-    },
   },
 });

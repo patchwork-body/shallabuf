@@ -8,24 +8,28 @@ import {
   CardHeader,
   CardTitle,
 } from "~/components/ui/card";
-import { trpc } from "~/trpc/client";
 import { useMutation } from "@tanstack/react-query";
 import { useCallback } from "react";
+import { stripeCreatePortalSessionFn } from "~/server-functions/stripe";
 
 interface BillingCardProps {
   orgId: string;
 }
 
 export function BillingCard({ orgId }: BillingCardProps) {
-  const createPortalSessionMutation = useMutation(trpc.stripe.createPortalSession.mutationOptions());
+  const createPortalSessionMutation = useMutation({
+    mutationFn: stripeCreatePortalSessionFn,
+  });
 
   const handleManageBilling = useCallback(async () => {
     try {
       const returnUrl = `${window.location.origin}/orgs/${orgId}/settings`;
 
       const data = await createPortalSessionMutation.mutateAsync({
-        organizationId: orgId,
-        returnUrl,
+        data: {
+          organizationId: orgId,
+          returnUrl,
+        },
       });
 
       window.location.href = data.url;

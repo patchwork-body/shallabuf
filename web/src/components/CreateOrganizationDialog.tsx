@@ -1,7 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "@tanstack/react-form";
 import { FormEventHandler, useCallback, useState } from "react";
-import { trpc } from "~/trpc/client";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
@@ -16,6 +15,7 @@ import {
 } from "./ui/dialog";
 import { createOrganizationSchema } from "~/lib/schemas";
 import { safeParse } from "valibot";
+import { orgsCreateFn } from "~/server-functions/orgs";
 
 interface CreateOrganizationDialogProps {
   onSuccess?: (orgId: string) => void;
@@ -30,9 +30,9 @@ export function CreateOrganizationDialog({
   const queryClient = useQueryClient();
 
   const createOrgMutation = useMutation({
-    ...trpc.orgs.create.mutationOptions(),
+    mutationFn: orgsCreateFn,
     onSuccess: async ({ id }) => {
-      await queryClient.invalidateQueries(trpc.orgs.list.queryOptions({}));
+      await queryClient.invalidateQueries({ queryKey: ["orgs", "list"] });
       setOpen(false);
       onSuccess?.(id);
     },
@@ -55,7 +55,7 @@ export function CreateOrganizationDialog({
     },
     onSubmit: async ({ value }) => {
       try {
-        await createOrgMutation.mutateAsync(value);
+        await createOrgMutation.mutateAsync({ data: value });
         form.reset();
       } catch (err) {
         console.error(err);
@@ -115,8 +115,8 @@ export function CreateOrganizationDialog({
             </div>
           )}
           <DialogFooter>
-            <Button type="submit" disabled={createOrgMutation.isPending}>
-              {createOrgMutation.isPending
+            <Button type="submit" disabled={form.state.isSubmitting}>
+              {form.state.isSubmitting
                 ? "Creating..."
                 : "Create Organization"}
             </Button>

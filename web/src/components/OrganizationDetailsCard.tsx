@@ -23,7 +23,7 @@ import {
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import { ListOrganizationsResponse, Organization } from "~/lib/schemas";
-import { trpc } from "~/trpc/client";
+import { orgsGetFn, orgsUpdateFn } from "~/server-functions/orgs";
 
 const orgUpdateSchema = object({
   name: pipe(
@@ -44,20 +44,21 @@ interface OrganizationDetailsCardProps {
 export function OrganizationDetailsCard({
   orgId,
 }: OrganizationDetailsCardProps) {
-  const { data: organization } = useSuspenseQuery(trpc.orgs.get.queryOptions({ id: orgId }));
+  const { data: organization } = useSuspenseQuery({
+    queryKey: ["orgs", "get", orgId],
+    queryFn: () => orgsGetFn({ data: { id: orgId } }),
+  });
   const queryClient = useQueryClient();
 
   const updateOrgMutation = useMutation({
-    ...trpc.orgs.update.mutationOptions(),
+    mutationFn: orgsUpdateFn,
     onSuccess: async (data) => {
       await queryClient.invalidateQueries({
-        queryKey: trpc.orgs.get.queryKey({
-          id: orgId,
-        }),
+        queryKey: ["orgs", "get", orgId],
       });
 
       queryClient.setQueriesData({
-        queryKey: trpc.orgs.list.queryKey(),
+        queryKey: ["orgs", "list"],
       }, (old: ListOrganizationsResponse) => {
         return { ...old, organizations: old.organizations.map((org: Organization) => {
           if (org.id === orgId) {
@@ -98,8 +99,10 @@ export function OrganizationDetailsCard({
     onSubmit: async ({ value }) => {
       try {
         await updateOrgMutation.mutateAsync({
-          id: orgId,
-          name: value.name,
+          data: {
+            id: orgId,
+            name: value.name,
+          },
         });
       } catch (err) {
         console.error(err);

@@ -1,4 +1,3 @@
-import { json } from "@tanstack/react-start";
 import { createAPIFileRoute } from "@tanstack/react-start/api";
 import { OAuth2Tokens } from "arctic";
 import { env } from "~/env";
@@ -58,6 +57,7 @@ export const APIRoute = createAPIFileRoute("/api/auth/github/callback")({
       });
 
       if (!response.ok) {
+        console.error(await response.text());
         throw new Error("Failed to login");
       }
 

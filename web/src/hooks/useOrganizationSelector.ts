@@ -1,8 +1,8 @@
 import { useCallback, useState, useMemo } from "react";
 import { useParams, useNavigate } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { trpc } from "~/trpc/client";
 import { type Organization } from "~/lib/schemas";
+import { orgsListFn } from "~/server-functions/orgs";
 
 interface UseOrganizationSelectorOptions {
   onSelect?: (org: Organization) => void;
@@ -21,7 +21,11 @@ export const useOrganizationSelector = (
     options.defaultSearchQuery || ""
   );
 
-  const orgsQuery = useSuspenseQuery(trpc.orgs.list.queryOptions({}));
+  const orgsQuery = useSuspenseQuery({
+    queryKey: ["orgs", "list"],
+    queryFn: () => orgsListFn({ data: { cursor: null, limit: 10 } }),
+  });
+
   const organizations = orgsQuery.data?.organizations ?? [];
 
   const selectedOrg = useMemo(

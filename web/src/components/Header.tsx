@@ -1,5 +1,4 @@
 import { Button } from "./ui/button";
-import { trpc } from "~/trpc/client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   useNavigate,
@@ -21,6 +20,8 @@ import {
   DropdownMenuTrigger,
 } from "~/components/ui/dropdown-menu";
 import { ThemeToggle } from "./ThemeToggle";
+import { useServerFn } from "@tanstack/react-start";
+import { logoutFn } from "~/server-functions/auth";
 
 interface NavLinkProps {
   to: string;
@@ -57,12 +58,18 @@ export const Header = () => {
   const navigate = useNavigate();
   const { orgId } = useParams({ strict: false });
   const location = useLocation();
+  const logout = useServerFn(logoutFn);
 
   const logoutMutation = useMutation({
-    ...trpc.auth.logout.mutationOptions(),
-    onSuccess: () => {
+    mutationFn: logout,
+    onSuccess: async () => {
       queryClient.clear();
-      navigate({ to: "/login", search: { redirect: location.pathname }, replace: true });
+
+      await navigate({
+        to: "/login",
+        search: { redirect: location.pathname },
+        replace: true,
+      });
     },
     onError: (error) => {
       console.error(error);
@@ -109,88 +116,88 @@ export const Header = () => {
             )}
           </div>
 
-          {/* Right side - User Actions */}
-          {session && (
-            <div className="flex items-center space-x-3">
-              {/* Theme Toggle */}
-              <ThemeToggle />
-
-              {/* Mobile Navigation Menu */}
-              {orgId && (
-                <div className="md:hidden">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="size-8 p-0 hover:bg-accent"
-                      >
-                        <ChevronDown className="size-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-48">
-                      <DropdownMenuItem asChild>
-                        <Link
-                          to="/orgs/$orgId/apps"
-                          params={{ orgId: orgId ?? "" }}
-                          className="flex w-full"
+          <div className="flex items-center space-x-3">
+            {/* Theme Toggle */}
+            <ThemeToggle />
+            {/* Right side - User Actions */}
+            {session && (
+              <>
+                {/* Mobile Navigation Menu */}
+                {orgId && (
+                  <div className="md:hidden">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="size-8 p-0 hover:bg-accent"
                         >
-                          Apps
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link
-                          to="/orgs/$orgId/settings"
-                          params={{ orgId: orgId ?? "" }}
-                          className="flex w-full"
-                        >
-                          Settings
-                        </Link>
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              )}
-
-              {/* User Menu */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="size-8 rounded-full bg-muted hover:bg-accent p-0 transition-all duration-200 hover:scale-105"
-                  >
-                    <div className="size-6 bg-primary rounded-full flex items-center justify-center text-xs font-semibold text-primary-foreground shadow-sm">
-                      {session.username?.[0]?.toUpperCase() || "U"}
-                    </div>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <div className="px-3 py-2">
-                    <p className="text-sm font-medium text-foreground">
-                      User Account
-                    </p>
-                    <p className="text-xs text-muted-foreground font-mono">
-                      ID: {session.id.slice(0, 8)}...
-                    </p>
-
-                    <p className="text-xs text-muted-foreground font-mono">
-                      Username: {session.username}
-                    </p>
+                          <ChevronDown className="size-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-48">
+                        <DropdownMenuItem asChild>
+                          <Link
+                            to="/"
+                            params={{ orgId: orgId ?? "" }}
+                            className="flex w-full"
+                          >
+                            Apps
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link
+                            to="/"
+                            params={{ orgId: orgId ?? "" }}
+                            className="flex w-full"
+                          >
+                            Settings
+                          </Link>
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={() => logoutMutation.mutate()}
-                    disabled={logoutMutation.isPending}
-                    className="text-destructive focus:text-destructive focus:bg-destructive/10 cursor-pointer"
-                  >
-                    <LogOut className="mr-2 size-4" />
-                    {logoutMutation.isPending ? "Signing out..." : "Sign out"}
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          )}
+                )}
+                {/* User Menu */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="size-8 rounded-full bg-muted hover:bg-accent p-0 transition-all duration-200 hover:scale-105"
+                    >
+                      <div className="size-6 bg-primary rounded-full flex items-center justify-center text-xs font-semibold text-primary-foreground shadow-sm">
+                        {session.username?.[0]?.toUpperCase() || "U"}
+                      </div>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <div className="px-3 py-2">
+                      <p className="text-sm font-medium text-foreground">
+                        User Account
+                      </p>
+                      <p className="text-xs text-muted-foreground font-mono">
+                        ID: {session.id.slice(0, 8)}...
+                      </p>
+
+                      <p className="text-xs text-muted-foreground font-mono">
+                        Username: {session.username}
+                      </p>
+                    </div>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => logoutMutation.mutate({})}
+                      disabled={logoutMutation.isPending}
+                      className="text-destructive focus:text-destructive focus:bg-destructive/10 cursor-pointer"
+                    >
+                      <LogOut className="mr-2 size-4" />
+                      {logoutMutation.isPending ? "Signing out..." : "Sign out"}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </>
+            )}
+          </div>
         </div>
       </div>
     </header>

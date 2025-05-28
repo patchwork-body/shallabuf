@@ -1,10 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
-import { trpc } from "~/trpc/client";
 import { Skeleton } from "~/components/ui/skeleton";
 import { AlertCircle, RefreshCw, Folder, FileText } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { cn } from "~/lib/utils";
 import { memo } from "react";
+import { appsListFn } from "~/server-functions/apps";
 
 export interface OrgsAppsMiniListProps {
   organizationId: string;
@@ -92,10 +92,8 @@ const EmptyAppsState = () => (
 export const OrgsAppsMiniList = memo(
   ({ organizationId, maxItems = 5, className }: OrgsAppsMiniListProps) => {
     const appsQuery = useQuery({
-      ...trpc.apps.list.queryOptions({
-        organizationId,
-        limit: maxItems,
-      }),
+      queryKey: ["apps", "list", organizationId],
+      queryFn: () => appsListFn({ data: { organizationId, cursor: null, limit: maxItems } }),
       staleTime: 30000, // 30 seconds
       enabled: !!organizationId,
     });

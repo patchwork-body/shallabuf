@@ -19,9 +19,9 @@ use crate::extractors::{database_connection::DatabaseConnection, session::Sessio
 #[serde(rename_all = "camelCase")]
 pub struct CreateAppRequest {
     pub organization_id: Uuid,
-    #[validate(length(min = 1, max = 255))]
+    #[validate(length(min = 1, max = 50))]
     pub name: String,
-    #[validate(length(min = 1, max = 255))]
+    #[validate(length(max = 200))]
     pub description: Option<String>,
 }
 
@@ -72,9 +72,9 @@ pub async fn create(
     DatabaseConnection(mut conn): DatabaseConnection,
     Json(payload): Json<CreateAppRequest>,
 ) -> Result<Json<CreateAppResponse>, (axum::http::StatusCode, String)> {
-    payload
-        .validate()
-        .map_err(|e| (axum::http::StatusCode::BAD_REQUEST, e.to_string()))?;
+    // payload
+    //     .validate()
+    //     .map_err(|e| (axum::http::StatusCode::BAD_REQUEST, e.to_string()))?;
 
     let credentials = AppCredentials::generate().map_err(|e| {
         (
@@ -120,6 +120,7 @@ pub struct ListAppsRequest {
 #[derive(Debug, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct AppInfo {
+    pub id: Uuid,
     pub app_id: String,
     pub name: String,
     pub description: Option<String>,
@@ -150,7 +151,7 @@ pub async fn list(
                 FROM user_organizations
                 WHERE user_id = $1
             )
-            SELECT a.app_id, a.name, a.description, a.created_at
+            SELECT a.id, a.app_id, a.name, a.description, a.created_at
             FROM apps a
             INNER JOIN user_orgs uo ON uo.organization_id = a.organization_id
             WHERE a.created_at < (
@@ -176,7 +177,7 @@ pub async fn list(
                 FROM user_organizations
                 WHERE user_id = $1
             )
-            SELECT a.app_id, a.name, a.description, a.created_at
+            SELECT a.id, a.app_id, a.name, a.description, a.created_at
             FROM apps a
             INNER JOIN user_orgs uo ON uo.organization_id = a.organization_id
             WHERE a.organization_id = $3::uuid
@@ -210,16 +211,16 @@ pub async fn list(
 #[derive(Debug, Deserialize, Validate)]
 #[serde(rename_all = "camelCase")]
 pub struct EditAppRequest {
-    #[validate(length(min = 1, max = 255))]
+    #[validate(length(min = 1, max = 50))]
     pub name: Option<String>,
-    #[validate(length(min = 1, max = 255))]
+    #[validate(length(max = 200))]
     pub description: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct EditAppResponse {
-    pub app_id: String,
+    pub id: Uuid,
     pub name: String,
     pub description: Option<String>,
 }
@@ -227,7 +228,7 @@ pub struct EditAppResponse {
 pub async fn edit(
     Session(_session): Session,
     DatabaseConnection(mut conn): DatabaseConnection,
-    Path(app_id): Path<String>,
+    Path(app_id): Path<Uuid>,
     Json(payload): Json<EditAppRequest>,
 ) -> Result<Json<EditAppResponse>, (axum::http::StatusCode, String)> {
     payload
@@ -236,7 +237,7 @@ pub async fn edit(
 
     let result = sqlx::query!(
         r#"
-        UPDATE apps SET name = $1, description = $2 WHERE app_id = $3
+        UPDATE apps SET name = $1, description = $2 WHERE id = $3
         RETURNING name, description
         "#,
         payload.name,
@@ -253,7 +254,7 @@ pub async fn edit(
     })?;
 
     Ok(Json(EditAppResponse {
-        app_id,
+        id: app_id,
         name: result.name,
         description: result.description,
     }))
@@ -262,11 +263,11 @@ pub async fn edit(
 pub async fn delete(
     Session(_session): Session,
     DatabaseConnection(mut conn): DatabaseConnection,
-    Path(app_id): Path<String>,
+    Path(app_id): Path<Uuid>,
 ) -> Result<axum::http::StatusCode, (axum::http::StatusCode, String)> {
     let result = sqlx::query!(
         r#"
-        DELETE FROM apps WHERE app_id = $1
+        DELETE FROM apps WHERE id = $1
         "#,
         app_id,
     )

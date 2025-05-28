@@ -4,7 +4,6 @@ import { Label } from "~/components/ui/label";
 import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/button";
 import { FormEventHandler, useCallback } from "react";
-import { trpc } from "~/trpc/client";
 import { useMutation } from "@tanstack/react-query";
 import {
   Card,
@@ -13,6 +12,8 @@ import {
   CardTitle,
 } from "~/components/ui/card";
 import { SocialLoginButtons } from "~/components/SocialLoginButtons";
+import { useServerFn } from "@tanstack/react-start";
+import { loginFn } from "~/server-functions/auth";
 
 export const Route = createFileRoute("/login/")({
   component: Login,
@@ -20,7 +21,15 @@ export const Route = createFileRoute("/login/")({
 
 function Login() {
   const router = useRouter();
-  const loginMutation = useMutation(trpc.auth.login.mutationOptions());
+  const login = useServerFn(loginFn);
+
+  const loginMutation = useMutation({
+    mutationFn: login,
+    onSuccess: async () => {
+      await router.invalidate();
+      await router.navigate({ to: "/orgs" });
+    },
+  });
 
   const form = useForm({
     defaultValues: {
@@ -29,10 +38,12 @@ function Login() {
     },
     onSubmit: async ({ value }) => {
       try {
-        await loginMutation.mutateAsync(value);
-        await router.invalidate();
-
-        router.navigate({ to: '/orgs' });
+        await loginMutation.mutateAsync({
+          data: {
+            email: value.email,
+            password: value.password,
+          },
+        });
       } catch (err) {
         console.error(err);
       }
@@ -52,7 +63,6 @@ function Login() {
     <div className="flex items-center justify-center">
       <Card className="w-full max-w-md">
         <CardTitle>Login</CardTitle>
-
         <CardDescription>Login to your account to continue</CardDescription>
 
         <CardContent className="flex flex-col gap-6">
@@ -111,7 +121,7 @@ function Login() {
               disabled={loginMutation.isPending}
               className="w-full"
             >
-              {loginMutation.isPending ? "Logging in..." : "Login"}
+              {form.state.isSubmitting ? "Logging in..." : "Login"}
             </Button>
           </form>
 
@@ -132,14 +142,4 @@ function Login() {
       </Card>
     </div>
   );
-}
-
-// Security function to validate redirect URLs
-function isValidRedirect(redirect: string): boolean {
-  try {
-    // Only allow relative URLs starting with "/" to prevent open redirects
-    return redirect.startsWith("/") && !redirect.startsWith("//");
-  } catch {
-    return false;
-  }
 }

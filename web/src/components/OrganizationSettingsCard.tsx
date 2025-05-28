@@ -1,8 +1,15 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback, FormEventHandler, useEffect } from "react";
 import { useForm } from "@tanstack/react-form";
-import { safeParse, object, string, minLength, maxLength, regex, pipe } from "valibot";
-import { trpc } from "~/trpc/client";
+import {
+  safeParse,
+  object,
+  string,
+  minLength,
+  maxLength,
+  regex,
+  pipe,
+} from "valibot";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
@@ -15,6 +22,7 @@ import {
 } from "./ui/card";
 import { Building2, Save } from "lucide-react";
 import { type Organization } from "~/lib/schemas";
+import { orgsUpdateFn } from "~/server-functions/orgs";
 
 // Enhanced validation schema for organization names
 const orgUpdateSchema = object({
@@ -34,15 +42,15 @@ interface OrganizationSettingsCardProps {
   orgId: string;
 }
 
-export function OrganizationSettingsCard({ 
-  organization, 
-  orgId 
+export function OrganizationSettingsCard({
+  organization,
+  orgId,
 }: OrganizationSettingsCardProps) {
   const queryClient = useQueryClient();
 
   // Organization update mutation
   const updateOrgMutation = useMutation({
-    ...trpc.orgs.update.mutationOptions(),
+    mutationFn: orgsUpdateFn,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["orgs"] });
       orgForm.reset();
@@ -80,7 +88,7 @@ export function OrganizationSettingsCard({
     onSubmit: async ({ value }) => {
       if (!orgId) return;
       try {
-        await updateOrgMutation.mutateAsync({ id: orgId, name: value.name });
+        await updateOrgMutation.mutateAsync({ data: { id: orgId, name: value.name } });
       } catch (err) {
         console.error(err);
       }
@@ -116,7 +124,7 @@ export function OrganizationSettingsCard({
       </CardHeader>
       <CardContent>
         <form onSubmit={submitOrgForm} className="space-y-4">
-          <orgForm.Field 
+          <orgForm.Field
             name="name"
             validators={{
               onChange: ({ value }) => {
@@ -149,11 +157,11 @@ export function OrganizationSettingsCard({
                     className="flex-1"
                     disabled={updateOrgMutation.isPending}
                   />
-                  <Button 
-                    type="submit" 
+                  <Button
+                    type="submit"
                     disabled={
-                      updateOrgMutation.isPending || 
-                      !field.state.meta.isDirty || 
+                      updateOrgMutation.isPending ||
+                      !field.state.meta.isDirty ||
                       !orgForm.state.isValid
                     }
                     size="sm"
@@ -168,19 +176,22 @@ export function OrganizationSettingsCard({
                     )}
                   </Button>
                 </div>
-                
+
                 {/* Real-time validation errors */}
                 {field.state.meta.errors.length > 0 && (
                   <div className="space-y-1">
                     {field.state.meta.errors.map((error, i) => (
-                      <div key={i} className="text-xs text-red-500 flex items-center gap-1">
+                      <div
+                        key={i}
+                        className="text-xs text-red-500 flex items-center gap-1"
+                      >
                         <div className="w-1 h-1 bg-red-500 rounded-full"></div>
                         {error}
                       </div>
                     ))}
                   </div>
                 )}
-                
+
                 {/* Success message */}
                 {updateOrgMutation.isSuccess && !field.state.meta.isDirty && (
                   <div className="text-xs text-green-600 flex items-center gap-1">
@@ -188,7 +199,7 @@ export function OrganizationSettingsCard({
                     Organization name updated successfully
                   </div>
                 )}
-                
+
                 {/* Error from mutation */}
                 {updateOrgMutation.error && (
                   <div className="text-xs text-red-500 flex items-center gap-1">
@@ -196,9 +207,10 @@ export function OrganizationSettingsCard({
                     {updateOrgMutation.error.message}
                   </div>
                 )}
-                
+
                 <p className="text-xs text-muted-foreground">
-                  This is your organization's display name. It can be changed at any time.
+                  This is your organization's display name. It can be changed at
+                  any time.
                 </p>
               </div>
             )}
@@ -207,4 +219,4 @@ export function OrganizationSettingsCard({
       </CardContent>
     </Card>
   );
-} 
+}

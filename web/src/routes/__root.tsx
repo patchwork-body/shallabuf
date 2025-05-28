@@ -11,14 +11,14 @@ import { NotFound } from "~/components/NotFound";
 import appCss from "~/styles/app.css?url";
 import { seo } from "~/utils/seo";
 import { ReactNode } from "react";
-import { trpc } from "~/trpc/client";
 import { QueryClient } from "@tanstack/react-query";
 import { Header } from "~/components/Header";
 import { Session } from "~/lib/schemas";
 import { SessionProvider } from "~/contexts/session";
+import { sessionFn } from "~/server-functions/auth";
+
 
 export const Route = createRootRouteWithContext<{
-  trpc: typeof trpc;
   queryClient: QueryClient;
   theme?: "light" | "dark";
 }>()({
@@ -26,9 +26,10 @@ export const Route = createRootRouteWithContext<{
     let session: Session | null = null;
 
     try {
-      session = await context.queryClient.fetchQuery(
-        trpc.auth.validateSession.queryOptions()
-      );
+      session = await context.queryClient.fetchQuery({
+        queryKey: ["session"],
+        queryFn: sessionFn,
+      });
     } catch (error) {
       // If error is 5xx server error, throw it
       if (

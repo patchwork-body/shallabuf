@@ -1,7 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
 import Spline from "@splinetool/react-spline";
-import { Route as RootRoute } from "./__root";
-import { useSession } from "~/contexts/session";
 
 // Trusted company logos
 const TRUSTED_LOGOS = [
@@ -32,7 +30,7 @@ export const Route = createFileRoute("/")({
 });
 
 function Index() {
-  const { session } = useSession();
+  const session = null;
 
   return (
     <div className="bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100">

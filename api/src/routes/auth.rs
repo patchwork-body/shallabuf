@@ -164,9 +164,10 @@ pub async fn github_login(
 ) -> Result<Json<LoginResponse>, AuthError> {
     // Fetch user data from GitHub
     let client = Client::new();
+
     let github_user: GithubUser = client
         .get("https://api.github.com/user")
-        .header("Authorization", format!("Bearer {}", access_token))
+        .header("Authorization", format!("Bearer {access_token}"))
         .header("User-Agent", "shallabuf")
         .send()
         .await

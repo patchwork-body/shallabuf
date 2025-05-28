@@ -1,7 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "@tanstack/react-form";
 import { FormEventHandler, useCallback, useState } from "react";
-import { trpc } from "~/trpc/client";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
@@ -15,9 +14,9 @@ import {
   DialogTrigger,
 } from "./ui/dialog";
 import { PlusIcon } from "lucide-react";
-import { CreateAppResponse, createAppSchema } from "~/lib/schemas";
-import { safeParse } from "valibot";
+import { CreateAppResponse } from "~/lib/schemas";
 import { useParams } from "@tanstack/react-router";
+import { appsCreateFn } from "~/server-functions/apps";
 
 interface CreateAppDialogProps {
   onSuccess: (data: CreateAppResponse) => void;
@@ -29,15 +28,11 @@ export function CreateAppDialog({ onSuccess }: CreateAppDialogProps) {
   const queryClient = useQueryClient();
 
   const createAppMutation = useMutation({
-    ...trpc.apps.create.mutationOptions(),
+    mutationFn: appsCreateFn,
     onSuccess: async (data) => {
-      await queryClient.invalidateQueries(
-        trpc.apps.list.infiniteQueryOptions({
-          organizationId: orgId ?? "",
-          cursor: undefined,
-          limit: 10,
-        })
-      );
+      await queryClient.invalidateQueries({
+        queryKey: ["apps", "list", orgId ?? ""],
+      });
 
       setOpen(false);
       onSuccess(data);
@@ -50,20 +45,9 @@ export function CreateAppDialog({ onSuccess }: CreateAppDialogProps) {
       name: "",
       description: "",
     },
-    validators: {
-      onSubmit: ({ value }) => {
-        const result = safeParse(createAppSchema, value);
-
-        if (!result.success) {
-          return result.issues.map((issue) => issue.message);
-        }
-
-        return null;
-      },
-    },
     onSubmit: async ({ value }) => {
       try {
-        await createAppMutation.mutateAsync(value);
+        await createAppMutation.mutateAsync({ data: value });
         form.reset();
       } catch (err) {
         console.error(err);

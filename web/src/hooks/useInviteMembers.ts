@@ -2,8 +2,8 @@ import { useForm } from "@tanstack/react-form";
 import * as v from "valibot";
 import { useCallback } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { trpc } from "~/trpc/client";
 import { useParams } from "@tanstack/react-router";
+import { orgsInviteMembersFn } from "~/server-functions/orgs";
 
 const EmailSchema = v.pipe(
   v.string(),
@@ -25,12 +25,10 @@ export function useInviteMembers(onSuccess?: () => void) {
   const { orgId } = useParams({ strict: false });
   const queryClient = useQueryClient();
   const inviteMembersMutation = useMutation({
-    ...trpc.orgs.inviteMembers.mutationOptions(),
+    mutationFn: orgsInviteMembersFn,
     onSuccess: async () => {
       await queryClient.invalidateQueries({
-        queryKey: trpc.orgs.listMembersAndInvites.queryKey({
-          organizationId: orgId,
-        }),
+        queryKey: ["orgs", "listMembersAndInvites", orgId],
       });
 
       onSuccess?.();
@@ -44,8 +42,10 @@ export function useInviteMembers(onSuccess?: () => void) {
 
     try {
       await inviteMembersMutation.mutateAsync({
-        emails,
-        organizationId: orgId,
+        data: {
+          emails,
+          organizationId: orgId,
+        },
       });
     } catch (error) {
       console.error("Failed to send invitations:", error);

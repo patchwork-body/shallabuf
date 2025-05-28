@@ -29,6 +29,7 @@ export const sessionSchema = object({
 export type Session = InferOutput<typeof sessionSchema>;
 
 export const appInfoSchema = object({
+  id: pipe(string(), uuid()),
   appId: string(),
   name: string(),
   description: nullable(string()),
@@ -39,7 +40,7 @@ export type AppInfo = InferOutput<typeof appInfoSchema>;
 
 export const listAppsResponseSchema = object({
   apps: array(appInfoSchema),
-  nextCursor: nullable(string()),
+  nextCursor: nullable(pipe(string(), uuid())),
 });
 
 export type ListAppsResponse = InferOutput<typeof listAppsResponseSchema>;
@@ -69,7 +70,7 @@ export const createAppResponseSchema = object({
 export type CreateAppResponse = InferOutput<typeof createAppResponseSchema>;
 
 export const editAppSchema = object({
-  appId: string(),
+  id: pipe(string(), uuid()),
   name: optional(string()),
   description: optional(string()),
 });

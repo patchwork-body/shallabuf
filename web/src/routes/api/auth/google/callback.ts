@@ -1,4 +1,3 @@
-import { json } from "@tanstack/react-start";
 import { createAPIFileRoute } from "@tanstack/react-start/api";
 import { decodeIdToken, OAuth2Tokens } from "arctic";
 import { env } from "~/env";

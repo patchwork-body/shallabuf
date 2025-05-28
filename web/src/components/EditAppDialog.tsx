@@ -1,7 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "@tanstack/react-form";
 import { FormEventHandler, useCallback, useState } from "react";
-import { trpc } from "~/trpc/client";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
@@ -14,10 +13,10 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "./ui/dialog";
-import { editAppSchema, type AppInfo } from "~/lib/schemas";
+import { type AppInfo } from "~/lib/schemas";
 import { PencilIcon } from "lucide-react";
-import { safeParse } from "valibot";
 import { useParams } from "@tanstack/react-router";
+import { appsEditFn } from "~/server-functions/apps";
 
 interface EditAppDialogProps {
   app: AppInfo;
@@ -29,15 +28,11 @@ export function EditAppDialog({ app }: EditAppDialogProps) {
   const queryClient = useQueryClient();
 
   const editAppMutation = useMutation({
-    ...trpc.apps.edit.mutationOptions(),
+    mutationFn: appsEditFn,
     onSuccess: async () => {
-      await queryClient.invalidateQueries(
-        trpc.apps.list.infiniteQueryOptions({
-          organizationId: orgId ?? "",
-          cursor: undefined,
-          limit: 10,
-        })
-      );
+      await queryClient.invalidateQueries({
+        queryKey: ["apps", "list", orgId ?? ""],
+      });
       setOpen(false);
     },
   });
@@ -48,22 +43,15 @@ export function EditAppDialog({ app }: EditAppDialogProps) {
       description: app.description ?? "",
     },
     onSubmit: async ({ value }) => {
-      try {
-        const result = safeParse(editAppSchema, {
-          appId: app.appId,
-          ...value,
-        });
+      await editAppMutation.mutateAsync({
+        data: {
+          id: app.id,
+          name: value.name,
+          description: value.description,
+        },
+      });
 
-        if (!result.success) {
-          console.error(result.issues);
-          return;
-        }
-
-        await editAppMutation.mutateAsync(result.output);
-        form.reset();
-      } catch (err) {
-        console.error(err);
-      }
+      form.reset();
     },
   });
 

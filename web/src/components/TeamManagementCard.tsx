@@ -1,4 +1,4 @@
-import { Users, Mail, User, Clock, X, RotateCcw, Trash } from "lucide-react";
+import { Users, Mail, User, Clock, Trash } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Button } from "~/components/ui/button";
 import {
@@ -11,9 +11,9 @@ import {
 } from "~/components/ui/card";
 import { InviteMemberDialog } from "./InviteMemberDialog";
 import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
-import { trpc } from "~/trpc/client";
 import { useParams } from "@tanstack/react-router";
 import { Route } from "~/routes/__root";
+import { orgsListMembersAndInvitesFn, orgsRevokeInviteFn } from "~/server-functions/orgs";
 
 export function TeamManagementCard() {
   const { orgId } = useParams({ strict: false });
@@ -23,12 +23,10 @@ export function TeamManagementCard() {
   const queryClient = useQueryClient();
 
   const revokeInviteMutation = useMutation({
-    ...trpc.orgs.revokeInvite.mutationOptions(),
+    mutationFn: orgsRevokeInviteFn,
     onSuccess: async () => {
       await queryClient.invalidateQueries({
-        queryKey: trpc.orgs.listMembersAndInvites.queryKey({
-          organizationId: orgId!,
-        }),
+        queryKey: ["orgs", "listMembersAndInvites", orgId],
       });
     },
   })
@@ -38,9 +36,10 @@ export function TeamManagementCard() {
   }, []);
 
   const { data } = useSuspenseQuery(
-    trpc.orgs.listMembersAndInvites.queryOptions({
-      organizationId: orgId!,
-    })
+    {
+      queryKey: ["orgs", "listMembersAndInvites", orgId],
+      queryFn: () => orgsListMembersAndInvitesFn({ data: { organizationId: orgId! } }),
+    }
   );
 
   const formatDate = (dateString: string) => {
@@ -56,10 +55,12 @@ export function TeamManagementCard() {
             <Users className="size-5 text-primary" />
             <CardTitle>Team Management</CardTitle>
           </div>
+
           <CardDescription>
             Invite and manage team members for your organization.
           </CardDescription>
         </CardHeader>
+
         <CardContent>
           {data && (data.members.length > 0 || data.invites.length > 0) ? (
             <div className="space-y-6">
@@ -125,13 +126,11 @@ export function TeamManagementCard() {
                             </p>
                           </div>
                         </div>
+
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => revokeInviteMutation.mutate({
-                            organizationId: orgId!,
-                            inviteId: invite.id,
-                          })}
+                          onClick={() => revokeInviteMutation.mutate({ data: { organizationId: orgId!, inviteId: invite.id } })}
                           disabled={revokeInviteMutation.isPending}
                           className="text-destructive hover:text-destructive"
                         >

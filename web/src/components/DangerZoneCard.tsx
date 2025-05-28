@@ -21,7 +21,7 @@ import {
   CardHeader,
   CardTitle,
 } from "~/components/ui/card";
-import { trpc } from "~/trpc/client";
+import { orgsDeleteFn } from "~/server-functions/orgs";
 
 interface DangerZoneCardProps {
   orgId: string;
@@ -34,7 +34,7 @@ export function DangerZoneCard({ orgId, orgName }: DangerZoneCardProps) {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   const deleteOrgMutation = useMutation({
-    ...trpc.orgs.delete.mutationOptions(),
+    mutationFn: () => orgsDeleteFn({ data: { id: orgId } }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["orgs"] });
       navigate({ to: "/orgs" });
@@ -46,8 +46,8 @@ export function DangerZoneCard({ orgId, orgName }: DangerZoneCardProps) {
   });
 
   const handleDeleteOrg = useCallback(() => {
-    deleteOrgMutation.mutate({ id: orgId });
-  }, [deleteOrgMutation.mutate, orgId]);
+    deleteOrgMutation.mutate();
+  }, [deleteOrgMutation.mutate]);
 
   return (
     <Card className="border-destructive/20 bg-destructive/5">

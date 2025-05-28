@@ -1,24 +1,30 @@
 import { createFileRoute, ErrorComponent } from "@tanstack/react-router";
-import { trpc } from "~/trpc/client";
 import { Separator } from "~/components/ui/separator";
 import { Settings } from "lucide-react";
 import { OrganizationDetailsCard } from "~/components/OrganizationDetailsCard";
 import { TeamManagementCard } from "~/components/TeamManagementCard";
 import { BillingCard } from "~/components/BillingCard";
 import { DangerZoneCard } from "~/components/DangerZoneCard";
+import {
+  orgsGetFn,
+  orgsListMembersAndInvitesFn,
+} from "~/server-functions/orgs";
 
 export const Route = createFileRoute("/_protected/orgs/$orgId/settings/")({
   loader: async ({ context, params }) => {
     try {
-      const organization = await context.queryClient.ensureQueryData(
-        trpc.orgs.get.queryOptions({ id: params.orgId })
-      );
+      const organization = await context.queryClient.ensureQueryData({
+        queryKey: ["orgs", "get", params.orgId],
+        queryFn: () => orgsGetFn({ data: { id: params.orgId } }),
+      });
 
-      const { members, invites } = await context.queryClient.ensureQueryData(
-        trpc.orgs.listMembersAndInvites.queryOptions({
-          organizationId: params.orgId,
-        })
-      );
+      const { members, invites } = await context.queryClient.ensureQueryData({
+        queryKey: ["orgs", "listMembersAndInvites", params.orgId],
+        queryFn: () =>
+          orgsListMembersAndInvitesFn({
+            data: { organizationId: params.orgId },
+          }),
+      });
 
       return { organization, members, invites };
     } catch (error) {

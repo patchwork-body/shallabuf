@@ -4,9 +4,7 @@ import {
   useRouter,
   useSearch,
 } from "@tanstack/react-router";
-import { useMutation } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { trpc } from "~/trpc/client";
 import {
   Card,
   CardContent,
