@@ -1,10 +1,10 @@
-# fly.toml app configuration file generated for sonicus-nats on 2025-03-20T21:30:37+01:00
+# fly.toml app configuration file generated for shallabuf-nats on 2025-05-29T14:43:01+02:00
 #
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
 
-app = 'sonicus-nats'
-primary_region = 'lax'
+app = 'shallabuf-nats'
+primary_region = 'cdg'
 
 [build]
   dockerfile = 'Dockerfile'
