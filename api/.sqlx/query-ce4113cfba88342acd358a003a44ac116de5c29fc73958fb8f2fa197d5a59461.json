@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        UPDATE apps SET name = $1, description = $2 WHERE app_id = $3\n        RETURNING name, description\n        ",
+  "query": "\n        UPDATE apps SET name = $1, description = $2 WHERE id = $3\n        RETURNING name, description\n        ",
   "describe": {
     "columns": [
       {
@@ -18,7 +18,7 @@
       "Left": [
         "Varchar",
         "Text",
-        "Text"
+        "Uuid"
       ]
     },
     "nullable": [
@@ -26,5 +26,5 @@
       true
     ]
   },
-  "hash": "99408e058a7d4857435d7f1025d4d5196b88db965f6a8bf7f58a330935a80380"
+  "hash": "ce4113cfba88342acd358a003a44ac116de5c29fc73958fb8f2fa197d5a59461"
 }
