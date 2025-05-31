@@ -55,7 +55,9 @@ jobs:
         uses: superfly/flyctl-actions/setup-flyctl@master
 
       - name: Deploy API to Fly.io
-        run: flyctl deploy --config ./api/fly.toml --remote-only
+        run: |
+          cd api
+          flyctl deploy --remote-only
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
 
@@ -70,13 +72,10 @@ jobs:
       - name: Setup Fly CLI
         uses: superfly/flyctl-actions/setup-flyctl@master
 
-      - name: Verify app access
-        run: flyctl apps list
-        env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
-
       - name: Deploy Platform to Fly.io
-        run: flyctl deploy --config ./platform/fly.toml --remote-only
+        run: |
+          cd platform
+          flyctl deploy --remote-only
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
 
@@ -92,7 +91,9 @@ jobs:
         uses: superfly/flyctl-actions/setup-flyctl@master
 
       - name: Deploy Web to Fly.io
-        run: flyctl deploy --config ./web/fly.toml --remote-only
+        run: |
+          cd web
+          flyctl deploy --remote-only
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
 
@@ -108,7 +109,9 @@ jobs:
         uses: superfly/flyctl-actions/setup-flyctl@master
 
       - name: Deploy NATS to Fly.io
-        run: flyctl deploy --config ./nats/fly.toml --remote-only
+        run: |
+          cd nats
+          flyctl deploy --remote-only
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
 
@@ -127,6 +130,12 @@ jobs:
         uses: superfly/flyctl-actions/setup-flyctl@master
 
       - name: Deploy ${{ matrix.app }} to Fly.io
-        run: flyctl deploy --config ./${{ matrix.app }}/fly.toml --remote-only
+        run: |
+          if [ "${{ matrix.app }}" = "web" ]; then
+            cd web
+            flyctl deploy --remote-only
+          else
+            flyctl deploy --config ./${{ matrix.app }}/fly.toml --remote-only
+          fi
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
