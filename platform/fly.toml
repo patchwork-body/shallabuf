@@ -7,6 +7,8 @@ app = 'shallabuf-platform'
 primary_region = 'cdg'
 
 [build]
+  dockerfile = "Dockerfile"
+  build_args = { PKG = "platform" }
 
 [env]
   NATS_URL = 'nats://sonicus-nats.internal:4222'
