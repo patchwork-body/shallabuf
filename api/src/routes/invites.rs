@@ -4,6 +4,7 @@ use argon2::{
 };
 use axum::http::StatusCode;
 use axum::{Json, extract::Path};
+use db::dto::key_provider_type::KeyProviderType;
 use jsonwebtoken::{DecodingKey, EncodingKey, Header, Validation, decode, encode};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
@@ -12,12 +13,9 @@ use time::OffsetDateTime;
 use uuid::Uuid;
 use validator::{Validate, ValidateEmail, ValidationError};
 
-use crate::{
-    dto::key_provider_type::KeyProviderType,
-    extractors::{
-        config::ConfigExtractor, database_connection::DatabaseConnection, resend::Resend,
-        session::Session,
-    },
+use crate::extractors::{
+    config::ConfigExtractor, database_connection::DatabaseConnection, resend::Resend,
+    session::Session,
 };
 
 fn validate_emails(emails: &[String]) -> Result<(), ValidationError> {

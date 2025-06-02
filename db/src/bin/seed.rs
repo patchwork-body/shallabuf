@@ -13,10 +13,10 @@ async fn main() -> anyhow::Result<()> {
     let db = sqlx::PgPool::connect(&database_url).await?;
 
     // Run migrations first (this will also reset the schema in dev mode)
-    api::seed::run_migrations(&db).await?;
+    db::seed::run_migrations(&db).await?;
 
     // Then seed the database
-    match api::seed::seed_database(&db).await {
+    match db::seed::seed_database(&db).await {
         Ok(()) => {
             info!("Database seeded successfully");
             Ok(())

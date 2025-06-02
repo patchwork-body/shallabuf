@@ -7,6 +7,7 @@ use argon2::{
     password_hash::{SaltString, rand_core::OsRng},
 };
 use axum::Json;
+use db::dto::key_provider_type::KeyProviderType;
 use jsonwebtoken::{DecodingKey, Validation, decode};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
@@ -15,7 +16,6 @@ use time::OffsetDateTime;
 use tracing::error;
 
 use crate::{
-    dto::key_provider_type::KeyProviderType,
     error::AuthError,
     extractors::{config::ConfigExtractor, session::Session},
     session::{

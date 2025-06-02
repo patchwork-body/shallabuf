@@ -13,7 +13,6 @@ use tracing_subscriber::{EnvFilter, fmt, prelude::*, registry};
 
 mod app_state;
 mod config;
-mod dto;
 mod error;
 mod extractors;
 mod routes;
