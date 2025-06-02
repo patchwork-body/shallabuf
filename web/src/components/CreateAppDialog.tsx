@@ -31,7 +31,7 @@ export function CreateAppDialog({ onSuccess }: CreateAppDialogProps) {
     mutationFn: appsCreateFn,
     onSuccess: async (data) => {
       await queryClient.invalidateQueries({
-        queryKey: ["apps", "list", orgId ?? ""],
+        queryKey: ["apps", "list", "infinite", orgId ?? ""],
       });
 
       setOpen(false);

@@ -11,10 +11,6 @@ export const authorizationMiddleware = createMiddleware().server(async ({ next }
 
   const sessionToken = getSessionToken(request);
 
-  if (!sessionToken) {
-    throw new Error("No session token found");
-  }
-
   return next({
     context: {
       sessionToken,

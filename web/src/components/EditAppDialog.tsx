@@ -31,7 +31,7 @@ export function EditAppDialog({ app }: EditAppDialogProps) {
     mutationFn: appsEditFn,
     onSuccess: async () => {
       await queryClient.invalidateQueries({
-        queryKey: ["apps", "list", orgId ?? ""],
+        queryKey: ["apps", "list", "infinite", orgId ?? ""],
       });
       setOpen(false);
     },

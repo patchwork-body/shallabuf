@@ -33,7 +33,7 @@ export function AppList({ organizationId }: AppListProps) {
     mutationFn: appsDeleteFn,
     onSuccess: async () => {
       await queryClient.invalidateQueries({
-        queryKey: ["apps", "list", organizationId],
+        queryKey: ["apps", "list", "infinite", organizationId],
       });
     },
   });
