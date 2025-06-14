@@ -3,6 +3,7 @@ pub mod connection;
 pub mod crdt;
 pub mod dto;
 pub mod handler;
+pub mod metrics;
 pub mod middlewares;
 pub mod session;
 

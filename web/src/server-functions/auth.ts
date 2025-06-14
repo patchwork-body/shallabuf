@@ -51,6 +51,52 @@ export const loginFn = createServerFn({
     }
   });
 
+export const signupFn = createServerFn({
+  method: "POST",
+})
+  .validator(
+    object({
+      email: pipe(string(), email()),
+      password: pipe(string(), minLength(8)),
+    })
+  )
+  .handler(async ({ data }) => {
+    try {
+      const response = await fetch(`${env.API_URL}/auth/signup`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(error);
+      }
+
+      const responseData = await response.json();
+
+      if (!responseData.expiresAt) {
+        throw new Error("Invalid signup response: missing expiration time");
+      }
+
+      setHeader(
+        "Set-Cookie",
+        `session=${responseData.token}; HttpOnly; Path=/; SameSite=${
+          process.env.NODE_ENV === "production" ? "Strict" : "Lax"
+        }; Secure=${process.env.NODE_ENV === "production"}; Expires=${new Date(
+          responseData.expiresAt
+        ).toUTCString()}`
+      );
+
+      return responseData;
+    } catch (error) {
+      console.error(error);
+      throw new Error("An unexpected error occurred during signup");
+    }
+  });
+
 export const logoutFn = createServerFn({
   method: "POST",
 })

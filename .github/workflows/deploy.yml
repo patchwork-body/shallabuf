@@ -21,6 +21,7 @@ jobs:
       platform: ${{ steps.changes.outputs.platform }}
       web: ${{ steps.changes.outputs.web }}
       nats: ${{ steps.changes.outputs.nats }}
+      db: ${{ steps.changes.outputs.db }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -42,10 +43,46 @@ jobs:
               - 'web/**'
             nats:
               - 'nats/**'
+            db:
+              - 'db/**'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+
+  migrate-db:
+    needs: changes
+    if: github.event_name == 'push' && (needs.changes.outputs.db == 'true' || needs.changes.outputs.api == 'true' || needs.changes.outputs.platform == 'true')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+
+      - name: Install sqlx-cli
+        run: cargo install sqlx-cli --no-default-features --features postgres
+
+      - name: Run database migrations
+        run: |
+          cd db
+          sqlx migrate run
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: Verify migration status
+        run: |
+          cd db
+          sqlx migrate info
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
   deploy-api:
-    needs: changes
-    if: github.event_name == 'push' && needs.changes.outputs.api == 'true'
+    needs: [changes, migrate-db]
+    if: github.event_name == 'push' && needs.changes.outputs.api == 'true' && always() && (needs.migrate-db.result == 'success' || needs.migrate-db.result == 'skipped')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -62,8 +99,8 @@ jobs:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
 
   deploy-platform:
-    needs: changes
-    if: github.event_name == 'push' && needs.changes.outputs.platform == 'true'
+    needs: [changes, migrate-db]
+    if: github.event_name == 'push' && needs.changes.outputs.platform == 'true' && always() && (needs.migrate-db.result == 'success' || needs.migrate-db.result == 'skipped')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -80,8 +117,8 @@ jobs:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
 
   deploy-web:
-    needs: changes
-    if: github.event_name == 'push' && needs.changes.outputs.web == 'true'
+    needs: [changes, migrate-db]
+    if: github.event_name == 'push' && needs.changes.outputs.web == 'true' && always() && (needs.migrate-db.result == 'success' || needs.migrate-db.result == 'skipped')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -98,8 +135,8 @@ jobs:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
 
   deploy-nats:
-    needs: changes
-    if: github.event_name == 'push' && needs.changes.outputs.nats == 'true'
+    needs: [changes, migrate-db]
+    if: github.event_name == 'push' && needs.changes.outputs.nats == 'true' && always() && (needs.migrate-db.result == 'success' || needs.migrate-db.result == 'skipped')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -121,15 +158,38 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        app: [api, platform, web, nats]
+        app: [migrate-db, api, platform, web, nats]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Install Rust toolchain (for DB migrations)
+        if: matrix.app == 'migrate-db'
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+
+      - name: Install sqlx-cli (for DB migrations)
+        if: matrix.app == 'migrate-db'
+        run: cargo install sqlx-cli --no-default-features --features postgres
+
+      - name: Run database migrations
+        if: matrix.app == 'migrate-db'
+        run: |
+          cd db
+          sqlx migrate run
+          sqlx migrate info
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
       - name: Setup Fly CLI
+        if: matrix.app != 'migrate-db'
         uses: superfly/flyctl-actions/setup-flyctl@master
 
       - name: Deploy ${{ matrix.app }} to Fly.io
+        if: matrix.app != 'migrate-db'
         run: |
           if [ "${{ matrix.app }}" = "web" ]; then
             cd web

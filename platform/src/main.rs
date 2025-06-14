@@ -5,14 +5,18 @@ use platform::{
         bus::{MessageHandler as BusMessageHandler, MessageProcessor, MessageTransport},
         transports::nats::NatsTransportBuilder,
     },
-    ws::{AuthMiddleware, Session},
+    ws::{
+        AuthMiddleware, Session,
+        metrics::{MetricsCollector, MetricsRepository},
+    },
 };
 use platform::{
     storage::RedisDocumentStorage,
     ws::{BusProxy, MessageHandler, connection::WsConnectionBuilder},
 };
 use platform::{utils, ws::BroadcastMiddleware};
-use std::env;
+use sqlx::postgres::PgPoolOptions;
+use std::io;
 use std::sync::Arc;
 use tokio::sync::broadcast;
 use tracing::error;
@@ -32,6 +36,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     utils::setup_logging()?;
 
     let config = utils::Config::from_env()?;
+
+    let db = PgPoolOptions::new()
+        .connect(&config.database_url)
+        .await
+        .map_err(|e| {
+            error!("Failed to connect to database: {e:?}");
+            io::Error::new(io::ErrorKind::Other, "Failed to connect to database")
+        })?;
+
+    // Initialize metrics system
+    let metrics_repository = Arc::new(MetricsRepository::new(db.clone()));
+    let metrics_collector = Arc::new(MetricsCollector::new(metrics_repository));
+
     let nats_client = utils::setup_nats(&config.nats_url).await?;
 
     let redis_client = redis::Client::open(config.redis_url.clone())?;
@@ -68,16 +85,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .port(config.port)
         .enable_tls(config.is_tls())
         .middlewares(vec![
-            Arc::new(AuthMiddleware::new(
-                env::var("JWT_SECRET").unwrap_or_else(|_| "your-secret-key-here".to_string()),
-            )),
+            Arc::new(AuthMiddleware::new(config.jwt_secret)),
             Arc::new(BroadcastMiddleware::new(tx.clone())),
         ])
         .message_handler(Arc::new(MessageHandler::new(
             Arc::new(bus_proxy),
             document_storage,
+            metrics_collector.clone(),
         )))
-        .session_handler(Arc::new(Session::new(redis.clone())))
+        .session_handler(Arc::new(Session::new(
+            redis.clone(),
+            metrics_collector.clone(),
+        )))
         .build()?;
 
     if let Err(e) = ws_connection.start().await {

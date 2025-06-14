@@ -96,12 +96,35 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             post(routes::stripe::create_portal_session),
         );
 
+    let metrics_router = Router::new()
+        .route(
+            "/organizations/{organization_id}/billing",
+            get(routes::metrics::get_billing_summary),
+        )
+        .route(
+            "/organizations/{organization_id}/connections",
+            get(routes::metrics::get_connection_metrics),
+        )
+        .route(
+            "/organizations/{organization_id}/data-transfer",
+            get(routes::metrics::get_data_transfer_metrics),
+        )
+        .route(
+            "/organizations/{organization_id}/usage-trends",
+            get(routes::metrics::get_usage_trends),
+        )
+        .route(
+            "/organizations/{organization_id}/summary",
+            get(routes::metrics::get_organization_metrics),
+        );
+
     let api_v0 = Router::new()
         .nest("/jwt", jwt_router)
         .nest("/auth", auth_router)
         .nest("/apps", apps_router)
         .nest("/orgs", orgs_router)
         .nest("/stripe", stripe_router)
+        .nest("/metrics", metrics_router)
         .route("/invites/accept", post(routes::invites::accept_invite));
 
     let app = Router::new()

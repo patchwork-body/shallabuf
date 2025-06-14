@@ -106,6 +106,12 @@ export const Header = () => {
                     Apps
                   </NavLink>
                   <NavLink
+                    to="/orgs/$orgId/metrics"
+                    params={{ orgId: orgId ?? "" }}
+                  >
+                    Metrics
+                  </NavLink>
+                  <NavLink
                     to="/orgs/$orgId/settings"
                     params={{ orgId: orgId ?? "" }}
                   >

@@ -7,8 +7,8 @@ edition = "2024"
 tokio = { version = "^1.45", features = ["full"] }
 tokio-tungstenite = { version = "^0.26", features = ["native-tls"] }
 futures-util = "^0.3"
-async-nats = "^0.41"
-redis = { version = "^0.31", features = ["tokio-comp", "connection-manager"] }
+async-nats = "^0.42"
+redis = { version = "^0.32", features = ["tokio-comp", "connection-manager"] }
 serde = { version = "^1.0", features = ["derive"] }
 serde_json = "^1.0"
 native-tls = "0.2"
@@ -26,4 +26,7 @@ anyhow = "^1.0"
 derive_builder = "^0.20"
 yrs = { version = "^0.23", features = ["sync"] }
 base64 = "0.22.1"
-uuid = { version = "^1.16", features = ["v4"] }
+uuid = { version = "^1.17", features = ["v4"] }
+sqlx = { version = "^0.8", features = ["postgres", "runtime-tokio-native-tls", "macros", "json", "time", "uuid"] }
+time = { version = "^0.3", features = ["serde"] }
+db = { path = "../db" }

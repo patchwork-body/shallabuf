@@ -22,6 +22,7 @@ pub struct ConnectionState {
     pub user_id: String,
     pub broadcast_task: Option<JoinHandle<()>>,
     pub channel_ids: std::collections::HashSet<String>,
+    pub connection_id: Uuid,
 }
 
 #[derive(Builder, Clone)]
@@ -71,14 +72,19 @@ impl WsConnection {
             Ok(response)
         };
 
-        // Generate a unique connection ID using UUID
-        let connection_id = Uuid::new_v4().to_string();
+        let connection_id = Uuid::new_v4();
+
+        {
+            let mut state = state.lock().await;
+            state.connection_id = connection_id;
+        }
+
         info!("New connection ID: {connection_id} from {peer_addr}");
 
         // Accept the connection with the callback
         let ws_stream = tokio_tungstenite::accept_hdr_async(stream, callback).await?;
         let (write, mut read) = ws_stream.split();
-        let write: WsWrite = Arc::new(Mutex::new((connection_id.clone(), write)));
+        let write: WsWrite = Arc::new(Mutex::new((connection_id.to_string(), write)));
 
         // Run all middlewares in sequence
         for middleware in &self.middlewares {
@@ -237,13 +243,13 @@ pub trait SessionHandler: Send + Sync {
         &self,
         app_id: &str,
         user_id: &str,
-        connection_id: &str,
+        connection_id: &Uuid,
     ) -> Result<(), Box<dyn std::error::Error>>;
     async fn remove(
         &self,
         app_id: &str,
         user_id: &str,
-        connection_id: &str,
+        connection_id: &Uuid,
     ) -> Result<(), Box<dyn std::error::Error>>;
     async fn count(&self, app_id: &str, user_id: &str)
     -> Result<usize, Box<dyn std::error::Error>>;

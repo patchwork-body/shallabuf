@@ -19,6 +19,7 @@ import { Route as LoginIndexImport } from './routes/login/index'
 import { Route as ProtectedOrgsIndexImport } from './routes/_protected/orgs/index'
 import { Route as ProtectedOrgsOrgIdAppsImport } from './routes/_protected/orgs/$orgId/apps'
 import { Route as ProtectedOrgsOrgIdSettingsIndexImport } from './routes/_protected/orgs/$orgId/settings/index'
+import { Route as ProtectedOrgsOrgIdMetricsIndexImport } from './routes/_protected/orgs/$orgId/metrics/index'
 
 // Create/Update Routes
 
@@ -67,6 +68,13 @@ const ProtectedOrgsOrgIdSettingsIndexRoute =
   ProtectedOrgsOrgIdSettingsIndexImport.update({
     id: '/orgs/$orgId/settings/',
     path: '/orgs/$orgId/settings/',
+    getParentRoute: () => ProtectedRoute,
+  } as any)
+
+const ProtectedOrgsOrgIdMetricsIndexRoute =
+  ProtectedOrgsOrgIdMetricsIndexImport.update({
+    id: '/orgs/$orgId/metrics/',
+    path: '/orgs/$orgId/metrics/',
     getParentRoute: () => ProtectedRoute,
   } as any)
 
@@ -123,6 +131,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProtectedOrgsOrgIdAppsImport
       parentRoute: typeof ProtectedImport
     }
+    '/_protected/orgs/$orgId/metrics/': {
+      id: '/_protected/orgs/$orgId/metrics/'
+      path: '/orgs/$orgId/metrics'
+      fullPath: '/orgs/$orgId/metrics'
+      preLoaderRoute: typeof ProtectedOrgsOrgIdMetricsIndexImport
+      parentRoute: typeof ProtectedImport
+    }
     '/_protected/orgs/$orgId/settings/': {
       id: '/_protected/orgs/$orgId/settings/'
       path: '/orgs/$orgId/settings'
@@ -138,12 +153,14 @@ declare module '@tanstack/react-router' {
 interface ProtectedRouteChildren {
   ProtectedOrgsIndexRoute: typeof ProtectedOrgsIndexRoute
   ProtectedOrgsOrgIdAppsRoute: typeof ProtectedOrgsOrgIdAppsRoute
+  ProtectedOrgsOrgIdMetricsIndexRoute: typeof ProtectedOrgsOrgIdMetricsIndexRoute
   ProtectedOrgsOrgIdSettingsIndexRoute: typeof ProtectedOrgsOrgIdSettingsIndexRoute
 }
 
 const ProtectedRouteChildren: ProtectedRouteChildren = {
   ProtectedOrgsIndexRoute: ProtectedOrgsIndexRoute,
   ProtectedOrgsOrgIdAppsRoute: ProtectedOrgsOrgIdAppsRoute,
+  ProtectedOrgsOrgIdMetricsIndexRoute: ProtectedOrgsOrgIdMetricsIndexRoute,
   ProtectedOrgsOrgIdSettingsIndexRoute: ProtectedOrgsOrgIdSettingsIndexRoute,
 }
 
@@ -159,6 +176,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginIndexRoute
   '/orgs': typeof ProtectedOrgsIndexRoute
   '/orgs/$orgId/apps': typeof ProtectedOrgsOrgIdAppsRoute
+  '/orgs/$orgId/metrics': typeof ProtectedOrgsOrgIdMetricsIndexRoute
   '/orgs/$orgId/settings': typeof ProtectedOrgsOrgIdSettingsIndexRoute
 }
 
@@ -170,6 +188,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginIndexRoute
   '/orgs': typeof ProtectedOrgsIndexRoute
   '/orgs/$orgId/apps': typeof ProtectedOrgsOrgIdAppsRoute
+  '/orgs/$orgId/metrics': typeof ProtectedOrgsOrgIdMetricsIndexRoute
   '/orgs/$orgId/settings': typeof ProtectedOrgsOrgIdSettingsIndexRoute
 }
 
@@ -182,6 +201,7 @@ export interface FileRoutesById {
   '/login/': typeof LoginIndexRoute
   '/_protected/orgs/': typeof ProtectedOrgsIndexRoute
   '/_protected/orgs/$orgId/apps': typeof ProtectedOrgsOrgIdAppsRoute
+  '/_protected/orgs/$orgId/metrics/': typeof ProtectedOrgsOrgIdMetricsIndexRoute
   '/_protected/orgs/$orgId/settings/': typeof ProtectedOrgsOrgIdSettingsIndexRoute
 }
 
@@ -195,6 +215,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/orgs'
     | '/orgs/$orgId/apps'
+    | '/orgs/$orgId/metrics'
     | '/orgs/$orgId/settings'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -205,6 +226,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/orgs'
     | '/orgs/$orgId/apps'
+    | '/orgs/$orgId/metrics'
     | '/orgs/$orgId/settings'
   id:
     | '__root__'
@@ -215,6 +237,7 @@ export interface FileRouteTypes {
     | '/login/'
     | '/_protected/orgs/'
     | '/_protected/orgs/$orgId/apps'
+    | '/_protected/orgs/$orgId/metrics/'
     | '/_protected/orgs/$orgId/settings/'
   fileRoutesById: FileRoutesById
 }
@@ -260,6 +283,7 @@ export const routeTree = rootRoute
       "children": [
         "/_protected/orgs/",
         "/_protected/orgs/$orgId/apps",
+        "/_protected/orgs/$orgId/metrics/",
         "/_protected/orgs/$orgId/settings/"
       ]
     },
@@ -278,6 +302,10 @@ export const routeTree = rootRoute
     },
     "/_protected/orgs/$orgId/apps": {
       "filePath": "_protected/orgs/$orgId/apps.tsx",
+      "parent": "/_protected"
+    },
+    "/_protected/orgs/$orgId/metrics/": {
+      "filePath": "_protected/orgs/$orgId/metrics/index.tsx",
       "parent": "/_protected"
     },
     "/_protected/orgs/$orgId/settings/": {

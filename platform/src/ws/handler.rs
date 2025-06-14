@@ -1,5 +1,5 @@
-use crate::ws::crdt::Crdt;
-use crate::ws::dto::outgoing_message::ToWsMessage;
+use crate::ws::{crdt::Crdt, metrics::data_transfer::MessageType};
+use crate::ws::{dto::outgoing_message::ToWsMessage, metrics::DataTransferMetric};
 
 use crate::{messaging::BroadcastMessage, ws::WsMessageHandler};
 use crate::{storage::DocumentStorage, ws::connection::WsWrite};
@@ -9,22 +9,32 @@ use serde_json::json;
 use std::{collections::HashSet, hash::RandomState, sync::Arc};
 use tokio::sync::Mutex;
 use tracing::error;
+use uuid::Uuid;
 
 use crate::{
     messaging::bus::MessagePublisher,
     ws::{IncomingMessage, connection::ConnectionState},
 };
 
-use super::{crdt::CrdtDocument, dto::OutgoingMessage};
+use super::{crdt::CrdtDocument, dto::OutgoingMessage, metrics::MetricsCollector};
 
 pub struct MessageHandler {
     publisher: Arc<dyn MessagePublisher>,
     storage: Arc<dyn DocumentStorage>,
+    metrics_collector: Arc<MetricsCollector>,
 }
 
 impl MessageHandler {
-    pub fn new(publisher: Arc<dyn MessagePublisher>, storage: Arc<dyn DocumentStorage>) -> Self {
-        Self { publisher, storage }
+    pub fn new(
+        publisher: Arc<dyn MessagePublisher>,
+        storage: Arc<dyn DocumentStorage>,
+        metrics_collector: Arc<MetricsCollector>,
+    ) -> Self {
+        Self {
+            publisher,
+            storage,
+            metrics_collector,
+        }
     }
 }
 
@@ -43,12 +53,14 @@ impl WsMessageHandler for MessageHandler {
             } => {
                 let app_id: String;
                 let user_id: String;
+                let connection_id: Uuid;
 
                 {
                     let mut state = state.lock().await;
                     app_id = state.app_id.clone();
                     user_id = state.user_id.clone();
                     state.channel_ids.insert(channel_id.clone());
+                    connection_id = state.connection_id;
                 }
 
                 let existing_update = self.storage.get_document(&app_id, &channel_id).await?;
@@ -102,6 +114,18 @@ impl WsMessageHandler for MessageHandler {
                 };
 
                 let binary_message = outgoing_message.to_ws_message()?;
+                let message_size = binary_message.len();
+
+                self.metrics_collector
+                    .record_data_transfer(DataTransferMetric::new(
+                        channel_id.clone(),
+                        connection_id,
+                        MessageType::Init,
+                        message_size,
+                        1,
+                    ))
+                    .await?;
+
                 write.lock().await.1.send(binary_message).await?;
             }
             IncomingMessage::Patch { channel_id, delta } => {
@@ -122,6 +146,18 @@ impl WsMessageHandler for MessageHandler {
                     .into_iter()
                     .filter(|member| member != &state.user_id)
                     .collect::<Vec<String>>();
+
+                let message_size = delta.len();
+
+                self.metrics_collector
+                    .record_data_transfer(DataTransferMetric::new(
+                        channel_id.clone(),
+                        state.connection_id,
+                        MessageType::Patch,
+                        message_size,
+                        recipients.len(),
+                    ))
+                    .await?;
 
                 self.publisher
                     .publish(BroadcastMessage::Patch {

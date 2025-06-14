@@ -2,6 +2,7 @@
   "cSpell.words": [
     "alexpass",
     "autodocs",
+    "bigdecimal",
     "chrono",
     "circlehollow",
     "cpus",
@@ -18,6 +19,7 @@
     "pgcrypto",
     "Playfair",
     "plpgsql",
+    "rcgen",
     "reqwest",
     "SADD",
     "SCARD",
@@ -31,6 +33,7 @@
     "superfly",
     "thiserror",
     "timestamptz",
+    "trunc",
     "tungstenite",
     "unenv",
     "useb",

@@ -11,9 +11,10 @@ import {
   CardDescription,
   CardTitle,
 } from "~/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import { SocialLoginButtons } from "~/components/SocialLoginButtons";
 import { useServerFn } from "@tanstack/react-start";
-import { loginFn } from "~/server-functions/auth";
+import { loginFn, signupFn } from "~/server-functions/auth";
 
 export const Route = createFileRoute("/login/")({
   component: Login,
@@ -22,6 +23,7 @@ export const Route = createFileRoute("/login/")({
 function Login() {
   const router = useRouter();
   const login = useServerFn(loginFn);
+  const signup = useServerFn(signupFn);
 
   const loginMutation = useMutation({
     mutationFn: login,
@@ -31,7 +33,15 @@ function Login() {
     },
   });
 
-  const form = useForm({
+  const signupMutation = useMutation({
+    mutationFn: signup,
+    onSuccess: async () => {
+      await router.invalidate();
+      await router.navigate({ to: "/orgs" });
+    },
+  });
+
+  const loginForm = useForm({
     defaultValues: {
       email: "",
       password: "",
@@ -50,80 +60,190 @@ function Login() {
     },
   });
 
-  const submit: FormEventHandler<HTMLFormElement> = useCallback(
+  const signupForm = useForm({
+    defaultValues: {
+      email: "",
+      password: "",
+    },
+    onSubmit: async ({ value }) => {
+      try {
+        await signupMutation.mutateAsync({
+          data: {
+            email: value.email,
+            password: value.password,
+          },
+        });
+      } catch (err) {
+        console.error(err);
+      }
+    },
+  });
+
+  const handleLoginSubmit: FormEventHandler<HTMLFormElement> = useCallback(
     (event) => {
       event.preventDefault();
       event.stopPropagation();
-      form.handleSubmit();
+      loginForm.handleSubmit();
     },
-    [form]
+    [loginForm]
+  );
+
+  const handleSignupSubmit: FormEventHandler<HTMLFormElement> = useCallback(
+    (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      signupForm.handleSubmit();
+    },
+    [signupForm]
   );
 
   return (
     <div className="flex items-center justify-center">
       <Card className="w-full max-w-md">
-        <CardTitle>Login</CardTitle>
-        <CardDescription>Login to your account to continue</CardDescription>
-
         <CardContent className="flex flex-col gap-6">
-          <form onSubmit={submit} className="flex flex-col gap-6 min-w-full">
-            <form.Field name="email">
-              {(field) => (
-                <div className="flex flex-col gap-2">
-                  <Label htmlFor={field.name}>Email</Label>
-                  <Input
-                    id={field.name}
-                    type="email"
-                    autoComplete="email"
-                    placeholder="your@email.com"
-                    value={field.state.value}
-                    onChange={(e) => field.handleChange(e.target.value)}
-                    required
-                    disabled={loginMutation.isPending}
-                  />
-                  {!field.state.meta.isValid && (
-                    <div className="text-xs text-red-500 mt-1 dark:text-red-400">
-                      {field.state.meta.errors.join(", ")}
+          <div className="text-center">
+            <CardTitle>Welcome</CardTitle>
+            <CardDescription>
+              Sign in to your account or create a new one
+            </CardDescription>
+          </div>
+
+          <Tabs defaultValue="login" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="login">Login</TabsTrigger>
+              <TabsTrigger value="signup">Sign Up</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="login">
+              <form
+                onSubmit={handleLoginSubmit}
+                className="flex flex-col gap-4 min-w-full"
+              >
+                <loginForm.Field name="email">
+                  {(field) => (
+                    <div className="flex flex-col gap-2">
+                      <Label htmlFor={field.name}>Email</Label>
+                      <Input
+                        id={field.name}
+                        type="email"
+                        autoComplete="email"
+                        placeholder="your@email.com"
+                        value={field.state.value}
+                        onChange={(e) => field.handleChange(e.target.value)}
+                        required
+                        disabled={loginMutation.isPending}
+                      />
+                      {!field.state.meta.isValid && (
+                        <div className="text-xs text-red-500 mt-1 dark:text-red-400">
+                          {field.state.meta.errors.join(", ")}
+                        </div>
+                      )}
                     </div>
                   )}
-                </div>
-              )}
-            </form.Field>
-            <form.Field name="password">
-              {(field) => (
-                <div className="flex flex-col gap-2">
-                  <Label htmlFor={field.name}>Password</Label>
-                  <Input
-                    id={field.name}
-                    type="password"
-                    autoComplete="current-password"
-                    placeholder="********"
-                    value={field.state.value}
-                    onChange={(e) => field.handleChange(e.target.value)}
-                    required
-                    disabled={loginMutation.isPending}
-                  />
-                  {!field.state.meta.isValid && (
-                    <div className="text-xs text-red-500 mt-1 dark:text-red-400">
-                      {field.state.meta.errors.join(", ")}
+                </loginForm.Field>
+                <loginForm.Field name="password">
+                  {(field) => (
+                    <div className="flex flex-col gap-2">
+                      <Label htmlFor={field.name}>Password</Label>
+                      <Input
+                        id={field.name}
+                        type="password"
+                        autoComplete="current-password"
+                        placeholder="********"
+                        value={field.state.value}
+                        onChange={(e) => field.handleChange(e.target.value)}
+                        required
+                        disabled={loginMutation.isPending}
+                      />
+                      {!field.state.meta.isValid && (
+                        <div className="text-xs text-red-500 mt-1 dark:text-red-400">
+                          {field.state.meta.errors.join(", ")}
+                        </div>
+                      )}
                     </div>
                   )}
-                </div>
-              )}
-            </form.Field>
-            {loginMutation.error && (
-              <div className="text-sm text-red-600 text-center dark:text-red-400">
-                {loginMutation.error.message}
-              </div>
-            )}
-            <Button
-              type="submit"
-              disabled={loginMutation.isPending}
-              className="w-full"
-            >
-              {form.state.isSubmitting ? "Logging in..." : "Login"}
-            </Button>
-          </form>
+                </loginForm.Field>
+                {loginMutation.error && (
+                  <div className="text-sm text-red-600 text-center dark:text-red-400">
+                    {loginMutation.error.message}
+                  </div>
+                )}
+                <Button
+                  type="submit"
+                  disabled={loginMutation.isPending}
+                  className="w-full"
+                >
+                  {loginForm.state.isSubmitting ? "Logging in..." : "Login"}
+                </Button>
+              </form>
+            </TabsContent>
+
+            <TabsContent value="signup">
+              <form
+                onSubmit={handleSignupSubmit}
+                className="flex flex-col gap-4 min-w-full"
+              >
+                <signupForm.Field name="email">
+                  {(field) => (
+                    <div className="flex flex-col gap-2">
+                      <Label htmlFor={`signup-${field.name}`}>Email</Label>
+                      <Input
+                        id={`signup-${field.name}`}
+                        type="email"
+                        autoComplete="email"
+                        placeholder="your@email.com"
+                        value={field.state.value}
+                        onChange={(e) => field.handleChange(e.target.value)}
+                        required
+                        disabled={signupMutation.isPending}
+                      />
+                      {!field.state.meta.isValid && (
+                        <div className="text-xs text-red-500 mt-1 dark:text-red-400">
+                          {field.state.meta.errors.join(", ")}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </signupForm.Field>
+                <signupForm.Field name="password">
+                  {(field) => (
+                    <div className="flex flex-col gap-2">
+                      <Label htmlFor={`signup-${field.name}`}>Password</Label>
+                      <Input
+                        id={`signup-${field.name}`}
+                        type="password"
+                        autoComplete="new-password"
+                        placeholder="Minimum 8 characters"
+                        value={field.state.value}
+                        onChange={(e) => field.handleChange(e.target.value)}
+                        required
+                        disabled={signupMutation.isPending}
+                      />
+                      {!field.state.meta.isValid && (
+                        <div className="text-xs text-red-500 mt-1 dark:text-red-400">
+                          {field.state.meta.errors.join(", ")}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </signupForm.Field>
+                {signupMutation.error && (
+                  <div className="text-sm text-red-600 text-center dark:text-red-400">
+                    {signupMutation.error.message}
+                  </div>
+                )}
+                <Button
+                  type="submit"
+                  disabled={signupMutation.isPending}
+                  className="w-full"
+                >
+                  {signupForm.state.isSubmitting
+                    ? "Creating account..."
+                    : "Sign Up"}
+                </Button>
+              </form>
+            </TabsContent>
+          </Tabs>
 
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
