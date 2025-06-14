@@ -162,8 +162,8 @@ This will run migrations first, then deploy all services.
 For local development with your database:
 
 ```bash
-# Install sqlx-cli if not already installed
-cargo install sqlx-cli --no-default-features --features postgres
+# Install sqlx-cli if not already installed (with TLS support for Neon)
+cargo install sqlx-cli --no-default-features --features postgres,rustls
 
 # Set your database URL (use local or development Neon database)
 export DATABASE_URL="postgresql://username:password@host/database?sslmode=require"
