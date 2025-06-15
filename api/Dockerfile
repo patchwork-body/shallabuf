@@ -4,13 +4,7 @@ WORKDIR /app
 ################################################################################
 
 FROM chef AS planner
-# Copy workspace configuration
-COPY Cargo.toml Cargo.lock ./
-# Copy all workspace member Cargo.toml files for dependency resolution
-COPY api/Cargo.toml ./api/
-COPY db/Cargo.toml ./db/
-COPY platform/Cargo.toml ./platform/
-COPY cron/Cargo.toml ./cron/
+COPY . .
 RUN cargo chef prepare --recipe-path recipe.json --bin api
 
 ################################################################################
