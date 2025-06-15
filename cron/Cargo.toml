@@ -4,9 +4,9 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-kinetics-macro = "0.3.4"
-lambda_runtime = "0.13.0"
-aws-sdk-sqs = "1.67.0"
+kinetics-macro = "0.4.0"
+lambda_runtime = "0.14.2"
+aws-sdk-sqs = "1.73.0"
 sqlx = { version = "^0.8", features = ["postgres", "runtime-tokio-native-tls", "macros", "json", "time", "uuid", "bigdecimal"], default-features = false }
 tracing = "^0.1"
 tracing-subscriber = { version = "^0.3", features = ["env-filter"] }

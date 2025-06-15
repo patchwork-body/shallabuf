@@ -4,8 +4,14 @@ WORKDIR /app
 ################################################################################
 
 FROM chef AS planner
-COPY . .
-RUN cargo chef prepare --recipe-path recipe.json
+# Copy workspace configuration
+COPY Cargo.toml Cargo.lock ./
+# Copy all workspace member Cargo.toml files for dependency resolution
+COPY api/Cargo.toml ./api/
+COPY db/Cargo.toml ./db/
+COPY platform/Cargo.toml ./platform/
+COPY cron/Cargo.toml ./cron/
+RUN cargo chef prepare --recipe-path recipe.json --bin platform
 
 ################################################################################
 
@@ -16,7 +22,8 @@ COPY --from=planner /app/recipe.json recipe.json
 ARG BUILD_MODE=release
 ARG PKG=platform
 
-RUN cargo chef cook $([ "$BUILD_MODE" = "release" ] && echo "--release") --recipe-path recipe.json
+RUN cargo chef cook $([ "$BUILD_MODE" = "release" ] && echo "--release") --recipe-path recipe.json --bin $PKG
+# Copy the entire workspace to handle relative dependencies
 COPY . .
 
 RUN --mount=type=cache,target=/build/target \
