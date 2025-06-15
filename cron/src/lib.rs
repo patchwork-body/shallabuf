@@ -26,7 +26,7 @@ pub async fn cron(
 
     let users = sqlx::query!(
         r#"
-        SELECT 1 FROM users
+        SELECT * FROM users LIMIT 1
         "#,
     )
     .fetch_all(&db)

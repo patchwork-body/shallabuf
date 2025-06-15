@@ -7,7 +7,7 @@ app = 'shallabuf-platform'
 primary_region = 'cdg'
 
 [build]
-  dockerfile = "platform/Dockerfile"
+  dockerfile = "Dockerfile"
   build_args = { PKG = "platform" }
 
 [env]

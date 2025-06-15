@@ -92,7 +92,7 @@ jobs:
         uses: superfly/flyctl-actions/setup-flyctl@master
 
       - name: Deploy API to Fly.io
-        run: flyctl deploy --config api/fly.toml --remote-only
+        run: flyctl deploy --config api/fly.toml --dockerfile api/Dockerfile --remote-only
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
 
@@ -108,7 +108,7 @@ jobs:
         uses: superfly/flyctl-actions/setup-flyctl@master
 
       - name: Deploy Platform to Fly.io
-        run: flyctl deploy --config platform/fly.toml --remote-only
+        run: flyctl deploy --config platform/fly.toml --dockerfile platform/Dockerfile --remote-only
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
 
@@ -193,8 +193,10 @@ jobs:
           elif [ "${{ matrix.app }}" = "nats" ]; then
             cd nats
             flyctl deploy --remote-only
-          else
-            flyctl deploy --config ${{ matrix.app }}/fly.toml --remote-only
+          elif [ "${{ matrix.app }}" = "api" ]; then
+            flyctl deploy --config api/fly.toml --dockerfile api/Dockerfile --remote-only
+          elif [ "${{ matrix.app }}" = "platform" ]; then
+            flyctl deploy --config platform/fly.toml --dockerfile platform/Dockerfile --remote-only
           fi
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
