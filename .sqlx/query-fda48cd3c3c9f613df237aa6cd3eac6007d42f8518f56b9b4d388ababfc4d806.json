@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT COUNT(*) as count\n        FROM connection_session cs\n        INNER JOIN apps a ON a.app_id = cs.app_id\n        WHERE a.organization_id = $1\n        AND cs.disconnected_at IS NULL\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "count",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "fda48cd3c3c9f613df237aa6cd3eac6007d42f8518f56b9b4d388ababfc4d806"
+}

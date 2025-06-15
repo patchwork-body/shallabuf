@@ -1,0 +1,52 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT\n            a.id,\n            COUNT(DISTINCT cs.id) as total_connections,\n            COALESCE(SUM(EXTRACT(EPOCH FROM (cs.disconnected_at - cs.connected_at)) * 1000), 0)::bigint as total_connection_time_ms,\n            COALESCE(SUM(dtm.total_bytes_transferred), 0)::bigint as total_bytes_transferred,\n            COUNT(dtm.id) as total_messages,\n            MAX(GREATEST(cs.connected_at, dtm.created_at)) as last_activity\n        FROM apps a\n        LEFT JOIN connection_session cs ON cs.app_id = a.app_id AND cs.disconnected_at IS NOT NULL\n        LEFT JOIN data_transfer_metrics dtm ON dtm.connection_session_id = cs.id\n        WHERE a.organization_id = $1\n        GROUP BY a.id\n        ORDER BY total_connection_time_ms DESC\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "total_connections",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 2,
+        "name": "total_connection_time_ms",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 3,
+        "name": "total_bytes_transferred",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 4,
+        "name": "total_messages",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 5,
+        "name": "last_activity",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "597e7a92390c1735ee692d4a8f50af7717e7b7271d1a9f8f1eaf6fd9898156a3"
+}
