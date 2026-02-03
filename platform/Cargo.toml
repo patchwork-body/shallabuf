@@ -19,7 +19,7 @@ tracing-subscriber = { version = "^0.3", features = ["env-filter"] }
 dotenvy = "^0.15"
 config = "^0.15"
 url = "^2.5"
-jsonwebtoken = "^9.3"
+jsonwebtoken = "^10.3"
 async-trait = "^0.1"
 thiserror = "^2.0"
 anyhow = "^1.0"
