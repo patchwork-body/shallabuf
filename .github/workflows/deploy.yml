@@ -1,0 +1,202 @@
+name: Deploy Shallabuf
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      api: ${{ steps.changes.outputs.api }}
+      platform: ${{ steps.changes.outputs.platform }}
+      web: ${{ steps.changes.outputs.web }}
+      nats: ${{ steps.changes.outputs.nats }}
+      db: ${{ steps.changes.outputs.db }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Detect changes
+        uses: dorny/paths-filter@v3
+        id: changes
+        with:
+          filters: |
+            api:
+              - 'crates/api/**'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+            platform:
+              - 'crates/platform/**'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+            web:
+              - 'web/**'
+            nats:
+              - 'nats/**'
+            db:
+              - 'crates/db/**'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+
+  migrate-db:
+    needs: changes
+    if: github.event_name == 'push' && (needs.changes.outputs.db == 'true' || needs.changes.outputs.api == 'true' || needs.changes.outputs.platform == 'true')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+
+      - name: Install sqlx-cli
+        run: cargo install sqlx-cli --no-default-features --features postgres,rustls
+
+      - name: Run database migrations
+        run: |
+          cd crates/db
+          sqlx migrate run
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: Verify migration status
+        run: |
+          cd crates/db
+          sqlx migrate info
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+  deploy-api:
+    needs: [changes, migrate-db]
+    if: github.event_name == 'push' && needs.changes.outputs.api == 'true' && always() && (needs.migrate-db.result == 'success' || needs.migrate-db.result == 'skipped')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Fly CLI
+        uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Deploy API to Fly.io
+        run: flyctl deploy --config crates/api/fly.toml --dockerfile crates/api/Dockerfile --remote-only
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+  deploy-platform:
+    needs: [changes, migrate-db]
+    if: github.event_name == 'push' && needs.changes.outputs.platform == 'true' && always() && (needs.migrate-db.result == 'success' || needs.migrate-db.result == 'skipped')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Fly CLI
+        uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Deploy Platform to Fly.io
+        run: flyctl deploy --config crates/platform/fly.toml --dockerfile crates/platform/Dockerfile --remote-only
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+  deploy-web:
+    needs: [changes, migrate-db]
+    if: github.event_name == 'push' && needs.changes.outputs.web == 'true' && always() && (needs.migrate-db.result == 'success' || needs.migrate-db.result == 'skipped')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Fly CLI
+        uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Deploy Web to Fly.io
+        run: |
+          cd web
+          flyctl deploy --remote-only
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+  deploy-nats:
+    needs: [changes, migrate-db]
+    if: github.event_name == 'push' && needs.changes.outputs.nats == 'true' && always() && (needs.migrate-db.result == 'success' || needs.migrate-db.result == 'skipped')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Fly CLI
+        uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Deploy NATS to Fly.io
+        run: |
+          cd nats
+          flyctl deploy --remote-only
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+  # Optional: Deploy all on manual trigger
+  deploy-all:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        app: [migrate-db, api, platform, web, nats]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain (for DB migrations)
+        if: matrix.app == 'migrate-db'
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+
+      - name: Install sqlx-cli (for DB migrations)
+        if: matrix.app == 'migrate-db'
+        run: cargo install sqlx-cli --no-default-features --features postgres,rustls
+
+      - name: Run database migrations
+        if: matrix.app == 'migrate-db'
+        run: |
+          cd crates/db
+          sqlx migrate run
+          sqlx migrate info
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: Setup Fly CLI
+        if: matrix.app != 'migrate-db'
+        uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Deploy ${{ matrix.app }} to Fly.io
+        if: matrix.app != 'migrate-db'
+        run: |
+          if [ "${{ matrix.app }}" = "web" ]; then
+            cd web
+            flyctl deploy --remote-only
+          elif [ "${{ matrix.app }}" = "nats" ]; then
+            cd nats
+            flyctl deploy --remote-only
+          elif [ "${{ matrix.app }}" = "api" ]; then
+            flyctl deploy --config crates/api/fly.toml --dockerfile crates/api/Dockerfile --remote-only
+          elif [ "${{ matrix.app }}" = "platform" ]; then
+            flyctl deploy --config crates/platform/fly.toml --dockerfile crates/platform/Dockerfile --remote-only
+          fi
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}

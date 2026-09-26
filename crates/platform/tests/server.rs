@@ -1,0 +1,206 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+mod helpers;
+
+use futures_util::{SinkExt, StreamExt};
+use helpers::TestServer;
+use platform::config::ServerConfig;
+use std::time::{Duration, Instant};
+use tokio::{
+    io::{AsyncReadExt, AsyncWriteExt},
+    net::TcpStream,
+    time::timeout,
+};
+use tokio_tungstenite::tungstenite::{Message, protocol::frame::coding::CloseCode};
+
+const LIMIT: Duration = Duration::from_secs(5);
+
+#[tokio::test]
+async fn echoes_text() {
+    let server = TestServer::start().await;
+    let (mut ws, _) = tokio_tungstenite::connect_async(server.url())
+        .await
+        .unwrap();
+
+    ws.send(Message::text("hello")).await.unwrap();
+    let msg = timeout(LIMIT, ws.next()).await.unwrap().unwrap().unwrap();
+
+    assert_eq!(msg, Message::text("hello"));
+}
+
+#[tokio::test]
+async fn shutdown_sends_restart_and_returns_ok() {
+    let server = TestServer::start().await;
+    let (mut ws, _) = tokio_tungstenite::connect_async(server.url())
+        .await
+        .unwrap();
+
+    server.shutdown.cancel();
+
+    match timeout(LIMIT, ws.next()).await.unwrap().unwrap().unwrap() {
+        Message::Close(Some(frame)) => assert_eq!(frame.code, CloseCode::Restart),
+        other => panic!("expected close frame, got {other:?}"),
+    }
+
+    timeout(LIMIT, server.handle).await.unwrap().unwrap();
+}
+
+#[tokio::test]
+async fn stalled_handshake_does_not_block_shutdown() {
+    let server = TestServer::start().await;
+    let mut stalled = TcpStream::connect(server.addr).await.unwrap();
+    stalled
+        .write_all(b"GET / HTTP/1.1\r\nHost: localhost\r\n")
+        .await
+        .unwrap(); // headers never finished
+
+    // accept() is FIFO: once this round-trips, `stalled` has been accepted and is mid-handshake
+    let (mut ws, _) = tokio_tungstenite::connect_async(server.url())
+        .await
+        .unwrap();
+    ws.send(Message::text("sync")).await.unwrap();
+    timeout(LIMIT, ws.next()).await.unwrap().unwrap().unwrap();
+
+    server.shutdown.cancel();
+
+    timeout(LIMIT, server.handle)
+        .await
+        .expect("shutdown hung")
+        .unwrap();
+
+    // pre-upgrade there's no close frame to send; the socket is just dropped
+    let mut buf = [0u8; 64];
+    let n = timeout(LIMIT, stalled.read(&mut buf))
+        .await
+        .unwrap()
+        .unwrap_or(0);
+
+    assert_eq!(
+        n,
+        0,
+        "expected bare EOF, got {:?}",
+        String::from_utf8_lossy(&buf[..n])
+    );
+}
+
+#[tokio::test]
+async fn stalled_handshake_is_dropped_after_timeout() {
+    let handshake_timeout = Duration::from_millis(200);
+    let server = TestServer::start_with(ServerConfig {
+        handshake_timeout,
+        ..TestServer::config()
+    })
+    .await;
+
+    let started = Instant::now();
+    let mut stalled = TcpStream::connect(server.addr).await.unwrap();
+    stalled
+        .write_all(b"GET / HTTP/1.1\r\nHost: localhost\r\n")
+        .await
+        .unwrap(); // headers never finished
+
+    // pre-upgrade there's no close frame to send; the socket is just dropped
+    let mut buf = [0u8; 64];
+    let n = timeout(LIMIT, stalled.read(&mut buf))
+        .await
+        .expect("stalled handshake was never dropped")
+        .unwrap_or(0);
+    let elapsed = started.elapsed();
+
+    assert_eq!(
+        n,
+        0,
+        "expected bare EOF, got {:?}",
+        String::from_utf8_lossy(&buf[..n])
+    );
+    assert!(
+        elapsed >= handshake_timeout,
+        "dropped after {elapsed:?}, before the {handshake_timeout:?} timeout"
+    );
+}
+
+#[tokio::test]
+async fn non_reading_client_does_not_block_shutdown() {
+    let server = TestServer::start().await;
+    let (ws, _) = tokio_tungstenite::connect_async(server.url())
+        .await
+        .unwrap();
+
+    let (mut tx, _rx) = ws.split();
+
+    // once our own send stalls, the server has stopped reading: it's stuck mid-echo
+    let payload = "x".repeat(64 * 1024);
+    let mut stalled = false;
+
+    for _ in 0..1000 {
+        if timeout(
+            Duration::from_millis(200),
+            tx.send(Message::text(payload.clone())),
+        )
+        .await
+        .is_err()
+        {
+            stalled = true;
+            break;
+        }
+    }
+
+    assert!(stalled, "buffers never filled; server never got stuck");
+
+    server.shutdown.cancel();
+
+    timeout(LIMIT, server.handle)
+        .await
+        .expect("shutdown hung")
+        .unwrap();
+}
+
+#[tokio::test]
+async fn non_reading_client_is_dropped_after_send_timeout() {
+    let send_timeout = Duration::from_millis(500);
+    let server = TestServer::start_with(ServerConfig {
+        send_timeout,
+        ..TestServer::config()
+    })
+    .await;
+
+    let (ws, _) = tokio_tungstenite::connect_async(server.url())
+        .await
+        .unwrap();
+
+    let (mut tx, mut rx) = ws.split();
+
+    // once our own send stalls, the server has stopped reading: it's stuck mid-echo
+    let payload = "x".repeat(64 * 1024);
+    let mut stalled = false;
+
+    for _ in 0..1000 {
+        if timeout(
+            Duration::from_millis(200),
+            tx.send(Message::text(payload.clone())),
+        )
+        .await
+        .is_err()
+        {
+            stalled = true;
+            break;
+        }
+    }
+
+    assert!(stalled, "buffers never filled; server never got stuck");
+
+    // don't read yet: draining now would unstick the server's send and it'd (rightly) keep us
+    tokio::time::sleep(send_timeout * 2).await;
+
+    // buffered echoes may still arrive, but the stream must end, and without a close frame
+    let dropped = timeout(LIMIT, async {
+        while let Some(Ok(msg)) = rx.next().await {
+            assert!(
+                !msg.is_close(),
+                "stuck client shouldn't get a close frame, got {msg:?}"
+            );
+        }
+    })
+    .await;
+
+    assert!(dropped.is_ok(), "server never dropped the connection");
+}

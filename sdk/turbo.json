@@ -1,0 +1,21 @@
+{
+  "$schema": "https://turborepo.org/schema.json",
+  "ui": "stream",
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**"],
+      "cache": false
+    },
+    "version": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**"],
+      "cache": false
+    },
+    "publish": {
+      "dependsOn": ["^version"],
+      "outputs": ["dist/**"],
+      "cache": false
+    }
+  }
+}

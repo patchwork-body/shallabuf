@@ -1,0 +1,33 @@
+{
+  "cSpell.words": [
+    "addgroup",
+    "adduser",
+    "appgroup",
+    "appuser",
+    "cpus",
+    "crdt",
+    "dotenv",
+    "dotenvy",
+    "hdel",
+    "hgetall",
+    "hset",
+    "jsonwebtoken",
+    "nextjs",
+    "objcopy",
+    "oklch",
+    "prerender",
+    "rcgen",
+    "sadd",
+    "serde",
+    "shallabuf",
+    "sismember",
+    "smembers",
+    "shallabuf",
+    "sqlx",
+    "srem",
+    "thiserror",
+    "tungstenite",
+    "turbopack",
+    "vinxi"
+  ]
+}

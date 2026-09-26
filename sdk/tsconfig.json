@@ -1,0 +1,3 @@
+{
+  "extends": "@shallabuf-sdk/typescript/base.json"
+}

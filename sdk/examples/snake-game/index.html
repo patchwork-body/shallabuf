@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/public/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Snake Game</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div id="app">
+      <div class="game-container">
+        <h1>Snake Game</h1>
+        <div class="game-info">
+          <div class="score">Score: <span id="score">0</span></div>
+          <div class="high-score">
+            High Score: <span id="high-score">0</span>
+          </div>
+        </div>
+        <canvas id="gameCanvas"></canvas>
+        <div class="controls">
+          <p class="desktop-controls">Use arrow keys or WASD to control the snake</p>
+          <p class="mobile-controls">Swipe to control the snake • Tap to pause/resume</p>
+          <button id="pauseResumeBtn">Start Game</button>
+          <button id="resetBtn">Reset</button>
+          <button id="menuBtn">Back to Menu</button>
+        </div>
+        <div class="game-over" id="gameOver" style="display: none">
+          <h2>Game Over!</h2>
+          <p>Final Score: <span id="finalScore">0</span></p>
+          <button id="restartBtn">Play Again</button>
+          <button id="gameOverMenuBtn">Back to Menu</button>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="/main.js"></script>
+  </body>
+</html>

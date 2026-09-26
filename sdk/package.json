@@ -1,0 +1,27 @@
+{
+  "name": "shallabuf-sdk",
+  "license": "Apache-2.0",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "examples/*",
+    "tooling/*"
+  ],
+  "scripts": {
+    "build:types": "tsc --emitDeclarationOnly",
+    "build": "bun build ./index.ts --outdir ./dist --target node",
+    "build:react": "bun build ./react.tsx --outdir ./dist --target browser --external react",
+    "build:all": "bun run build:types && bun run build && bun run build:react"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.28.1",
+    "biome": "^0.3.0",
+    "tsup": "^8.4.0",
+    "turbo": "^2.5.0",
+    "typescript": "^5.0.0"
+  },
+  "packageManager": "bun@1.1.38",
+  "overrides": {
+    "@shallabuf-sdk/core": "workspace:*"
+  }
+}

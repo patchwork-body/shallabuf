@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO keys (user_id, provider, provider_key) VALUES ($1, $2, $3)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        {
+          "Custom": {
+            "name": "key_provider_type",
+            "kind": {
+              "Enum": [
+                "password",
+                "github",
+                "google",
+                "facebook"
+              ]
+            }
+          }
+        },
+        "Varchar"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "abbe3faa3d083f0c692e6dd7f95fbda184f24018e3443953275549c130360ae0"
+}

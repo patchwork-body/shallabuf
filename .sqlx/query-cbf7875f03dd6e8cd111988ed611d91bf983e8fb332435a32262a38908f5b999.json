@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT\n            DATE_TRUNC($1, cs.connected_at) as period,\n            COUNT(*) as connection_count\n        FROM connection_session cs\n        INNER JOIN apps a ON a.app_id = cs.app_id\n        WHERE a.organization_id = $2\n        AND cs.connected_at >= CURRENT_DATE - INTERVAL '30 days'\n        AND cs.disconnected_at IS NOT NULL\n        GROUP BY DATE_TRUNC($1, cs.connected_at)\n        ORDER BY period\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "period",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 1,
+        "name": "connection_count",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      null,
+      null
+    ]
+  },
+  "hash": "cbf7875f03dd6e8cd111988ed611d91bf983e8fb332435a32262a38908f5b999"
+}

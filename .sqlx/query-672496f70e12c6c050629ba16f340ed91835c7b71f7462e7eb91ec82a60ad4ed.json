@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT\n            DATE_TRUNC($1, dtm.created_at) as period,\n            COUNT(*) as message_count\n        FROM data_transfer_metrics dtm\n        INNER JOIN connection_session cs ON cs.id = dtm.connection_session_id\n        INNER JOIN apps a ON a.app_id = cs.app_id\n        WHERE a.organization_id = $2\n        AND dtm.created_at >= CURRENT_DATE - INTERVAL '30 days'\n        GROUP BY DATE_TRUNC($1, dtm.created_at)\n        ORDER BY period\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "period",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 1,
+        "name": "message_count",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      null,
+      null
+    ]
+  },
+  "hash": "672496f70e12c6c050629ba16f340ed91835c7b71f7462e7eb91ec82a60ad4ed"
+}

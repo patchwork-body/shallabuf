@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO data_transfer_metrics\n            (connection_session_id, channel_id, message_type, message_size_bytes, recipient_count)\n            VALUES ($1, $2, $3, $4, $5)\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Varchar",
+        {
+          "Custom": {
+            "name": "message_type",
+            "kind": {
+              "Enum": [
+                "init",
+                "patch",
+                "broadcast"
+              ]
+            }
+          }
+        },
+        "Int4",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "b13bcb83451f4d45d32988f385ca383a96142fb87f293ed02474818b8baf1d19"
+}

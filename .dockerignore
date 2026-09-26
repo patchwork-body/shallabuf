@@ -1,0 +1,31 @@
+# Workspace-level .dockerignore for the Rust crates.
+
+# Compiler output. The workspace target/ alone is tens of gigabytes.
+target/
+**/target/
+
+# Not workspace members - nothing under crates/ depends on them.
+web/
+sdk/
+nats/
+docs/
+
+# Secrets must never reach an image layer.
+**/.env
+**/.env.*
+
+# Repository and tooling metadata.
+.git/
+.gitignore
+.github/
+.vscode/
+.zed/
+.claude/
+**/.DS_Store
+*.md
+LICENSE
+
+# Container definitions themselves.
+**/Dockerfile
+.dockerignore
+docker-compose.yaml

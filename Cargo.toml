@@ -1,0 +1,139 @@
+[workspace]
+members = ["crates/platform"]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.96"
+repository = "https://github.com/patchwork-body/shallabuf"
+license = "Elastic-2.0"
+publish = false
+
+[workspace.dependencies]
+# Internal crates
+db = { path = "crates/db" }
+
+# Async runtime
+tokio = { version = "1.47.1", features = [
+    "rt-multi-thread",
+    "macros",
+    "sync",
+    "net",
+    "time",
+    "io-util",
+    "signal",
+] }
+tokio-tungstenite = { version = "0.27" }
+async-nats = "0.42"
+async-trait = "0.1"
+tokio-util = { version = "0.7.19", features = ["rt"] }
+futures-util = "0.3"
+
+# Web / HTTP
+axum = { version = "0.8", features = ["json"] }
+axum-extra = { version = "0.10", features = ["typed-header", "query"] }
+tower-http = { version = "0.6", features = ["cors"] }
+reqwest   = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "charset", "http2"] }
+url = "2.5"
+
+# Storage
+sqlx = { version = "0.8", features = [
+    "postgres",
+    "runtime-tokio",
+    "tls-rustls-ring",
+    "macros",
+    "json",
+    "time",
+    "uuid",
+] }
+redis = { version = "0.32.5", features = ["tokio-comp", "connection-manager"] }
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Crypto / auth
+argon2 = "0.5"
+jsonwebtoken = "9.3"
+sha2 = "0.10"
+
+# Encoding
+base32 = "0.5"
+base64 = "0.22.1"
+hex = "0.4"
+
+# Errors
+anyhow = "1"
+thiserror = "2"
+
+# Observability
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-appender = "0.2"
+
+# Config
+config = { version = "0.15", default-features = false }
+dotenvy = "0.15"
+
+# Misc
+bigdecimal = "0.4"
+derive_builder = "0.20"
+once_cell = "1.21.3"
+rand = "0.9"
+resend-rs = { version = "0.15.0", default-features = false, features = ["rustls-tls"] }
+time = { version = "0.3.41", features = ["serde"] }
+uuid = { version = "1.18", features = ["v4"] }
+validator = { version = "0.20", features = ["derive"] }
+yrs = { version = "0.23.5", features = ["sync"] }
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+future_incompatible = { level = "deny", priority = -1 }
+nonstandard_style = { level = "deny", priority = -1 }
+rust_2018_idioms = { level = "deny", priority = -1 }
+unused = { level = "deny", priority = -1 }
+
+missing_debug_implementations = "deny"
+trivial_casts = "deny"
+trivial_numeric_casts = "deny"
+unreachable_pub = "deny"
+unused_import_braces = "deny"
+unused_qualifications = "deny"
+
+[workspace.lints.clippy]
+all = { level = "deny", priority = -1 }
+pedantic = { level = "deny", priority = -1 }
+nursery = { level = "deny", priority = -1 }
+cargo = { level = "deny", priority = -1 }
+
+# --- Extra strictness ---
+clone_on_ref_ptr = "deny"
+dbg_macro = "deny"
+exit = "deny"
+mem_forget = "deny"
+str_to_string = "deny"
+todo = "deny"
+unimplemented = "deny"
+unwrap_used = "deny"
+expect_used = "deny"
+verbose_file_reads = "deny"
+
+# --- Deliberate opt-outs ---
+multiple_crate_versions = "allow"
+future_not_send = "allow"
+missing_const_for_fn = "allow"
+option_if_let_else = "allow"
+redundant_pub_crate = "allow"
+must_use_candidate = "allow"
+similar_names = "allow"
+
+[profile.dev]
+opt-level = 0
+
+[profile.release]
+opt-level = 3
+lto = 'thin'
+codegen-units = 1
+debug = 1

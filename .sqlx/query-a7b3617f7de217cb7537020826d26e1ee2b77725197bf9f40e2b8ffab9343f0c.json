@@ -1,0 +1,48 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT DISTINCT\n                o.id,\n                o.name,\n                o.billing_connected,\n                o.created_at,\n                o.updated_at\n            FROM organizations o\n            INNER JOIN user_organizations uo ON uo.organization_id = o.id\n            WHERE uo.user_id = $1\n            AND o.created_at < (\n                SELECT created_at FROM organizations WHERE id = $2\n            )\n            ORDER BY o.created_at DESC\n            LIMIT $3\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "billing_connected",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 3,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 4,
+        "name": "updated_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "a7b3617f7de217cb7537020826d26e1ee2b77725197bf9f40e2b8ffab9343f0c"
+}
