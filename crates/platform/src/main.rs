@@ -3,7 +3,7 @@ use dotenvy::dotenv;
 use platform::{
     config::Config,
     server::WsServer,
-    telemetry::{setup_logging, shutdown_listener},
+    telemetry::{install_panic_hook, setup_logging, shutdown_listener},
 };
 use tracing::info;
 // use std::io;
@@ -25,6 +25,7 @@ async fn main() -> anyhow::Result<()> {
     dotenv().context("loading .env")?;
 
     let _log_guard = setup_logging()?;
+    install_panic_hook();
     info!(version = env!("CARGO_PKG_VERSION"), "starting");
 
     let config: &'static Config = Box::leak(Box::new(Config::from_env()?));
