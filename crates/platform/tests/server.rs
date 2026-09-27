@@ -41,7 +41,11 @@ async fn shutdown_sends_restart_and_returns_ok() {
         other => panic!("expected close frame, got {other:?}"),
     }
 
-    timeout(LIMIT, server.handle).await.unwrap().unwrap();
+    timeout(LIMIT, server.handle)
+        .await
+        .unwrap()
+        .unwrap()
+        .unwrap();
 }
 
 #[tokio::test]
@@ -64,6 +68,7 @@ async fn stalled_handshake_does_not_block_shutdown() {
 
     timeout(LIMIT, server.handle)
         .await
+        .unwrap()
         .expect("shutdown hung")
         .unwrap();
 
@@ -150,6 +155,7 @@ async fn non_reading_client_does_not_block_shutdown() {
 
     timeout(LIMIT, server.handle)
         .await
+        .unwrap()
         .expect("shutdown hung")
         .unwrap();
 }

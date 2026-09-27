@@ -1,3 +1,4 @@
+use anyhow::Error;
 use platform::{config::ServerConfig, server::WsServer};
 use std::{net::SocketAddr, time::Duration};
 use tokio::task::JoinHandle;
@@ -6,7 +7,7 @@ use tokio_util::sync::CancellationToken;
 pub(crate) struct TestServer {
     pub addr: SocketAddr,
     pub shutdown: CancellationToken,
-    pub handle: JoinHandle<()>,
+    pub handle: JoinHandle<Result<(), Error>>,
 }
 
 impl TestServer {
