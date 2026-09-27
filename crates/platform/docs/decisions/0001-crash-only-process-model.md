@@ -4,8 +4,9 @@
 >
 > — Joe Armstrong, [*Making reliable distributed systems in the presence of software errors*](https://erlang.org/download/armstrong_thesis_2003.pdf), 2003
 
-- **Status:** Proposed
-- **Date:** 2026-09-27
+- **Status:** Accepted
+- **Proposed:** 2026-09-27
+- **Accepted:** 2026-09-27
 
 ## Context
 
