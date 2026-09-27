@@ -1,7 +1,9 @@
 use anyhow::Context;
 use dotenvy::dotenv;
 use platform::{
-    config::Config, server::WsServer, telemetry::{setup_logging, spawn_shutdown_listener},
+    config::Config,
+    server::WsServer,
+    telemetry::{setup_logging, shutdown_listener},
 };
 use tracing::info;
 // use std::io;
@@ -37,12 +39,10 @@ async fn main() -> anyhow::Result<()> {
 /// - the server encounters a fatal error while running;
 async fn run(config: &'static Config) -> anyhow::Result<()> {
     let shutdown_token = tokio_util::sync::CancellationToken::new();
-    spawn_shutdown_listener(shutdown_token.clone())?;
+    let shutdown = shutdown_listener(shutdown_token.clone())?;
+    let server = WsServer::bind(&config.server).await?;
 
-    WsServer::bind(&config.server)
-        .await?
-        .run(shutdown_token)
-        .await;
+    tokio::join!(shutdown, server.run(shutdown_token));
 
     Ok(())
 }
