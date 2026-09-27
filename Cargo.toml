@@ -86,6 +86,7 @@ time = { version = "0.3.41", features = ["serde"] }
 uuid = { version = "1.18", features = ["v4"] }
 validator = { version = "0.20", features = ["derive"] }
 yrs = { version = "0.23.5", features = ["sync"] }
+libc = "0.2.189"
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

@@ -42,9 +42,9 @@ async fn run(config: &'static Config) -> anyhow::Result<()> {
     let shutdown = shutdown_listener(shutdown_token.clone())?;
     let server = WsServer::bind(&config.server).await?;
 
-    tokio::join!(shutdown, server.run(shutdown_token));
+    let ((), result) = tokio::join!(shutdown, server.run(shutdown_token));
 
-    Ok(())
+    result
 }
 
 // let db = db::pool::connect(&config.database_url).await.map_err(|e| {

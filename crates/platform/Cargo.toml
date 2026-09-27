@@ -39,5 +39,6 @@ base64.workspace = true
 uuid.workspace = true
 sqlx.workspace = true
 time.workspace = true
+libc.workspace = true
 
 # db.workspace = true
