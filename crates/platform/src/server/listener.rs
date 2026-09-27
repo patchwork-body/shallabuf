@@ -52,7 +52,7 @@ impl WsServer {
             };
 
             if let Err(e) = stream.set_nodelay(true) {
-                error!("failed to set TCP_NODELAY for {addr}: {e}");
+                error!("failed to set TCP_NODELAY for {addr}: {e:#}");
             }
 
             let config = self.config;
