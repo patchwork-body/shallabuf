@@ -210,3 +210,62 @@ async fn non_reading_client_is_dropped_after_send_timeout() {
 
     assert!(dropped.is_ok(), "server never dropped the connection");
 }
+
+#[tokio::test]
+async fn new_connections_are_refused_while_draining() {
+    let server = TestServer::start().await;
+
+    // hold the drain open: a client that stops reading makes its close frame wait `close_timeout`
+    let (ws, _) = tokio_tungstenite::connect_async(server.url())
+        .await
+        .unwrap();
+
+    let (mut tx, _rx) = ws.split();
+    let payload = "x".repeat(64 * 1024);
+    let mut stalled = false;
+
+    for _ in 0..1000 {
+        if timeout(
+            Duration::from_millis(200),
+            tx.send(Message::text(payload.clone())),
+        )
+        .await
+        .is_err()
+        {
+            stalled = true;
+            break;
+        }
+    }
+
+    assert!(stalled, "buffers never filled; server never got stuck");
+
+    server.shutdown.cancel();
+
+    // the accept loop sees the cancel almost at once; the drain then takes `close_timeout`
+    let refused = timeout(Duration::from_millis(500), async {
+        loop {
+            match TcpStream::connect(server.addr).await {
+                Err(e) if e.kind() == std::io::ErrorKind::ConnectionRefused => break,
+                Err(e) => panic!("unexpected connect error: {e}"),
+                // accepted into the backlog: the listening socket is still open
+                Ok(_) => tokio::time::sleep(Duration::from_millis(10)).await,
+            }
+        }
+    })
+    .await;
+
+    assert!(
+        !server.handle.is_finished(),
+        "drain already over; nothing was checked during it"
+    );
+    assert!(
+        refused.is_ok(),
+        "new connections still land in the backlog while draining"
+    );
+
+    timeout(LIMIT, server.handle)
+        .await
+        .expect("shutdown hung")
+        .unwrap()
+        .unwrap();
+}

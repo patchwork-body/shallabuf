@@ -77,6 +77,9 @@ impl WsServer {
             );
         };
 
+        // otherwise new connects will be waiting until we exit
+        drop(self.listener);
+
         shutdown_token.cancel();
         tracker.close();
         tracker.wait().await;
