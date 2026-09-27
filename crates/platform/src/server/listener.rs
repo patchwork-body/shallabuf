@@ -5,10 +5,6 @@ use std::{
 };
 
 use anyhow::Context;
-use libc::{
-    EHOSTDOWN, EHOSTUNREACH, EMFILE, ENETDOWN, ENETUNREACH, ENFILE, ENOBUFS, ENOMEM, ENOPROTOOPT,
-    EOPNOTSUPP, EPROTO,
-};
 use tokio::net::TcpListener;
 use tracing::{Instrument, debug, error, info, info_span, warn};
 
@@ -117,28 +113,100 @@ fn classify_accept_err(e: std::io::Error) -> AcceptError {
     // the pending connection's network failed; skip it
     if matches!(
         raw_err,
-        ENETDOWN
-            | EPROTO
-            | ENOPROTOOPT
-            | EHOSTDOWN
-            | ENOMEM
-            | EHOSTUNREACH
-            | EOPNOTSUPP
-            | ENETUNREACH
+        libc::ENETDOWN
+            | libc::EPROTO
+            | libc::ENOPROTOOPT
+            | libc::EHOSTDOWN
+            | libc::EHOSTUNREACH
+            | libc::EOPNOTSUPP
+            | libc::ENETUNREACH
+            | libc::EPERM
     ) {
         return AcceptError::Skip;
     }
 
     #[cfg(target_os = "linux")]
-    if matches!(raw_err, EPERM) {
+    if matches!(raw_err, libc::ENONET) {
         return AcceptError::Skip;
     }
 
     // out of resources; clears on its own as other connections close
-    if matches!(raw_err, EMFILE | ENFILE | ENOBUFS | ENOMEM) {
+    if matches!(raw_err, libc::EMFILE | libc::ENFILE | libc::ENOBUFS | libc::ENOMEM) {
         return AcceptError::Retry(e);
     }
 
     // fatal, the listening socket is broken, no retry will fix it
     AcceptError::Fatal(e)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::io;
+
+    use super::{AcceptError, classify_accept_err};
+
+    fn classify(errno: i32) -> AcceptError {
+        classify_accept_err(io::Error::from_raw_os_error(errno))
+    }
+
+    #[test]
+    fn skips_when_client_gave_up() {
+        for errno in [libc::ECONNABORTED, libc::ECONNRESET, libc::EINTR] {
+            let err = io::Error::from_raw_os_error(errno);
+            assert!(matches!(classify(errno), AcceptError::Skip), "{err}: expected Skip");
+        }
+    }
+
+    #[test]
+    fn skips_pending_connection_network_errors() {
+        for errno in [
+            libc::ENETDOWN,
+            libc::EPROTO,
+            libc::ENOPROTOOPT,
+            libc::EHOSTDOWN,
+            libc::EHOSTUNREACH,
+            libc::EOPNOTSUPP,
+            libc::ENETUNREACH,
+            libc::EPERM,
+        ] {
+            let err = io::Error::from_raw_os_error(errno);
+            assert!(matches!(classify(errno), AcceptError::Skip), "{err}: expected Skip");
+        }
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn skips_enonet() {
+        assert!(matches!(classify(libc::ENONET), AcceptError::Skip));
+    }
+
+    #[test]
+    fn retries_resource_exhaustion() {
+        for errno in [libc::EMFILE, libc::ENFILE, libc::ENOBUFS, libc::ENOMEM] {
+            let err = io::Error::from_raw_os_error(errno);
+            assert!(
+                matches!(classify(errno), AcceptError::Retry(e) if e.raw_os_error() == Some(errno)),
+                "{err}: expected Retry carrying the original error"
+            );
+        }
+    }
+
+    #[test]
+    fn fails_when_listening_socket_is_broken() {
+        for errno in [libc::EBADF, libc::EINVAL, libc::ENOTSOCK] {
+            let err = io::Error::from_raw_os_error(errno);
+            assert!(
+                matches!(classify(errno), AcceptError::Fatal(e) if e.raw_os_error() == Some(errno)),
+                "{err}: expected Fatal carrying the original error"
+            );
+        }
+    }
+
+    #[test]
+    fn fails_on_error_without_errno() {
+        assert!(matches!(
+            classify_accept_err(io::Error::other("boom")),
+            AcceptError::Fatal(_)
+        ));
+    }
 }
