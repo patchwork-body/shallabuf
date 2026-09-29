@@ -18,6 +18,7 @@ fn fatal_error_is_logged_before_exit() {
         .env("SERVER_CLOSE_TIMEOUT_SECS", "1")
         .env("SERVER_MAX_FRAME_KIB", "64")
         .env("SERVER_MAX_MESSAGE_KIB", "64")
+        .env("SERVER_MAX_CONNECTIONS", "1")
         .output()
         .unwrap();
 

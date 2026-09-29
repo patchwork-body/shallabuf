@@ -1,14 +1,18 @@
 use std::{
     io::ErrorKind::{ConnectionAborted, ConnectionReset, Interrupted},
     net::SocketAddr,
+    sync::Arc,
     time::Duration,
 };
 
 use anyhow::Context;
-use tokio::net::TcpListener;
+use tokio::{net::TcpListener, sync::Semaphore};
 use tracing::{Instrument, debug, error, info, info_span, warn};
 
-use crate::{config::ServerConfig, server::connection::handle_connection};
+use crate::{
+    config::ServerConfig,
+    server::connection::{handle_connection, reject_connection},
+};
 
 #[derive(Debug)]
 pub struct WsServer {
@@ -42,6 +46,7 @@ impl WsServer {
         self,
         shutdown_token: tokio_util::sync::CancellationToken,
     ) -> anyhow::Result<()> {
+        let slots = Arc::new(Semaphore::new(self.config.max_connections()));
         let tracker = tokio_util::task::TaskTracker::new();
 
         let result = loop {
@@ -67,8 +72,28 @@ impl WsServer {
             }
 
             let shutdown_token_clone = shutdown_token.clone();
+
+            let Ok(permit) = Arc::clone(&slots).try_acquire_owned() else {
+                debug!(%addr, max = self.config.max_connections(), "node full, rejecting connection");
+
+                tracker.spawn(
+                    async move {
+                        if let Err(e) =
+                            reject_connection(stream, self.config, shutdown_token_clone).await
+                        {
+                            debug!(%addr, "rejecting connection ended with error: {e:#}");
+                        }
+                    }
+                    .instrument(info_span!("rejection", %addr)),
+                );
+
+                continue;
+            };
+
             tracker.spawn(
                 async move {
+                    let _permit = permit;
+
                     if let Err(e) =
                         handle_connection(stream, self.config, shutdown_token_clone).await
                     {

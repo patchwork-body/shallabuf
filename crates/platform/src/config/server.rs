@@ -78,6 +78,9 @@ pub struct ServerConfig {
         deserialize_with = "super::utils::deserialize_kib"
     )]
     max_message_bytes: NonZeroUsize, // SERVER_MAX_MESSAGE_KIB
+
+    /// Most connections a node holds at once.
+    max_connections: NonZeroUsize, // SERVER_MAX_CONNECTIONS
 }
 
 impl ServerConfig {
@@ -107,6 +110,10 @@ impl ServerConfig {
 
     pub const fn max_message_bytes(&self) -> usize {
         self.max_message_bytes.get()
+    }
+
+    pub const fn max_connections(&self) -> usize {
+        self.max_connections.get()
     }
 
     fn ensure_frame_fits_message(&self) -> Result<(), ServerConfigError> {
@@ -215,6 +222,34 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn reads_max_connections() {
+        let config = create_config(&[("SERVER_MAX_CONNECTIONS", "10000")]).unwrap();
+
+        assert_eq!(config.max_connections(), 10_000);
+    }
+
+    #[test]
+    fn rejects_max_connections_that_is_not_a_positive_count() {
+        for value in ["0", "-1", "1.5", "ten"] {
+            assert!(
+                create_config(&[("SERVER_MAX_CONNECTIONS", value)]).is_err(),
+                "SERVER_MAX_CONNECTIONS={value}: expected an error"
+            );
+        }
+    }
+
+    #[test]
+    fn requires_max_connections() {
+        let result = with_test_env(&[], || {
+            temp_env::with_var_unset("SERVER_MAX_CONNECTIONS", || {
+                load_config::<ServerConfig>("SERVER")
+            })
+        });
+
+        assert!(result.is_err(), "loaded without SERVER_MAX_CONNECTIONS");
     }
 
     #[test]

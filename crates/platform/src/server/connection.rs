@@ -4,11 +4,45 @@ use tokio::net::TcpStream;
 use tokio_tungstenite::tungstenite::{
     Error as WsError, Utf8Bytes,
     error::CapacityError,
+    handshake::server::{ErrorResponse, Request, Response},
+    http::StatusCode,
     protocol::{CloseFrame, WebSocketConfig, frame::coding::CloseCode},
 };
 use tracing::debug;
 
 use crate::config::ServerConfig;
+
+pub(super) async fn reject_connection(
+    stream: TcpStream,
+    config: &'static ServerConfig,
+    shutdown_token: tokio_util::sync::CancellationToken,
+) -> anyhow::Result<()> {
+    #[expect(
+        clippy::result_large_err,
+        reason = "tungstenite's `Callback` trait fixes the error type to `ErrorResponse`"
+    )]
+    let callback = |_: &Request, _: Response| -> Result<Response, ErrorResponse> {
+        let mut response = ErrorResponse::new(None);
+        *response.status_mut() = StatusCode::SERVICE_UNAVAILABLE;
+
+        Err(response)
+    };
+
+    let handshake = tokio::select! {
+        () = shutdown_token.cancelled() => return Ok(()),
+        res = tokio::time::timeout(
+            config.handshake_timeout(),
+            tokio_tungstenite::accept_hdr_async(stream, callback),
+        ) => res
+            .context("handshake timed out")?
+    };
+
+    match handshake {
+        Err(WsError::Http(_)) => Ok(()), // the 503 was sent, success
+        Err(e) => Err(e).context("rejecting connection failed"), // routine failure: the client left, sent garbage, or wasn't a WebSocket client
+        Ok(_) => anyhow::bail!("upgraded a connection that should have been rejected"), // emergency exit, shall never happen
+    }
+}
 
 pub(super) async fn handle_connection(
     stream: TcpStream,
