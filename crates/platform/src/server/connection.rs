@@ -2,16 +2,13 @@ use anyhow::Context;
 use futures_util::{SinkExt, StreamExt};
 use tokio::net::TcpStream;
 use tokio_tungstenite::tungstenite::{
-    Error as WsError,
+    Error as WsError, Utf8Bytes,
     error::CapacityError,
     protocol::{CloseFrame, WebSocketConfig, frame::coding::CloseCode},
 };
 use tracing::debug;
 
 use crate::config::ServerConfig;
-
-const RESTART: (CloseCode, &str) = (CloseCode::Restart, "server restarting");
-const TOO_BIG: (CloseCode, &str) = (CloseCode::Size, "message too big");
 
 pub(super) async fn handle_connection(
     stream: TcpStream,
@@ -36,13 +33,13 @@ pub(super) async fn handle_connection(
 
     let (close_frame, outcome) = loop {
         tokio::select! {
-            () = shutdown_token.cancelled() => break (Some(RESTART), Ok(())),
+            () = shutdown_token.cancelled() => break (Some(restart_frame()), Ok(())),
             msg = ws.next() => match msg {
                 Some(Ok(msg)) if msg.is_text() || msg.is_binary() => {
                     let send = tokio::time::timeout(config.send_timeout(), ws.send(msg));
 
                     tokio::select! {
-                        () = shutdown_token.cancelled() => break (Some(RESTART), Ok(())),
+                        () = shutdown_token.cancelled() => break (Some(restart_frame()), Ok(())),
                         res = send => match res {
                             Ok(Ok(())) => {},
                             Ok(Err(e)) => break (None, Err(e).context("send failed")),
@@ -56,28 +53,36 @@ pub(super) async fn handle_connection(
                 Some(Ok(_)) => {}, // ping/pong/close: handled by tungstenite
                 // over the frame or message limit
                 Some(Err(e @ WsError::Capacity(CapacityError::MessageTooLong { .. }))) => {
-                    break (Some(TOO_BIG), Err(e).context("peer exceeded size limit"));
+                    break (Some(too_big_frame()), Err(e).context("peer exceeded size limit"));
                 },
                 Some(Err(e)) => break (None, Err(e.into())), // stream is broken: nothing to close
-                None => break (Some(RESTART), Ok(())),       // client disconnected
+                None => break (Some(restart_frame()), Ok(())),       // client disconnected
             }
         }
     };
 
-    if let Some((code, reason)) = close_frame {
-        tokio::time::timeout(
-            config.close_timeout(),
-            ws.close(Some(CloseFrame {
-                code,
-                reason: reason.into(),
-            })),
-        )
-        .await
-        .context("close timed out, peer not reading")?
-        .context("close failed")?;
+    if close_frame.is_some() {
+        tokio::time::timeout(config.close_timeout(), ws.close(close_frame))
+            .await
+            .context("close timed out, peer not reading")?
+            .context("close failed")?;
     }
 
     debug!("connection closed");
 
     outcome
+}
+
+const fn restart_frame() -> CloseFrame {
+    CloseFrame {
+        code: CloseCode::Restart,
+        reason: Utf8Bytes::from_static("server restarting"),
+    }
+}
+
+const fn too_big_frame() -> CloseFrame {
+    CloseFrame {
+        code: CloseCode::Size,
+        reason: Utf8Bytes::from_static("message too big"),
+    }
 }
