@@ -55,8 +55,8 @@ pub(super) async fn handle_connection(
                 Some(Err(e @ WsError::Capacity(CapacityError::MessageTooLong { .. }))) => {
                     break (Some(too_big_frame()), Err(e).context("peer exceeded size limit"));
                 },
-                Some(Err(e)) => break (None, Err(e.into())), // stream is broken: nothing to close
-                None => break (Some(restart_frame()), Ok(())),       // client disconnected
+                Some(Err(e)) => break (None, Err(e.into())),   // stream is broken: nothing to close
+                None => break (Some(restart_frame()), Ok(())), // client disconnected
             }
         }
     };
