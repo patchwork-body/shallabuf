@@ -1,8 +1,13 @@
 use anyhow::Error;
-use platform::{config::ServerConfig, server::WsServer};
-use std::{net::SocketAddr, time::Duration};
+use platform::{
+    config::{Config, ServerConfig},
+    server::WsServer,
+};
+use std::net::SocketAddr;
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
+
+use super::env::with_test_env;
 
 pub(crate) struct TestServer {
     pub addr: SocketAddr,
@@ -11,21 +16,12 @@ pub(crate) struct TestServer {
 }
 
 impl TestServer {
-    pub(crate) fn config() -> ServerConfig {
-        ServerConfig {
-            host: "127.0.0.1".parse().unwrap(),
-            port: 0,
-            handshake_timeout: Duration::from_secs(10),
-            send_timeout: Duration::from_secs(10),
-            close_timeout: Duration::from_secs(1),
-        }
-    }
-
     pub(crate) async fn start() -> Self {
-        Self::start_with(Self::config()).await
+        Self::start_with(&[]).await
     }
 
-    pub(crate) async fn start_with(config: ServerConfig) -> Self {
+    pub(crate) async fn start_with(overrides: &[(&str, &str)]) -> Self {
+        let config = with_test_env(overrides, || Config::from_env().unwrap().server);
         let config: &'static ServerConfig = Box::leak(Box::new(config));
 
         let server = WsServer::bind(config).await.unwrap();

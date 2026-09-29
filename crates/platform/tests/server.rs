@@ -3,14 +3,19 @@ mod helpers;
 
 use futures_util::{SinkExt, StreamExt};
 use helpers::TestServer;
-use platform::config::ServerConfig;
 use std::time::{Duration, Instant};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::TcpStream,
     time::timeout,
 };
-use tokio_tungstenite::tungstenite::{Message, protocol::frame::coding::CloseCode};
+use tokio_tungstenite::tungstenite::{
+    Message,
+    protocol::frame::{
+        Frame,
+        coding::{CloseCode, Data, OpCode},
+    },
+};
 
 const LIMIT: Duration = Duration::from_secs(5);
 
@@ -90,10 +95,10 @@ async fn stalled_handshake_does_not_block_shutdown() {
 #[tokio::test]
 async fn stalled_handshake_is_dropped_after_timeout() {
     let handshake_timeout = Duration::from_millis(200);
-    let server = TestServer::start_with(ServerConfig {
-        handshake_timeout,
-        ..TestServer::config()
-    })
+    let server = TestServer::start_with(&[(
+        "SERVER_HANDSHAKE_TIMEOUT_SECS",
+        &handshake_timeout.as_secs_f64().to_string(),
+    )])
     .await;
 
     let started = Instant::now();
@@ -163,10 +168,10 @@ async fn non_reading_client_does_not_block_shutdown() {
 #[tokio::test]
 async fn non_reading_client_is_dropped_after_send_timeout() {
     let send_timeout = Duration::from_millis(500);
-    let server = TestServer::start_with(ServerConfig {
-        send_timeout,
-        ..TestServer::config()
-    })
+    let server = TestServer::start_with(&[(
+        "SERVER_SEND_TIMEOUT_SECS",
+        &send_timeout.as_secs_f64().to_string(),
+    )])
     .await;
 
     let (ws, _) = tokio_tungstenite::connect_async(server.url())
@@ -268,4 +273,85 @@ async fn new_connections_are_refused_while_draining() {
         .expect("shutdown hung")
         .unwrap()
         .unwrap();
+}
+
+/// Frame limit 1 KiB, message limit 2 KiB.
+const SMALL_LIMITS: [(&str, &str); 2] = [
+    ("SERVER_MAX_FRAME_KIB", "1"),
+    ("SERVER_MAX_MESSAGE_KIB", "2"),
+];
+
+#[tokio::test]
+async fn message_at_the_limits_is_echoed() {
+    let server = TestServer::start_with(&SMALL_LIMITS).await;
+
+    let (mut ws, _) = tokio_tungstenite::connect_async(server.url())
+        .await
+        .unwrap();
+
+    // two full frames make one full message
+    ws.send(Message::Frame(Frame::message(
+        vec![0; 1024],
+        OpCode::Data(Data::Binary),
+        false,
+    )))
+    .await
+    .unwrap();
+
+    ws.send(Message::Frame(Frame::message(
+        vec![0; 1024],
+        OpCode::Data(Data::Continue),
+        true,
+    )))
+    .await
+    .unwrap();
+
+    let msg = timeout(LIMIT, ws.next()).await.unwrap().unwrap().unwrap();
+
+    assert_eq!(msg, Message::binary(vec![0; 2048]));
+}
+
+#[tokio::test]
+async fn oversized_frame_is_closed_as_too_big() {
+    let server = TestServer::start_with(&SMALL_LIMITS).await;
+
+    let (mut ws, _) = tokio_tungstenite::connect_async(server.url())
+        .await
+        .unwrap();
+
+    ws.send(Message::binary(vec![0; 1024 + 1])).await.unwrap();
+
+    match timeout(LIMIT, ws.next()).await.unwrap().unwrap().unwrap() {
+        Message::Close(Some(frame)) => assert_eq!(frame.code, CloseCode::Size),
+        other => panic!("expected close frame, got {other:?}"),
+    }
+}
+
+#[tokio::test]
+async fn oversized_message_is_closed_as_too_big() {
+    let server = TestServer::start_with(&SMALL_LIMITS).await;
+
+    let (mut ws, _) = tokio_tungstenite::connect_async(server.url())
+        .await
+        .unwrap();
+
+    // every frame fits the frame limit; together they don't fit the message limit
+    for (len, opcode, is_final) in [
+        (1024, OpCode::Data(Data::Binary), false),
+        (1024, OpCode::Data(Data::Continue), false),
+        (1, OpCode::Data(Data::Continue), true),
+    ] {
+        ws.send(Message::Frame(Frame::message(
+            vec![0; len],
+            opcode,
+            is_final,
+        )))
+        .await
+        .unwrap();
+    }
+
+    match timeout(LIMIT, ws.next()).await.unwrap().unwrap().unwrap() {
+        Message::Close(Some(frame)) => assert_eq!(frame.code, CloseCode::Size),
+        other => panic!("expected close frame, got {other:?}"),
+    }
 }

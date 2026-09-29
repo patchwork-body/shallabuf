@@ -88,6 +88,9 @@ validator = { version = "0.20", features = ["derive"] }
 yrs = { version = "0.23.5", features = ["sync"] }
 libc = "0.2.189"
 
+# Testing
+temp-env = "0.3"
+
 [workspace.lints.rust]
 unsafe_code = "forbid"
 

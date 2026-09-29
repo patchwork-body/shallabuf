@@ -23,7 +23,7 @@ impl WsServer {
     pub async fn bind(config: &'static ServerConfig) -> anyhow::Result<Self> {
         let listener = TcpListener::bind(config.addr())
             .await
-            .with_context(|| format!("binding port {}", config.port))?;
+            .with_context(|| format!("binding port {}", config.port()))?;
 
         info!(
             addr = %listener.local_addr()?,
@@ -69,7 +69,9 @@ impl WsServer {
             let shutdown_token_clone = shutdown_token.clone();
             tracker.spawn(
                 async move {
-                    if let Err(e) = handle_connection(stream, self.config, shutdown_token_clone).await {
+                    if let Err(e) =
+                        handle_connection(stream, self.config, shutdown_token_clone).await
+                    {
                         debug!(%addr, "connection ended with error: {e:#}");
                     }
                 }
@@ -134,7 +136,10 @@ fn classify_accept_err(e: std::io::Error) -> AcceptError {
     }
 
     // out of resources; clears on its own as other connections close
-    if matches!(raw_err, libc::EMFILE | libc::ENFILE | libc::ENOBUFS | libc::ENOMEM) {
+    if matches!(
+        raw_err,
+        libc::EMFILE | libc::ENFILE | libc::ENOBUFS | libc::ENOMEM
+    ) {
         return AcceptError::Retry(e);
     }
 
@@ -156,7 +161,10 @@ mod tests {
     fn skips_when_client_gave_up() {
         for errno in [libc::ECONNABORTED, libc::ECONNRESET, libc::EINTR] {
             let err = io::Error::from_raw_os_error(errno);
-            assert!(matches!(classify(errno), AcceptError::Skip), "{err}: expected Skip");
+            assert!(
+                matches!(classify(errno), AcceptError::Skip),
+                "{err}: expected Skip"
+            );
         }
     }
 
@@ -173,7 +181,10 @@ mod tests {
             libc::EPERM,
         ] {
             let err = io::Error::from_raw_os_error(errno);
-            assert!(matches!(classify(errno), AcceptError::Skip), "{err}: expected Skip");
+            assert!(
+                matches!(classify(errno), AcceptError::Skip),
+                "{err}: expected Skip"
+            );
         }
     }
 

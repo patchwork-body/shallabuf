@@ -1,30 +1,254 @@
 use std::{
     net::{IpAddr, SocketAddr},
+    num::NonZeroUsize,
     time::Duration,
 };
 
 use serde::Deserialize;
+use thiserror::Error;
+
+use super::{NonZeroDuration, root::Validate};
+
+#[derive(Error, Debug, PartialEq, Eq)]
+pub(super) enum ServerConfigError {
+    #[error(
+        "SERVER_MAX_FRAME_KIB ({frame_kib}) must not exceed SERVER_MAX_MESSAGE_KIB ({message_kib})"
+    )]
+    FrameExceedsMessage {
+        frame_kib: usize,
+        message_kib: usize,
+    },
+}
 
 #[derive(Debug, Deserialize)]
 pub struct ServerConfig {
-    pub host: IpAddr, // SERVER_HOST
-    pub port: u16,    // SERVER_PORT
+    host: IpAddr, // SERVER_HOST
+    port: u16,    // SERVER_PORT
 
     /// How long a client gets to complete the WebSocket upgrade.
-    #[serde(rename = "handshake_timeout_secs", deserialize_with = "crate::utils::deserialize_secs")]
-    pub handshake_timeout: Duration, // SERVER_HANDSHAKE_TIMEOUT_SECS
+    #[serde(
+        rename = "handshake_timeout_secs",
+        deserialize_with = "super::utils::deserialize_secs"
+    )]
+    handshake_timeout: NonZeroDuration, // SERVER_HANDSHAKE_TIMEOUT_SECS
 
     /// How long a single send may stall before the peer is considered not reading.
-    #[serde(rename = "send_timeout_secs", deserialize_with = "crate::utils::deserialize_secs")]
-    pub send_timeout: Duration, // SERVER_SEND_TIMEOUT_SECS
+    #[serde(
+        rename = "send_timeout_secs",
+        deserialize_with = "super::utils::deserialize_secs"
+    )]
+    send_timeout: NonZeroDuration, // SERVER_SEND_TIMEOUT_SECS
 
     /// How long the close frame gets on shutdown before the socket is just dropped.
-    #[serde(rename = "close_timeout_secs", deserialize_with = "crate::utils::deserialize_secs")]
-    pub close_timeout: Duration, // SERVER_CLOSE_TIMEOUT_SECS
+    #[serde(
+        rename = "close_timeout_secs",
+        deserialize_with = "super::utils::deserialize_secs"
+    )]
+    close_timeout: NonZeroDuration, // SERVER_CLOSE_TIMEOUT_SECS
+
+    /// Largest single frame a client may send.
+    /// Checked against the frame header, before the payload is read.
+    /// Never greater than `max_message_bytes`.
+    #[serde(
+        rename = "max_frame_kib",
+        deserialize_with = "super::utils::deserialize_kib"
+    )]
+    max_frame_bytes: NonZeroUsize, // SERVER_MAX_FRAME_KIB
+
+    /// Largest message a client may send once all its frames are put back together.
+    ///
+    /// ```text
+    /// max_frame_bytes = 32 KiB, max_message_bytes = 64 KiB
+    ///
+    /// one message: 32 + 16 + 16 = 64 KiB ≤ 64 KiB  ✓
+    /// ┌───────────────┬───────────────┬────────────────┐
+    /// │    frame 1    │    frame 2    │ frame 3 (last) │
+    /// │    32 KiB     │    16 KiB     │     16 KiB     │
+    /// └───────────────┴───────────────┴────────────────┘
+    ///   each frame ≤ 32 KiB  ✓
+    ///
+    /// one 40 KiB frame:            40 KiB > 32 KiB   ✗ frame limit
+    /// three 32 KiB frames: 32 × 3 = 96 KiB > 64 KiB  ✗ message limit
+    /// ```
+    ///
+    /// Browsers send each message as a single frame,
+    /// so for them the two limits are usually the same size.
+    #[serde(
+        rename = "max_message_kib",
+        deserialize_with = "super::utils::deserialize_kib"
+    )]
+    max_message_bytes: NonZeroUsize, // SERVER_MAX_MESSAGE_KIB
 }
 
 impl ServerConfig {
-    pub fn addr(&self) -> SocketAddr {
+    pub const fn addr(&self) -> SocketAddr {
         SocketAddr::new(self.host, self.port)
+    }
+
+    pub const fn port(&self) -> u16 {
+        self.port
+    }
+
+    pub const fn handshake_timeout(&self) -> Duration {
+        self.handshake_timeout.get()
+    }
+
+    pub const fn send_timeout(&self) -> Duration {
+        self.send_timeout.get()
+    }
+
+    pub const fn close_timeout(&self) -> Duration {
+        self.close_timeout.get()
+    }
+
+    pub const fn max_frame_bytes(&self) -> usize {
+        self.max_frame_bytes.get()
+    }
+
+    pub const fn max_message_bytes(&self) -> usize {
+        self.max_message_bytes.get()
+    }
+
+    fn ensure_frame_fits_message(&self) -> Result<(), ServerConfigError> {
+        if self.max_frame_bytes > self.max_message_bytes {
+            return Err(ServerConfigError::FrameExceedsMessage {
+                frame_kib: self.max_frame_bytes.get() / 1024,
+                message_kib: self.max_message_bytes.get() / 1024,
+            });
+        }
+
+        Ok(())
+    }
+}
+
+impl Validate for ServerConfig {
+    type Error = ServerConfigError;
+
+    fn validate(&self) -> Result<(), Self::Error> {
+        self.ensure_frame_fits_message()?;
+
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{net::SocketAddr, time::Duration};
+
+    use super::{ServerConfig, ServerConfigError};
+    use crate::{config::root::load_config, test_env::with_test_env};
+
+    fn create_config(overrides: &[(&str, &str)]) -> anyhow::Result<ServerConfig> {
+        with_test_env(overrides, || load_config("SERVER"))
+    }
+
+    #[test]
+    fn env_test_is_a_valid_config() {
+        create_config(&[]).unwrap();
+    }
+
+    #[test]
+    fn addr_joins_host_and_port() {
+        for (host, expected) in [("127.0.0.1", "127.0.0.1:8080"), ("::1", "[::1]:8080")] {
+            let config = create_config(&[("SERVER_HOST", host), ("SERVER_PORT", "8080")]).unwrap();
+
+            assert_eq!(config.addr(), expected.parse::<SocketAddr>().unwrap());
+        }
+    }
+
+    #[test]
+    fn env_test_binds_a_random_port() {
+        let config = create_config(&[]).unwrap();
+
+        assert_eq!(config.port(), 0);
+    }
+
+    #[test]
+    fn reads_timeouts_from_secs_vars() {
+        let config = create_config(&[
+            ("SERVER_HANDSHAKE_TIMEOUT_SECS", "10"),
+            ("SERVER_SEND_TIMEOUT_SECS", "0.25"),
+            ("SERVER_CLOSE_TIMEOUT_SECS", "0.001"),
+        ])
+        .unwrap();
+
+        assert_eq!(config.handshake_timeout(), Duration::from_secs(10));
+        assert_eq!(config.send_timeout(), Duration::from_millis(250));
+        assert_eq!(config.close_timeout(), Duration::from_millis(1));
+    }
+
+    #[test]
+    fn rejects_timeouts_that_are_not_a_duration() {
+        for var in [
+            "SERVER_HANDSHAKE_TIMEOUT_SECS",
+            "SERVER_SEND_TIMEOUT_SECS",
+            "SERVER_CLOSE_TIMEOUT_SECS",
+        ] {
+            for value in ["0", "-0", "1e-12", "-1", "inf", "NaN", "ten"] {
+                assert!(
+                    create_config(&[(var, value)]).is_err(),
+                    "{var}={value}: expected an error"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn reads_sizes_from_kib_vars() {
+        let config = create_config(&[
+            ("SERVER_MAX_FRAME_KIB", "32"),
+            ("SERVER_MAX_MESSAGE_KIB", "64"),
+        ])
+        .unwrap();
+
+        assert_eq!(config.max_frame_bytes(), 32 * 1024);
+        assert_eq!(config.max_message_bytes(), 64 * 1024);
+    }
+
+    #[test]
+    fn rejects_sizes_that_are_not_whole_kib() {
+        for var in ["SERVER_MAX_FRAME_KIB", "SERVER_MAX_MESSAGE_KIB"] {
+            for value in ["0", "-1", "1.5", "ten", &usize::MAX.to_string()] {
+                assert!(
+                    create_config(&[(var, value)]).is_err(),
+                    "{var}={value}: expected an error"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn accepts_frame_smaller_than_message() {
+        create_config(&[
+            ("SERVER_MAX_FRAME_KIB", "32"),
+            ("SERVER_MAX_MESSAGE_KIB", "64"),
+        ])
+        .unwrap();
+    }
+
+    #[test]
+    fn accepts_frame_equal_to_message() {
+        create_config(&[
+            ("SERVER_MAX_FRAME_KIB", "64"),
+            ("SERVER_MAX_MESSAGE_KIB", "64"),
+        ])
+        .unwrap();
+    }
+
+    #[test]
+    fn rejects_frame_larger_than_message() {
+        let err = create_config(&[
+            ("SERVER_MAX_FRAME_KIB", "65"),
+            ("SERVER_MAX_MESSAGE_KIB", "64"),
+        ])
+        .unwrap_err();
+
+        assert_eq!(
+            err.downcast_ref::<ServerConfigError>(),
+            Some(&ServerConfigError::FrameExceedsMessage {
+                frame_kib: 65,
+                message_kib: 64,
+            }),
+        );
     }
 }
