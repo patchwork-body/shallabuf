@@ -250,7 +250,14 @@ async fn new_connections_are_refused_while_draining() {
     let refused = timeout(Duration::from_millis(500), async {
         loop {
             match TcpStream::connect(server.addr).await {
-                Err(e) if e.kind() == std::io::ErrorKind::ConnectionRefused => break,
+                Err(e)
+                    if matches!(
+                        e.kind(),
+                        std::io::ErrorKind::ConnectionRefused | std::io::ErrorKind::ConnectionReset
+                    ) =>
+                {
+                    break;
+                }
                 Err(e) => panic!("unexpected connect error: {e}"),
                 // accepted into the backlog: the listening socket is still open
                 Ok(_) => tokio::time::sleep(Duration::from_millis(10)).await,
