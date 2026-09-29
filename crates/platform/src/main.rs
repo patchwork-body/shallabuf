@@ -9,7 +9,11 @@ use tracing::{error, info};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    dotenv().context("loading .env")?;
+    if let Err(e) = dotenv()
+        && !e.not_found()
+    {
+        return Err(e).context("loading .env");
+    }
 
     let _log_guard = setup_logging()?;
     install_panic_hook();
