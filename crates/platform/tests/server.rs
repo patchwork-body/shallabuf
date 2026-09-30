@@ -2,7 +2,7 @@
 mod helpers;
 
 use futures_util::{SinkExt, StreamExt};
-use helpers::{Client, TestServer};
+use helpers::{TestServer, assert_accepted, assert_rejected};
 use std::time::{Duration, Instant};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
@@ -10,8 +10,7 @@ use tokio::{
     time::timeout,
 };
 use tokio_tungstenite::tungstenite::{
-    Error as WsError, Message,
-    http::StatusCode,
+    Message,
     protocol::frame::{
         Frame,
         coding::{CloseCode, Data, OpCode},
@@ -23,9 +22,7 @@ const LIMIT: Duration = Duration::from_secs(5);
 #[tokio::test]
 async fn echoes_text() {
     let server = TestServer::start().await;
-    let (mut ws, _) = tokio_tungstenite::connect_async(server.url())
-        .await
-        .unwrap();
+    let mut ws = assert_accepted(server.connect().await);
 
     ws.send(Message::text("hello")).await.unwrap();
     let msg = timeout(LIMIT, ws.next()).await.unwrap().unwrap().unwrap();
@@ -36,9 +33,7 @@ async fn echoes_text() {
 #[tokio::test]
 async fn shutdown_sends_restart_and_returns_ok() {
     let server = TestServer::start().await;
-    let (mut ws, _) = tokio_tungstenite::connect_async(server.url())
-        .await
-        .unwrap();
+    let mut ws = assert_accepted(server.connect().await);
 
     server.shutdown.cancel();
 
@@ -64,9 +59,7 @@ async fn stalled_handshake_does_not_block_shutdown() {
         .unwrap(); // headers never finished
 
     // accept() is FIFO: once this round-trips, `stalled` has been accepted and is mid-handshake
-    let (mut ws, _) = tokio_tungstenite::connect_async(server.url())
-        .await
-        .unwrap();
+    let mut ws = assert_accepted(server.connect().await);
     ws.send(Message::text("sync")).await.unwrap();
     timeout(LIMIT, ws.next()).await.unwrap().unwrap().unwrap();
 
@@ -132,9 +125,7 @@ async fn stalled_handshake_is_dropped_after_timeout() {
 #[tokio::test]
 async fn non_reading_client_does_not_block_shutdown() {
     let server = TestServer::start().await;
-    let (ws, _) = tokio_tungstenite::connect_async(server.url())
-        .await
-        .unwrap();
+    let ws = assert_accepted(server.connect().await);
 
     let (mut tx, _rx) = ws.split();
 
@@ -175,9 +166,7 @@ async fn non_reading_client_is_dropped_after_send_timeout() {
     )])
     .await;
 
-    let (ws, _) = tokio_tungstenite::connect_async(server.url())
-        .await
-        .unwrap();
+    let ws = assert_accepted(server.connect().await);
 
     let (mut tx, mut rx) = ws.split();
 
@@ -222,9 +211,7 @@ async fn new_connections_are_refused_while_draining() {
     let server = TestServer::start().await;
 
     // hold the drain open: a client that stops reading makes its close frame wait `close_timeout`
-    let (ws, _) = tokio_tungstenite::connect_async(server.url())
-        .await
-        .unwrap();
+    let ws = assert_accepted(server.connect().await);
 
     let (mut tx, _rx) = ws.split();
     let payload = "x".repeat(64 * 1024);
@@ -293,9 +280,7 @@ const SMALL_LIMITS: [(&str, &str); 2] = [
 async fn message_at_the_limits_is_echoed() {
     let server = TestServer::start_with(&SMALL_LIMITS).await;
 
-    let (mut ws, _) = tokio_tungstenite::connect_async(server.url())
-        .await
-        .unwrap();
+    let mut ws = assert_accepted(server.connect().await);
 
     // two full frames make one full message
     ws.send(Message::Frame(Frame::message(
@@ -323,9 +308,7 @@ async fn message_at_the_limits_is_echoed() {
 async fn oversized_frame_is_closed_as_too_big() {
     let server = TestServer::start_with(&SMALL_LIMITS).await;
 
-    let (mut ws, _) = tokio_tungstenite::connect_async(server.url())
-        .await
-        .unwrap();
+    let mut ws = assert_accepted(server.connect().await);
 
     ws.send(Message::binary(vec![0; 1024 + 1])).await.unwrap();
 
@@ -339,9 +322,7 @@ async fn oversized_frame_is_closed_as_too_big() {
 async fn oversized_message_is_closed_as_too_big() {
     let server = TestServer::start_with(&SMALL_LIMITS).await;
 
-    let (mut ws, _) = tokio_tungstenite::connect_async(server.url())
-        .await
-        .unwrap();
+    let mut ws = assert_accepted(server.connect().await);
 
     // every frame fits the frame limit; together they don't fit the message limit
     for (len, opcode, is_final) in [
@@ -366,41 +347,6 @@ async fn oversized_message_is_closed_as_too_big() {
 
 const ONE_SLOT: [(&str, &str); 1] = [("SERVER_MAX_CONNECTIONS", "1")];
 
-/// Asserts the node turned the client away with 503.
-#[track_caller]
-fn assert_rejected(connection: Result<Client, WsError>) {
-    match connection {
-        Err(WsError::Http(response)) => {
-            assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
-        }
-        other => panic!("expected 503, got {:?}", other.map(|_| ())),
-    }
-}
-
-/// Asserts the node let the client in, and hands back the connection that holds the slot.
-#[track_caller]
-fn assert_accepted(connection: Result<Client, WsError>) -> Client {
-    connection.unwrap_or_else(|e| panic!("expected to connect, got {e}"))
-}
-
-/// Connects, retrying while the node answers 503: a freed slot is released asynchronously.
-async fn connect_when_free(server: &TestServer) -> Result<Client, WsError> {
-    timeout(LIMIT, async {
-        loop {
-            match server.connect().await {
-                Err(WsError::Http(response))
-                    if response.status() == StatusCode::SERVICE_UNAVAILABLE =>
-                {
-                    tokio::time::sleep(Duration::from_millis(10)).await;
-                }
-                other => return other,
-            }
-        }
-    })
-    .await
-    .expect("slot never freed")
-}
-
 #[tokio::test]
 async fn full_node_rejects_with_503() {
     let server = TestServer::start_with(&ONE_SLOT).await;
@@ -419,7 +365,7 @@ async fn closed_connection_frees_its_slot() {
     ws.close(None).await.unwrap();
 
     // the rejection above didn't take the slot either
-    assert_accepted(connect_when_free(&server).await);
+    assert_accepted(server.connect_when_free().await);
 }
 
 #[tokio::test]
@@ -440,7 +386,7 @@ async fn stalled_handshake_holds_a_slot_until_timeout() {
     assert_rejected(server.connect().await);
 
     let started = Instant::now();
-    assert_accepted(connect_when_free(&server).await);
+    assert_accepted(server.connect_when_free().await);
 
     assert!(
         started.elapsed() < handshake_timeout + LIMIT / 2,
