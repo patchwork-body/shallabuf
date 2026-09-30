@@ -87,7 +87,7 @@ impl WsServer {
             let shutdown_token_clone = shutdown_token.clone();
 
             let Ok(permit) = Arc::clone(&slots).try_acquire_owned() else {
-                debug!(%addr, max = self.config.max_connections(), "node full, rejecting connection");
+                debug!(%addr, max = self.config.max_connections(), "node is full, rejecting connection");
 
                 tracker.spawn(
                     async move {
