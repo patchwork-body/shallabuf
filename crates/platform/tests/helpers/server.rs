@@ -3,11 +3,16 @@ use platform::{
     config::{Config, ServerConfig},
     server::WsServer,
 };
-use std::net::SocketAddr;
-use tokio::task::JoinHandle;
+use std::{net::SocketAddr, time::Duration};
+use tokio::{net::TcpStream, task::JoinHandle, time::timeout};
+use tokio_tungstenite::{MaybeTlsStream, WebSocketStream, tungstenite::Error as WsError};
 use tokio_util::sync::CancellationToken;
 
 use super::env::with_test_env;
+
+const CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
+
+pub(crate) type Client = WebSocketStream<MaybeTlsStream<TcpStream>>;
 
 pub(crate) struct TestServer {
     pub addr: SocketAddr,
@@ -38,5 +43,16 @@ impl TestServer {
 
     pub(crate) fn url(&self) -> String {
         format!("ws://{}", self.addr)
+    }
+
+    /// One WebSocket connect attempt, with the handshake response dropped.
+    pub(crate) async fn connect(&self) -> Result<Client, WsError> {
+        timeout(
+            CONNECT_TIMEOUT,
+            tokio_tungstenite::connect_async(self.url()),
+        )
+        .await
+        .expect("connect timed out")
+        .map(|(ws, _)| ws)
     }
 }

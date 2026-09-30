@@ -2,7 +2,7 @@
 mod helpers;
 
 use futures_util::{SinkExt, StreamExt};
-use helpers::TestServer;
+use helpers::{Client, TestServer};
 use std::time::{Duration, Instant};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
@@ -10,7 +10,8 @@ use tokio::{
     time::timeout,
 };
 use tokio_tungstenite::tungstenite::{
-    Message,
+    Error as WsError, Message,
+    http::StatusCode,
     protocol::frame::{
         Frame,
         coding::{CloseCode, Data, OpCode},
@@ -361,4 +362,107 @@ async fn oversized_message_is_closed_as_too_big() {
         Message::Close(Some(frame)) => assert_eq!(frame.code, CloseCode::Size),
         other => panic!("expected close frame, got {other:?}"),
     }
+}
+
+const ONE_SLOT: [(&str, &str); 1] = [("SERVER_MAX_CONNECTIONS", "1")];
+
+/// Asserts the node turned the client away with 503.
+#[track_caller]
+fn assert_rejected(connection: Result<Client, WsError>) {
+    match connection {
+        Err(WsError::Http(response)) => {
+            assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+        }
+        other => panic!("expected 503, got {:?}", other.map(|_| ())),
+    }
+}
+
+/// Asserts the node let the client in, and hands back the connection that holds the slot.
+#[track_caller]
+fn assert_accepted(connection: Result<Client, WsError>) -> Client {
+    connection.unwrap_or_else(|e| panic!("expected to connect, got {e}"))
+}
+
+/// Connects, retrying while the node answers 503: a freed slot is released asynchronously.
+async fn connect_when_free(server: &TestServer) -> Result<Client, WsError> {
+    timeout(LIMIT, async {
+        loop {
+            match server.connect().await {
+                Err(WsError::Http(response))
+                    if response.status() == StatusCode::SERVICE_UNAVAILABLE =>
+                {
+                    tokio::time::sleep(Duration::from_millis(10)).await;
+                }
+                other => return other,
+            }
+        }
+    })
+    .await
+    .expect("slot never freed")
+}
+
+#[tokio::test]
+async fn full_node_rejects_with_503() {
+    let server = TestServer::start_with(&ONE_SLOT).await;
+    let _ws = assert_accepted(server.connect().await);
+
+    assert_rejected(server.connect().await);
+}
+
+#[tokio::test]
+async fn closed_connection_frees_its_slot() {
+    let server = TestServer::start_with(&ONE_SLOT).await;
+    let mut ws = assert_accepted(server.connect().await);
+
+    assert_rejected(server.connect().await);
+
+    ws.close(None).await.unwrap();
+
+    // the rejection above didn't take the slot either
+    assert_accepted(connect_when_free(&server).await);
+}
+
+#[tokio::test]
+async fn stalled_handshake_holds_a_slot_until_timeout() {
+    let handshake_timeout = Duration::from_millis(200);
+    let server = TestServer::start_with(&[
+        ONE_SLOT[0],
+        (
+            "SERVER_HANDSHAKE_TIMEOUT_SECS",
+            &handshake_timeout.as_secs_f64().to_string(),
+        ),
+    ])
+    .await;
+
+    // accept() is FIFO: the silent connection is accepted first and takes the slot
+    let _stalled = TcpStream::connect(server.addr).await.unwrap();
+
+    assert_rejected(server.connect().await);
+
+    let started = Instant::now();
+    assert_accepted(connect_when_free(&server).await);
+
+    assert!(
+        started.elapsed() < handshake_timeout + LIMIT / 2,
+        "slot freed too late: {:?}",
+        started.elapsed()
+    );
+}
+
+#[tokio::test]
+async fn stalled_rejection_does_not_block_shutdown() {
+    let server = TestServer::start_with(&ONE_SLOT).await;
+    let _ws = assert_accepted(server.connect().await);
+
+    // the node is full: this one is being rejected, and never sends its request
+    let _stalled = TcpStream::connect(server.addr).await.unwrap();
+    assert_rejected(server.connect().await); // round-trips, so `_stalled` has been accepted
+
+    server.shutdown.cancel();
+
+    timeout(LIMIT, server.handle)
+        .await
+        .expect("shutdown hung")
+        .unwrap()
+        .unwrap();
 }

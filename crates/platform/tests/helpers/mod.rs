@@ -1,4 +1,4 @@
 mod env;
 mod server;
 
-pub(crate) use server::TestServer;
+pub(crate) use server::{Client, TestServer};
