@@ -2,7 +2,7 @@ use std::{
     io::ErrorKind::{ConnectionAborted, ConnectionReset, Interrupted},
     net::SocketAddr,
     sync::Arc,
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 use anyhow::Context;
@@ -48,6 +48,7 @@ impl WsServer {
     ) -> anyhow::Result<()> {
         let slots = Arc::new(Semaphore::new(self.config.max_connections()));
         let tracker = tokio_util::task::TaskTracker::new();
+        let mut accept_failed: Option<(Instant, u32)> = None;
 
         let result = loop {
             let (stream, addr) = tokio::select! {
@@ -57,7 +58,14 @@ impl WsServer {
                     Err(e) => match classify_accept_err(e) {
                         AcceptError::Skip => continue,
                         AcceptError::Retry(e) => {
-                            warn!("accept failed: {e:#}");
+                            match &mut accept_failed {
+                                None => accept_failed = {
+                                    warn!("accept() failed: {e:#}");
+                                    Some((Instant::now(), 1))
+                                },
+                                Some((_, attempt)) => *attempt += 1
+                            }
+
                             // 20 accept() attempts per second, don't burn CPU
                             tokio::time::sleep(Duration::from_millis(50)).await;
                             continue;
@@ -66,6 +74,11 @@ impl WsServer {
                     }
                 }
             };
+
+            if let Some((since, attempts)) = accept_failed.take() {
+                let elapsed = since.elapsed();
+                info!(?elapsed, attempts, "accept() recovered");
+            }
 
             if let Err(e) = stream.set_nodelay(true) {
                 error!("failed to set TCP_NODELAY for {addr}: {e:#}");
