@@ -70,11 +70,9 @@ pub(super) async fn handle_connection(
             () = shutdown_token.cancelled() => break (Some(restart_frame()), Ok(())),
             msg = ws.next() => match msg {
                 Some(Ok(msg)) if msg.is_text() || msg.is_binary() => {
-                    let send = tokio::time::timeout(config.send_timeout(), ws.send(msg));
-
                     tokio::select! {
                         () = shutdown_token.cancelled() => break (Some(restart_frame()), Ok(())),
-                        res = send => match res {
+                        res = tokio::time::timeout(config.send_timeout(), ws.send(msg)) => match res {
                             Ok(Ok(())) => {},
                             Ok(Err(e)) => break (None, Err(e).context("send failed")),
                             // peer isn't reading: a close frame would stall the same way
