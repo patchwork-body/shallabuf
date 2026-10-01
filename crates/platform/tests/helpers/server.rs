@@ -20,6 +20,7 @@ pub(crate) type Client = WebSocketStream<MaybeTlsStream<TcpStream>>;
 
 pub(crate) struct TestServer {
     pub addr: SocketAddr,
+    pub config: &'static ServerConfig,
     pub shutdown: CancellationToken,
     pub handle: JoinHandle<Result<(), Error>>,
 }
@@ -40,6 +41,7 @@ impl TestServer {
 
         Self {
             addr,
+            config,
             shutdown,
             handle,
         }

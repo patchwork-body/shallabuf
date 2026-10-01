@@ -412,3 +412,97 @@ async fn stalled_rejection_does_not_block_shutdown() {
         .unwrap()
         .unwrap();
 }
+
+/// Pings every 100ms, drops a peer that has been silent for 300ms.
+const FAST_PINGS: [(&str, &str); 2] = [
+    ("SERVER_PING_INTERVAL_SECS", "0.1"),
+    ("SERVER_PEER_TIMEOUT_SECS", "0.3"),
+];
+
+#[tokio::test]
+async fn first_ping_comes_after_one_interval() {
+    let server = TestServer::start_with(&FAST_PINGS).await;
+    let started = Instant::now();
+    let mut ws = assert_accepted(server.connect().await);
+    let msg = timeout(LIMIT, ws.next()).await.unwrap().unwrap().unwrap();
+
+    assert!(
+        matches!(msg, Message::Ping(_)),
+        "expected a ping, got {msg:?}"
+    );
+
+    assert!(
+        started.elapsed() >= server.config.ping_interval(),
+        "first ping came before one interval: {:?}",
+        started.elapsed()
+    );
+}
+
+#[tokio::test]
+async fn client_answering_pings_stays_connected() {
+    let server = TestServer::start_with(&FAST_PINGS).await;
+    let mut ws = assert_accepted(server.connect().await);
+    let ping_pong_cycles = 4;
+
+    let deadline = tokio::time::Instant::now() + server.config.peer_timeout() * ping_pong_cycles;
+    let mut pings = 0;
+
+    while let Ok(msg) = tokio::time::timeout_at(deadline, ws.next()).await {
+        match msg.expect("connection closed").unwrap() {
+            Message::Ping(_) => pings += 1,
+            other => panic!("expected only pings, got {other:?}"),
+        }
+    }
+
+    assert!(
+        pings >= (ping_pong_cycles - 1),
+        "expected regular pings, got {pings}"
+    );
+
+    // connection isn't closed bc ping/pong kept it alive
+    ws.send(Message::text("still here")).await.unwrap();
+
+    let echo = timeout(LIMIT, async {
+        loop {
+            match ws.next().await.expect("connection closed").unwrap() {
+                Message::Ping(_) => {}
+                other => break other,
+            }
+        }
+    })
+    .await
+    .unwrap();
+
+    assert_eq!(echo, Message::text("still here"));
+}
+
+#[tokio::test]
+async fn client_not_answering_pings_is_dropped_after_peer_timeout() {
+    let server = TestServer::start_with(&[ONE_SLOT.as_slice(), &FAST_PINGS].concat()).await;
+    let started = Instant::now();
+
+    let mut ws = assert_accepted(server.connect().await);
+    assert_accepted(server.connect_when_free().await);
+
+    let freed_after = started.elapsed();
+    let peer_timeout = server.config.peer_timeout();
+    let double_peer_timeout = peer_timeout * 2;
+
+    assert!(
+        (peer_timeout..double_peer_timeout).contains(&freed_after),
+        "expected the drop between {peer_timeout:?} and {double_peer_timeout:?}, got {freed_after:?}",
+    );
+
+    // check all the buffered messages, we shall not find a close frame among them
+    let ended = timeout(LIMIT, async {
+        while let Some(Ok(msg)) = ws.next().await {
+            assert!(
+                !msg.is_close(),
+                "silent client shouldn't get a close frame, got {msg:?}"
+            );
+        }
+    })
+    .await;
+
+    assert!(ended.is_ok(), "the silent client's stream never ended");
+}
