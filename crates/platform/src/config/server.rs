@@ -18,6 +18,14 @@ pub(super) enum ServerConfigError {
         frame_kib: usize,
         message_kib: usize,
     },
+
+    #[error(
+        "SERVER_PEER_TIMEOUT_SECS ({peer_timeout:?}) must be at least twice SERVER_PING_INTERVAL_SECS ({ping_interval:?})"
+    )]
+    PeerTimeoutTooShort {
+        peer_timeout: Duration,
+        ping_interval: Duration,
+    },
 }
 
 #[derive(Debug, Deserialize)]
@@ -90,6 +98,7 @@ pub struct ServerConfig {
     ping_interval: NonZeroDuration, // SERVER_PING_INTERVAL_SECS
 
     /// How long we allow an open connection to stay silent.
+    /// At least twice `ping_interval`, so one lost pong doesn't drop a live client.
     #[serde(
         rename = "peer_timeout_secs",
         deserialize_with = "super::utils::deserialize_secs"
@@ -148,6 +157,19 @@ impl ServerConfig {
 
         Ok(())
     }
+
+    fn ensure_peer_timeout_spans_two_pings(&self) -> Result<(), ServerConfigError> {
+        let peer_timeout = self.peer_timeout.get();
+        let ping_interval = self.ping_interval.get();
+
+        match ping_interval.checked_mul(2) {
+            Some(two_pings) if peer_timeout > two_pings => Ok(()),
+            _ => Err(ServerConfigError::PeerTimeoutTooShort {
+                peer_timeout,
+                ping_interval,
+            }),
+        }
+    }
 }
 
 impl Validate for ServerConfig {
@@ -155,6 +177,7 @@ impl Validate for ServerConfig {
 
     fn validate(&self) -> Result<(), Self::Error> {
         self.ensure_frame_fits_message()?;
+        self.ensure_peer_timeout_spans_two_pings()?;
 
         Ok(())
     }
@@ -198,12 +221,16 @@ mod tests {
             ("SERVER_HANDSHAKE_TIMEOUT_SECS", "10"),
             ("SERVER_SEND_TIMEOUT_SECS", "0.25"),
             ("SERVER_CLOSE_TIMEOUT_SECS", "0.001"),
+            ("SERVER_PING_INTERVAL_SECS", "0.1"),
+            ("SERVER_PEER_TIMEOUT_SECS", "0.25"),
         ])
         .unwrap();
 
         assert_eq!(config.handshake_timeout(), Duration::from_secs(10));
         assert_eq!(config.send_timeout(), Duration::from_millis(250));
         assert_eq!(config.close_timeout(), Duration::from_millis(1));
+        assert_eq!(config.ping_interval(), Duration::from_millis(100));
+        assert_eq!(config.peer_timeout(), Duration::from_millis(250));
     }
 
     #[test]
@@ -212,6 +239,8 @@ mod tests {
             "SERVER_HANDSHAKE_TIMEOUT_SECS",
             "SERVER_SEND_TIMEOUT_SECS",
             "SERVER_CLOSE_TIMEOUT_SECS",
+            "SERVER_PING_INTERVAL_SECS",
+            "SERVER_PEER_TIMEOUT_SECS",
         ] {
             for value in ["0", "-0", "1e-12", "-1", "inf", "NaN", "ten"] {
                 assert!(
@@ -306,6 +335,50 @@ mod tests {
                 frame_kib: 65,
                 message_kib: 64,
             }),
+        );
+    }
+
+    #[test]
+    fn accepts_peer_timeout_of_exactly_two_pings() {
+        create_config(&[
+            ("SERVER_PING_INTERVAL_SECS", "25"),
+            ("SERVER_PEER_TIMEOUT_SECS", "50"),
+        ])
+        .unwrap();
+    }
+
+    #[test]
+    fn rejects_peer_timeout_shorter_than_two_pings() {
+        let err = create_config(&[
+            ("SERVER_PING_INTERVAL_SECS", "25"),
+            ("SERVER_PEER_TIMEOUT_SECS", "49"),
+        ])
+        .unwrap_err();
+
+        assert_eq!(
+            err.downcast_ref::<ServerConfigError>(),
+            Some(&ServerConfigError::PeerTimeoutTooShort {
+                peer_timeout: Duration::from_secs(49),
+                ping_interval: Duration::from_secs(25),
+            }),
+        );
+    }
+
+    #[test]
+    fn rejects_ping_interval_too_long_to_double() {
+        // 1e19 s fits in a Duration, twice that doesn't
+        let err = create_config(&[
+            ("SERVER_PING_INTERVAL_SECS", "1e19"),
+            ("SERVER_PEER_TIMEOUT_SECS", "1e19"),
+        ])
+        .unwrap_err();
+
+        assert!(
+            matches!(
+                err.downcast_ref::<ServerConfigError>(),
+                Some(ServerConfigError::PeerTimeoutTooShort { .. })
+            ),
+            "expected PeerTimeoutTooShort, got {err:#}"
         );
     }
 }
