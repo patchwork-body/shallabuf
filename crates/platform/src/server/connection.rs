@@ -1,21 +1,30 @@
-use anyhow::Context;
+use std::ops::ControlFlow;
+
+use anyhow::{Context, anyhow};
 use futures_util::{SinkExt, StreamExt};
 use tokio::net::TcpStream;
-use tokio_tungstenite::tungstenite::{
-    Error as WsError, Utf8Bytes,
-    error::CapacityError,
-    handshake::server::{ErrorResponse, Request, Response},
-    http::StatusCode,
-    protocol::{CloseFrame, WebSocketConfig, frame::coding::CloseCode},
+use tokio_tungstenite::{
+    WebSocketStream,
+    tungstenite::{
+        Error as WsError, Message, Utf8Bytes,
+        error::CapacityError,
+        handshake::server::{ErrorResponse, Request, Response},
+        http::StatusCode,
+        protocol::{CloseFrame, WebSocketConfig, frame::coding::CloseCode},
+    },
 };
+use tokio_util::{bytes::Bytes, sync::CancellationToken};
 use tracing::debug;
 
 use crate::config::ServerConfig;
 
+/// How a connection ends: the close frame to send, if any, and the result to report.
+type Exit = (Option<CloseFrame>, anyhow::Result<()>);
+
 pub(super) async fn reject_connection(
     stream: TcpStream,
     config: &'static ServerConfig,
-    shutdown_token: tokio_util::sync::CancellationToken,
+    shutdown_token: CancellationToken,
 ) -> anyhow::Result<()> {
     #[expect(
         clippy::result_large_err,
@@ -47,7 +56,7 @@ pub(super) async fn reject_connection(
 pub(super) async fn handle_connection(
     stream: TcpStream,
     config: &'static ServerConfig,
-    shutdown_token: tokio_util::sync::CancellationToken,
+    shutdown_token: CancellationToken,
 ) -> anyhow::Result<()> {
     let ws_config = WebSocketConfig::default()
         .max_frame_size(Some(config.max_frame_bytes()))
@@ -65,24 +74,38 @@ pub(super) async fn handle_connection(
 
     debug!("connection opened");
 
-    let (close_frame, outcome) = loop {
+    let period = config.ping_interval();
+    let mut ping_interval = tokio::time::interval_at(tokio::time::Instant::now() + period, period);
+    ping_interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+
+    let mut last_msg_received_at = tokio::time::Instant::now();
+
+    let (close_frame, outcome): Exit = loop {
         tokio::select! {
             () = shutdown_token.cancelled() => break (Some(restart_frame()), Ok(())),
+            _ = ping_interval.tick() => {
+                let sent = send(&mut ws, Message::Ping(Bytes::new()), config, &shutdown_token).await;
+
+                if let ControlFlow::Break(exit) = sent {
+                    break exit;
+                }
+            }
+            () = tokio::time::sleep_until(last_msg_received_at + config.peer_timeout()) => {
+                break (None, Err(anyhow!("peer timed out, no data or pong")))
+            }
             msg = ws.next() => match msg {
                 Some(Ok(msg)) if msg.is_text() || msg.is_binary() => {
-                    tokio::select! {
-                        () = shutdown_token.cancelled() => break (Some(restart_frame()), Ok(())),
-                        res = tokio::time::timeout(config.send_timeout(), ws.send(msg)) => match res {
-                            Ok(Ok(())) => {},
-                            Ok(Err(e)) => break (None, Err(e).context("send failed")),
-                            // peer isn't reading: a close frame would stall the same way
-                            Err(e) => {
-                                break (None, Err(e).context("send timed out, peer not reading"));
-                            },
-                        },
+                    last_msg_received_at = tokio::time::Instant::now();
+                    let sent = send(&mut ws, msg, config, &shutdown_token).await;
+
+                    if let ControlFlow::Break(exit) = sent {
+                        break exit;
                     }
                 },
-                Some(Ok(_)) => {}, // ping/pong/close: handled by tungstenite
+                // ping/pong/close: handled by tungstenite
+                Some(Ok(_)) => {
+                    last_msg_received_at = tokio::time::Instant::now();
+                }
                 // over the frame or message limit
                 Some(Err(e @ WsError::Capacity(CapacityError::MessageTooLong { .. }))) => {
                     break (Some(too_big_frame()), Err(e).context("peer exceeded size limit"));
@@ -103,6 +126,26 @@ pub(super) async fn handle_connection(
     debug!("connection closed");
 
     outcome
+}
+
+/// Sends one message within `send_timeout`, unless shutdown starts first.
+async fn send(
+    ws: &mut WebSocketStream<TcpStream>,
+    msg: Message,
+    config: &ServerConfig,
+    shutdown_token: &CancellationToken,
+) -> ControlFlow<Exit> {
+    tokio::select! {
+        () = shutdown_token.cancelled() => ControlFlow::Break((Some(restart_frame()), Ok(()))),
+        res = tokio::time::timeout(config.send_timeout(), ws.send(msg)) => match res {
+            Ok(Ok(())) => ControlFlow::Continue(()),
+            Ok(Err(e)) => ControlFlow::Break((None, Err(e).context("send failed"))),
+            // peer isn't reading: a close frame would stall the same way
+            Err(e) => {
+                ControlFlow::Break((None, Err(e).context("send timed out, peer not reading")))
+            },
+        },
+    }
 }
 
 const fn restart_frame() -> CloseFrame {

@@ -81,6 +81,20 @@ pub struct ServerConfig {
 
     /// Most connections a node holds at once.
     max_connections: NonZeroUsize, // SERVER_MAX_CONNECTIONS
+
+    /// The connection liveness probe send interval.
+    #[serde(
+        rename = "ping_interval_secs",
+        deserialize_with = "super::utils::deserialize_secs"
+    )]
+    ping_interval: NonZeroDuration, // SERVER_PING_INTERVAL_SECS
+
+    /// How long we allow an open connection to stay silent.
+    #[serde(
+        rename = "peer_timeout_secs",
+        deserialize_with = "super::utils::deserialize_secs"
+    )]
+    peer_timeout: NonZeroDuration, // SERVER_PEER_TIMEOUT_SECS
 }
 
 impl ServerConfig {
@@ -114,6 +128,14 @@ impl ServerConfig {
 
     pub const fn max_connections(&self) -> usize {
         self.max_connections.get()
+    }
+
+    pub const fn ping_interval(&self) -> Duration {
+        self.ping_interval.get()
+    }
+
+    pub const fn peer_timeout(&self) -> Duration {
+        self.peer_timeout.get()
     }
 
     fn ensure_frame_fits_message(&self) -> Result<(), ServerConfigError> {
