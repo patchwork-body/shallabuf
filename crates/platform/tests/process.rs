@@ -21,6 +21,8 @@ fn fatal_error_is_logged_before_exit() {
         .env("SERVER_MAX_CONNECTIONS", "1")
         .env("SERVER_PING_INTERVAL_SECS", "25")
         .env("SERVER_PEER_TIMEOUT_SECS", "60")
+        .env("SERVER_MAX_MESSAGE_BURST", "100")
+        .env("SERVER_MAX_MESSAGES_PER_SEC", "20")
         .output()
         .unwrap();
 

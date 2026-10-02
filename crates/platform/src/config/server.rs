@@ -1,6 +1,6 @@
 use std::{
     net::{IpAddr, SocketAddr},
-    num::NonZeroUsize,
+    num::{NonZeroU32, NonZeroUsize},
     time::Duration,
 };
 
@@ -25,6 +25,14 @@ pub(super) enum ServerConfigError {
     PeerTimeoutTooShort {
         peer_timeout: Duration,
         ping_interval: Duration,
+    },
+
+    #[error(
+        "SERVER_PEER_TIMEOUT_SECS ({peer_timeout:?}) must be more than one token's wait, 1 / SERVER_MAX_MESSAGES_PER_SEC ({token_wait:?})"
+    )]
+    PeerTimeoutShorterThanTokenWait {
+        peer_timeout: Duration,
+        token_wait: Duration,
     },
 }
 
@@ -104,6 +112,14 @@ pub struct ServerConfig {
         deserialize_with = "super::utils::deserialize_secs"
     )]
     peer_timeout: NonZeroDuration, // SERVER_PEER_TIMEOUT_SECS
+
+    /// Most messages a connection may send at once before it's slowed down.
+    /// The token bucket's capacity; every connection starts with it full.
+    max_message_burst: NonZeroU32, // SERVER_MAX_MESSAGE_BURST
+
+    /// Most messages a connection may send per second once its burst is spent.
+    /// The token bucket's refill rate.
+    max_messages_per_sec: NonZeroU32, // SERVER_MAX_MESSAGES_PER_SEC
 }
 
 impl ServerConfig {
@@ -147,6 +163,14 @@ impl ServerConfig {
         self.peer_timeout.get()
     }
 
+    pub const fn max_message_burst(&self) -> u32 {
+        self.max_message_burst.get()
+    }
+
+    pub const fn max_messages_per_sec(&self) -> u32 {
+        self.max_messages_per_sec.get()
+    }
+
     fn ensure_frame_fits_message(&self) -> Result<(), ServerConfigError> {
         if self.max_frame_bytes > self.max_message_bytes {
             return Err(ServerConfigError::FrameExceedsMessage {
@@ -170,6 +194,20 @@ impl ServerConfig {
             }),
         }
     }
+
+    fn ensure_peer_timeout_spans_one_token(&self) -> Result<(), ServerConfigError> {
+        let peer_timeout = self.peer_timeout();
+        let token_wait = Duration::from_secs(1) / self.max_messages_per_sec();
+
+        if token_wait > peer_timeout {
+            return Err(ServerConfigError::PeerTimeoutShorterThanTokenWait {
+                peer_timeout,
+                token_wait,
+            });
+        }
+
+        Ok(())
+    }
 }
 
 impl Validate for ServerConfig {
@@ -178,6 +216,7 @@ impl Validate for ServerConfig {
     fn validate(&self) -> Result<(), Self::Error> {
         self.ensure_frame_fits_message()?;
         self.ensure_peer_timeout_spans_two_pings()?;
+        self.ensure_peer_timeout_spans_one_token()?;
 
         Ok(())
     }
@@ -304,6 +343,47 @@ mod tests {
     }
 
     #[test]
+    fn reads_message_rate() {
+        let config = create_config(&[
+            ("SERVER_MAX_MESSAGE_BURST", "50"),
+            ("SERVER_MAX_MESSAGES_PER_SEC", "10"),
+        ])
+        .unwrap();
+
+        assert_eq!(config.max_message_burst(), 50);
+        assert_eq!(config.max_messages_per_sec(), 10);
+    }
+
+    #[test]
+    fn rejects_message_rate_that_is_not_a_positive_count() {
+        for var in ["SERVER_MAX_MESSAGE_BURST", "SERVER_MAX_MESSAGES_PER_SEC"] {
+            for value in [
+                "0",
+                "-1",
+                "1.5",
+                "ten",
+                &(u64::from(u32::MAX) + 1).to_string(),
+            ] {
+                assert!(
+                    create_config(&[(var, value)]).is_err(),
+                    "{var}={value}: expected an error"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn requires_message_rate() {
+        for var in ["SERVER_MAX_MESSAGE_BURST", "SERVER_MAX_MESSAGES_PER_SEC"] {
+            let result = with_test_env(&[], || {
+                temp_env::with_var_unset(var, || load_config::<ServerConfig>("SERVER"))
+            });
+
+            assert!(result.is_err(), "loaded without {var}");
+        }
+    }
+
+    #[test]
     fn accepts_frame_smaller_than_message() {
         create_config(&[
             ("SERVER_MAX_FRAME_KIB", "32"),
@@ -397,6 +477,53 @@ mod tests {
                 Some(ServerConfigError::PeerTimeoutTooShort { .. })
             ),
             "expected PeerTimeoutTooShort, got {err:#}"
+        );
+    }
+
+    #[test]
+    fn accepts_peer_timeout_longer_than_one_token() {
+        create_config(&[
+            ("SERVER_MAX_MESSAGES_PER_SEC", "2"),
+            ("SERVER_PING_INTERVAL_SECS", "0.1"),
+            ("SERVER_PEER_TIMEOUT_SECS", "0.75"),
+        ])
+        .unwrap();
+    }
+
+    #[test]
+    fn rejects_peer_timeout_of_exactly_one_token() {
+        // the next token would arrive just as the deadline passes
+        let err = create_config(&[
+            ("SERVER_MAX_MESSAGES_PER_SEC", "2"),
+            ("SERVER_PING_INTERVAL_SECS", "0.1"),
+            ("SERVER_PEER_TIMEOUT_SECS", "0.5"),
+        ])
+        .unwrap_err();
+
+        assert_eq!(
+            err.downcast_ref::<ServerConfigError>(),
+            Some(&ServerConfigError::PeerTimeoutShorterThanTokenWait {
+                peer_timeout: Duration::from_millis(500),
+                token_wait: Duration::from_millis(500),
+            }),
+        );
+    }
+
+    #[test]
+    fn rejects_peer_timeout_shorter_than_one_token() {
+        let err = create_config(&[
+            ("SERVER_MAX_MESSAGES_PER_SEC", "2"),
+            ("SERVER_PING_INTERVAL_SECS", "0.1"),
+            ("SERVER_PEER_TIMEOUT_SECS", "0.25"),
+        ])
+        .unwrap_err();
+
+        assert_eq!(
+            err.downcast_ref::<ServerConfigError>(),
+            Some(&ServerConfigError::PeerTimeoutShorterThanTokenWait {
+                peer_timeout: Duration::from_millis(250),
+                token_wait: Duration::from_millis(500),
+            }),
         );
     }
 }
