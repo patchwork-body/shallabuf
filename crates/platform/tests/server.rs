@@ -11,6 +11,8 @@ use tokio::{
 };
 use tokio_tungstenite::tungstenite::{
     Message,
+    client::IntoClientRequest,
+    http::HeaderValue,
     protocol::frame::{
         Frame,
         coding::{CloseCode, Data, OpCode},
@@ -505,4 +507,26 @@ async fn client_not_answering_pings_is_dropped_after_peer_timeout() {
     .await;
 
     assert!(ended.is_ok(), "the silent client's stream never ended");
+}
+
+#[tokio::test]
+async fn compression_is_never_negotiated() {
+    let server = TestServer::start().await;
+    let mut request = server.url().into_client_request().unwrap();
+    request.headers_mut().insert(
+        "Sec-WebSocket-Extensions",
+        HeaderValue::from_static("permessage-deflate; client_max_window_bits"),
+    );
+
+    let (_ws, response) = timeout(LIMIT, tokio_tungstenite::connect_async(request))
+        .await
+        .unwrap()
+        .unwrap();
+
+    // the server accepts an extension by naming it in its response; it must name none
+    assert_eq!(
+        response.headers().get("Sec-WebSocket-Extensions"),
+        None,
+        "server accepted an extension"
+    );
 }
