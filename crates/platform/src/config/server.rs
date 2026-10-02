@@ -20,7 +20,7 @@ pub(super) enum ServerConfigError {
     },
 
     #[error(
-        "SERVER_PEER_TIMEOUT_SECS ({peer_timeout:?}) must be at least twice SERVER_PING_INTERVAL_SECS ({ping_interval:?})"
+        "SERVER_PEER_TIMEOUT_SECS ({peer_timeout:?}) must be more than twice SERVER_PING_INTERVAL_SECS ({ping_interval:?})"
     )]
     PeerTimeoutTooShort {
         peer_timeout: Duration,
@@ -98,7 +98,7 @@ pub struct ServerConfig {
     ping_interval: NonZeroDuration, // SERVER_PING_INTERVAL_SECS
 
     /// How long we allow an open connection to stay silent.
-    /// At least twice `ping_interval`, so one lost pong doesn't drop a live client.
+    /// More than twice `ping_interval`, so one lost pong doesn't drop a live client.
     #[serde(
         rename = "peer_timeout_secs",
         deserialize_with = "super::utils::deserialize_secs"
@@ -339,12 +339,30 @@ mod tests {
     }
 
     #[test]
-    fn accepts_peer_timeout_of_exactly_two_pings() {
+    fn accepts_peer_timeout_longer_than_two_pings() {
         create_config(&[
+            ("SERVER_PING_INTERVAL_SECS", "25"),
+            ("SERVER_PEER_TIMEOUT_SECS", "51"),
+        ])
+        .unwrap();
+    }
+
+    #[test]
+    fn rejects_peer_timeout_of_exactly_two_pings() {
+        // the pong after a lost one would arrive just as the deadline passes
+        let err = create_config(&[
             ("SERVER_PING_INTERVAL_SECS", "25"),
             ("SERVER_PEER_TIMEOUT_SECS", "50"),
         ])
-        .unwrap();
+        .unwrap_err();
+
+        assert_eq!(
+            err.downcast_ref::<ServerConfigError>(),
+            Some(&ServerConfigError::PeerTimeoutTooShort {
+                peer_timeout: Duration::from_secs(50),
+                ping_interval: Duration::from_secs(25),
+            }),
+        );
     }
 
     #[test]
