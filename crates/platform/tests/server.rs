@@ -530,3 +530,119 @@ async fn compression_is_never_negotiated() {
         "server accepted an extension"
     );
 }
+
+#[tokio::test]
+async fn shutdown_reaches_a_throttled_client() {
+    // one token, then one per second: the second message waits a full second to be read
+    let server = TestServer::start_with(&[
+        ("SERVER_MAX_MESSAGE_BURST", "1"),
+        ("SERVER_MAX_MESSAGES_PER_SEC", "1"),
+    ])
+    .await;
+
+    let token_interval = server.config.message_token_interval();
+    let mut ws = assert_accepted(server.connect().await);
+
+    ws.send(Message::text("first")).await.unwrap();
+    ws.send(Message::text("second")).await.unwrap();
+    let echo = timeout(LIMIT, ws.next()).await.unwrap().unwrap().unwrap();
+    assert_eq!(echo, Message::text("first"));
+
+    // the server now waits for a token before reading "second"
+    let started = Instant::now();
+    server.shutdown.cancel();
+
+    // an echo of "second" here would mean the client was never throttled
+    match timeout(LIMIT, ws.next()).await.unwrap().unwrap().unwrap() {
+        Message::Close(Some(frame)) => assert_eq!(frame.code, CloseCode::Restart),
+        other => panic!("expected close frame, got {other:?}"),
+    }
+
+    let elapsed = started.elapsed();
+    assert!(
+        elapsed < token_interval,
+        "close arrived after {elapsed:?}: shutdown waited for the {token_interval:?} token"
+    );
+}
+
+#[tokio::test]
+async fn burst_above_the_limit_arrives_in_full_but_later() {
+    let server = TestServer::start_with(&[
+        ("SERVER_MAX_MESSAGE_BURST", "3"),
+        ("SERVER_MAX_MESSAGES_PER_SEC", "20"),
+    ])
+    .await;
+
+    let burst = server.config.max_message_burst();
+    let token_interval = server.config.message_token_interval();
+    let extra = 10;
+    let mut ws = assert_accepted(server.connect().await);
+
+    let started = Instant::now();
+    for i in 0..burst + extra {
+        ws.send(Message::text(i.to_string())).await.unwrap();
+    }
+
+    // every message comes back, in order: nothing dropped, nothing closed
+    for i in 0..burst + extra {
+        let echo = timeout(LIMIT, ws.next()).await.unwrap().unwrap().unwrap();
+        assert_eq!(echo, Message::text(i.to_string()));
+    }
+
+    // the burst goes through at once, each extra message waits for its own token
+    let elapsed = started.elapsed();
+    let throttled_for = token_interval * extra;
+    assert!(
+        elapsed >= throttled_for,
+        "all echoed after {elapsed:?}, expected at least {throttled_for:?} of throttling"
+    );
+}
+
+#[tokio::test]
+async fn throttled_client_outlasting_the_peer_timeout_stays_connected() {
+    // one read every 50 ms once throttled, well within the 0.3 s peer timeout,
+    // and faster than the pings, whose pongs cost a token too
+    let server = TestServer::start_with(
+        &[
+            FAST_PINGS.as_slice(),
+            &[
+                ("SERVER_MAX_MESSAGE_BURST", "1"),
+                ("SERVER_MAX_MESSAGES_PER_SEC", "20"),
+            ],
+        ]
+        .concat(),
+    )
+    .await;
+
+    let messages = 21; // 20 throttled reads: 1 s, more than three peer timeouts
+    let mut ws = assert_accepted(server.connect().await);
+
+    let started = Instant::now();
+    for i in 0..messages {
+        ws.send(Message::text(i.to_string())).await.unwrap();
+    }
+
+    // reading also answers the server's pings
+    let mut echoes = 0;
+    timeout(LIMIT, async {
+        while echoes < messages {
+            match ws.next().await.expect("connection closed").unwrap() {
+                Message::Ping(_) => {}
+                msg => {
+                    assert_eq!(msg, Message::text(echoes.to_string()));
+                    echoes += 1;
+                }
+            }
+        }
+    })
+    .await
+    .expect("not every message came back");
+
+    // the client was throttled for longer than the peer timeout, and wasn't dropped
+    let elapsed = started.elapsed();
+    let peer_timeout = server.config.peer_timeout();
+    assert!(
+        elapsed > peer_timeout,
+        "throttled for only {elapsed:?}, not past the {peer_timeout:?} peer timeout"
+    );
+}
