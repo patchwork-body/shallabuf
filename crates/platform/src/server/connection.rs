@@ -80,7 +80,7 @@ pub(super) async fn handle_connection(
 
     let mut last_msg_received_at = tokio::time::Instant::now();
     let mut token_bucket =
-        TokenBucket::new(config.max_message_burst(), config.max_messages_per_sec());
+        TokenBucket::new(config.max_message_burst(), config.message_token_interval());
 
     let (close_frame, outcome): Exit = loop {
         tokio::select! {

@@ -21,7 +21,10 @@ pub(super) struct TokenBucket {
 impl TokenBucket {
     /// Whole tokens earned since `last_refill_at`, at most `capacity`.
     fn tokens_earned(&self, now: Instant) -> u32 {
-        let earned = self.last_refill_at.saturating_duration_since(now).as_nanos() / (self.token_interval.as_nanos());
+        let earned = now
+            .saturating_duration_since(self.last_refill_at)
+            .as_nanos()
+            / (self.token_interval.as_nanos());
 
         u32::try_from(earned).unwrap_or(u32::MAX).min(self.capacity)
     }
@@ -46,13 +49,12 @@ impl TokenBucket {
         };
     }
 
-    /// A full bucket holding `capacity` tokens, refilled at `refill_rate` tokens per second.
-    pub(super) fn new(capacity: u32, refill_rate: u32) -> Self {
+    /// A full bucket holding `capacity` tokens, with one coming back every `token_interval`.
+    pub(super) fn new(capacity: u32, token_interval: Duration) -> Self {
         Self {
             capacity,
             tokens_left: capacity,
-            // above 10⁹/s the interval rounds down to 0 ns, and 1 ns is effectively unlimited
-            token_interval: (Duration::from_secs(1) / refill_rate).max(Duration::from_nanos(1)),
+            token_interval,
             last_refill_at: Instant::now(),
         }
     }
@@ -73,7 +75,7 @@ impl TokenBucket {
 
         Some(
             self.token_interval
-                .saturating_sub(self.last_refill_at.saturating_duration_since(now)),
+                .saturating_sub(now.saturating_duration_since(self.last_refill_at)),
         )
     }
 
@@ -105,14 +107,14 @@ mod tests {
 
     #[tokio::test(start_paused = true)]
     async fn starts_full() {
-        let mut bucket = TokenBucket::new(CAPACITY, RATE);
+        let mut bucket = TokenBucket::new(CAPACITY, INTERVAL);
 
         empty_bucket(&mut bucket);
     }
 
     #[tokio::test(start_paused = true)]
     async fn empty_bucket_waits_one_interval() {
-        let mut bucket = TokenBucket::new(CAPACITY, RATE);
+        let mut bucket = TokenBucket::new(CAPACITY, INTERVAL);
 
         empty_bucket(&mut bucket);
         assert_eq!(bucket.try_consume(), Some(INTERVAL));
@@ -120,7 +122,7 @@ mod tests {
 
     #[tokio::test(start_paused = true)]
     async fn wait_shrinks_as_time_passes() {
-        let mut bucket = TokenBucket::new(CAPACITY, RATE);
+        let mut bucket = TokenBucket::new(CAPACITY, INTERVAL);
 
         empty_bucket(&mut bucket);
         advance(Duration::from_millis(20)).await;
@@ -130,7 +132,7 @@ mod tests {
 
     #[tokio::test(start_paused = true)]
     async fn token_comes_back_after_one_interval() {
-        let mut bucket = TokenBucket::new(CAPACITY, RATE);
+        let mut bucket = TokenBucket::new(CAPACITY, INTERVAL);
 
         empty_bucket(&mut bucket);
         advance(INTERVAL).await;
@@ -141,7 +143,7 @@ mod tests {
 
     #[tokio::test(start_paused = true)]
     async fn several_tokens_come_back_together() {
-        let mut bucket = TokenBucket::new(CAPACITY, RATE);
+        let mut bucket = TokenBucket::new(CAPACITY, INTERVAL);
 
         empty_bucket(&mut bucket);
         advance(INTERVAL * 2).await;
@@ -153,7 +155,7 @@ mod tests {
 
     #[tokio::test(start_paused = true)]
     async fn keeps_partial_progress_toward_the_next_token() {
-        let mut bucket = TokenBucket::new(CAPACITY, RATE);
+        let mut bucket = TokenBucket::new(CAPACITY, INTERVAL);
 
         empty_bucket(&mut bucket);
         advance(Duration::from_millis(70)).await;
@@ -165,7 +167,7 @@ mod tests {
 
     #[tokio::test(start_paused = true)]
     async fn long_idle_refills_bucket_only_to_capacity() {
-        let mut bucket = TokenBucket::new(CAPACITY, RATE);
+        let mut bucket = TokenBucket::new(CAPACITY, INTERVAL);
 
         empty_bucket(&mut bucket);
         advance(Duration::from_hours(1)).await;
@@ -176,7 +178,7 @@ mod tests {
 
     #[tokio::test(start_paused = true)]
     async fn time_spent_when_bucket_is_full_earns_nothing() {
-        let mut bucket = TokenBucket::new(CAPACITY, RATE);
+        let mut bucket = TokenBucket::new(CAPACITY, INTERVAL);
 
         advance(Duration::from_hours(1)).await;
 
@@ -186,7 +188,7 @@ mod tests {
 
     #[tokio::test(start_paused = true)]
     async fn steady_client_below_rate_is_never_throttled() {
-        let mut bucket = TokenBucket::new(CAPACITY, RATE);
+        let mut bucket = TokenBucket::new(CAPACITY, INTERVAL);
 
         // 10 messages/s for 10s, half the rate
         for _ in 0..100 {
@@ -197,7 +199,7 @@ mod tests {
 
     #[tokio::test(start_paused = true)]
     async fn client_sending_flat_out_for_one_second_gets_capacity_plus_rate() {
-        let mut bucket = TokenBucket::new(CAPACITY, RATE);
+        let mut bucket = TokenBucket::new(CAPACITY, INTERVAL);
         let one_second_later = Instant::now() + Duration::from_secs(1);
         let mut sent = 0;
 
@@ -216,18 +218,8 @@ mod tests {
     }
 
     #[tokio::test(start_paused = true)]
-    async fn huge_rate_does_not_panic() {
-        let mut bucket = TokenBucket::new(1, u32::MAX);
-
-        assert_eq!(bucket.try_consume(), None);
-        assert_eq!(bucket.try_consume(), Some(Duration::from_nanos(1)));
-        advance(Duration::from_millis(1)).await;
-        assert_eq!(bucket.try_consume(), None);
-    }
-
-    #[tokio::test(start_paused = true)]
     async fn huge_capacity_does_not_overflow() {
-        let mut bucket = TokenBucket::new(u32::MAX, 1);
+        let mut bucket = TokenBucket::new(u32::MAX, Duration::from_secs(1));
 
         bucket.try_consume();
         advance(Duration::from_secs(2)).await;
@@ -237,7 +229,7 @@ mod tests {
 
     #[tokio::test(start_paused = true)]
     async fn consume_does_not_wait_until_bucket_is_empty() {
-        let mut bucket = TokenBucket::new(CAPACITY, RATE);
+        let mut bucket = TokenBucket::new(CAPACITY, INTERVAL);
         let start = Instant::now();
 
         for _ in 0..CAPACITY {
@@ -249,7 +241,7 @@ mod tests {
 
     #[tokio::test(start_paused = true)]
     async fn consume_waits_for_the_next_token_and_takes_it() {
-        let mut bucket = TokenBucket::new(CAPACITY, RATE);
+        let mut bucket = TokenBucket::new(CAPACITY, INTERVAL);
 
         empty_bucket(&mut bucket);
         let start = Instant::now();

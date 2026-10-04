@@ -171,6 +171,11 @@ impl ServerConfig {
         self.max_messages_per_sec.get()
     }
 
+    /// How long one token takes to refill: one second ÷ `max_messages_per_sec`.
+    pub fn message_token_interval(&self) -> Duration {
+        (Duration::from_secs(1) / self.max_messages_per_sec()).max(Duration::from_nanos(1))
+    }
+
     fn ensure_frame_fits_message(&self) -> Result<(), ServerConfigError> {
         if self.max_frame_bytes > self.max_message_bytes {
             return Err(ServerConfigError::FrameExceedsMessage {
@@ -197,7 +202,7 @@ impl ServerConfig {
 
     fn ensure_peer_timeout_spans_one_token(&self) -> Result<(), ServerConfigError> {
         let peer_timeout = self.peer_timeout();
-        let token_wait = Duration::from_secs(1) / self.max_messages_per_sec();
+        let token_wait = self.message_token_interval();
 
         if token_wait >= peer_timeout {
             return Err(ServerConfigError::PeerTimeoutShorterThanTokenWait {
@@ -478,6 +483,22 @@ mod tests {
             ),
             "expected PeerTimeoutTooShort, got {err:#}"
         );
+    }
+
+    #[test]
+    fn message_token_interval_is_one_second_over_the_rate() {
+        let config = create_config(&[("SERVER_MAX_MESSAGES_PER_SEC", "20")]).unwrap();
+
+        assert_eq!(config.message_token_interval(), Duration::from_millis(50));
+    }
+
+    #[test]
+    fn message_token_interval_is_at_least_one_nanosecond() {
+        // 1 s / u32::MAX rounds down to 0ns, and an interval must not be zero
+        let config =
+            create_config(&[("SERVER_MAX_MESSAGES_PER_SEC", &u32::MAX.to_string())]).unwrap();
+
+        assert_eq!(config.message_token_interval(), Duration::from_nanos(1));
     }
 
     #[test]
