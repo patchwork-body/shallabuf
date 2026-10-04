@@ -24,7 +24,7 @@ impl TokenBucket {
         let earned = now
             .saturating_duration_since(self.last_refill_at)
             .as_nanos()
-            / (self.token_interval.as_nanos());
+            / self.token_interval.as_nanos();
 
         u32::try_from(earned).unwrap_or(u32::MAX).min(self.capacity)
     }
@@ -43,7 +43,7 @@ impl TokenBucket {
             .min(self.capacity);
 
         self.last_refill_at = if self.tokens_left == self.capacity {
-            Instant::now()
+            now
         } else {
             self.last_refill_at + self.token_interval * new_tokens
         };
@@ -62,7 +62,7 @@ impl TokenBucket {
     /// Takes a token if one is left.
     /// Returns:
     /// - `None` when a token was taken,
-    /// - Some(wait duration for the next token) when the bucket is empty.
+    /// - `Some(wait)` when the bucket is empty, with how long until the next token.
     pub(super) fn try_consume(&mut self) -> Option<Duration> {
         let now = Instant::now();
         self.refill(now);
