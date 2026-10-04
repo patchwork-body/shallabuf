@@ -199,7 +199,7 @@ impl ServerConfig {
         let peer_timeout = self.peer_timeout();
         let token_wait = Duration::from_secs(1) / self.max_messages_per_sec();
 
-        if token_wait > peer_timeout {
+        if token_wait >= peer_timeout {
             return Err(ServerConfigError::PeerTimeoutShorterThanTokenWait {
                 peer_timeout,
                 token_wait,
