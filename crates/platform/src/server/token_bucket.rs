@@ -20,15 +20,15 @@ pub(super) struct TokenBucket {
 
 impl TokenBucket {
     /// Whole tokens earned since `last_refill_at`, at most `capacity`.
-    fn tokens_earned(&self) -> u32 {
-        let earned = self.last_refill_at.elapsed().as_nanos() / (self.token_interval.as_nanos());
+    fn tokens_earned(&self, now: Instant) -> u32 {
+        let earned = self.last_refill_at.saturating_duration_since(now).as_nanos() / (self.token_interval.as_nanos());
 
         u32::try_from(earned).unwrap_or(u32::MAX).min(self.capacity)
     }
 
     /// Adds the tokens earned since `last_refill_at`, up to `capacity`.
-    fn refill(&mut self) {
-        let new_tokens = self.tokens_earned();
+    fn refill(&mut self, now: Instant) {
+        let new_tokens = self.tokens_earned(now);
 
         if new_tokens == 0 {
             return;
@@ -62,7 +62,8 @@ impl TokenBucket {
     /// - `None` when a token was taken,
     /// - Some(wait duration for the next token) when the bucket is empty.
     pub(super) fn try_consume(&mut self) -> Option<Duration> {
-        self.refill();
+        let now = Instant::now();
+        self.refill(now);
 
         if self.tokens_left > 0 {
             self.tokens_left -= 1;
@@ -72,7 +73,7 @@ impl TokenBucket {
 
         Some(
             self.token_interval
-                .saturating_sub(self.last_refill_at.elapsed()),
+                .saturating_sub(self.last_refill_at.saturating_duration_since(now)),
         )
     }
 
