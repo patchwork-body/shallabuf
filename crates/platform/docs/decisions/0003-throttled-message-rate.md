@@ -8,8 +8,9 @@
 >
 > — Jonas Bonér, Dave Farley, Roland Kuhn and Martin Thompson, [*The Reactive Manifesto*](https://www.reactivemanifesto.org/glossary#Back-Pressure), 2014
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Proposed:** 2026-09-28
+- **Accepted:** 2026-10-03
 
 ## Context
 
