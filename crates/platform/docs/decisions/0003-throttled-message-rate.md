@@ -34,8 +34,7 @@ The forces:
 
 1. **Each connection has a token bucket.**
    The bucket holds up to *B* tokens and refills at *R* tokens per second.
-   Every incoming data message (text or binary) costs one token.
-   Control frames (ping, pong, close) are free. The bucket starts full.
+   Every message read costs one token. The bucket starts full.
 
    With *B* = 100 and *R* = 20:
 

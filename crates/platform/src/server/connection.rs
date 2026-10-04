@@ -16,7 +16,7 @@ use tokio_tungstenite::{
 use tokio_util::{bytes::Bytes, sync::CancellationToken};
 use tracing::debug;
 
-use crate::config::ServerConfig;
+use crate::{config::ServerConfig, server::token_bucket::TokenBucket};
 
 /// How a connection ends: the close frame to send, if any, and the result to report.
 type Exit = (Option<CloseFrame>, anyhow::Result<()>);
@@ -79,6 +79,8 @@ pub(super) async fn handle_connection(
     ping_interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
 
     let mut last_msg_received_at = tokio::time::Instant::now();
+    let mut token_bucket =
+        TokenBucket::new(config.max_message_burst(), config.max_messages_per_sec());
 
     let (close_frame, outcome): Exit = loop {
         tokio::select! {
@@ -93,7 +95,10 @@ pub(super) async fn handle_connection(
             () = tokio::time::sleep_until(last_msg_received_at + config.peer_timeout()) => {
                 break (None, Err(anyhow!("peer timed out, no data or pong")))
             }
-            msg = ws.next() => match msg {
+            msg = async {
+                token_bucket.consume().await;
+                ws.next().await
+            } => match msg {
                 Some(Ok(msg)) if msg.is_text() || msg.is_binary() => {
                     last_msg_received_at = tokio::time::Instant::now();
                     let sent = send(&mut ws, msg, config, &shutdown_token).await;
